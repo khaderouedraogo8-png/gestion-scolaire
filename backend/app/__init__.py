@@ -17,6 +17,9 @@ def create_app(config_name: str | None = None) -> Flask:
         template_folder=os.path.join(os.path.dirname(__file__), "templates_pdf"),
     )
     application.config.from_object(config_by_name[config_name])
+
+    if config_name == "production":
+        config_by_name["production"].validate_secrets()
     # Évite les redirections 308 (/api/eleves → /api/eleves/) qui suppriment le header Authorization.
     application.url_map.strict_slashes = False
 

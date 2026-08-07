@@ -82,6 +82,29 @@ class ProductionConfig(Config):
     # Désactive la doc Swagger en production
     OPENAPI_URL_PREFIX = None
 
+    _INSECURE_DEFAULTS = {
+        "JWT_SECRET_KEY": "dev-jwt-secret-change-in-production",
+        "REFRESH_SECRET_KEY": "dev-refresh-secret-change-in-production",
+        "ENCRYPTION_KEY": "dev-encryption-key-32chars-min!!",
+        "QR_HMAC_SECRET": "dev-qr-hmac-secret",
+    }
+
+    @classmethod
+    def validate_secrets(cls) -> None:
+        """Bloque le démarrage si des secrets prod sont absents ou encore aux valeurs dev."""
+        invalid = []
+        for key, default in cls._INSECURE_DEFAULTS.items():
+            env_value = os.getenv(key)
+            if env_value is None or not str(env_value).strip():
+                invalid.append(f"{key} (absente ou vide)")
+            elif env_value == default:
+                invalid.append(f"{key} (valeur de dev par défaut)")
+        if invalid:
+            raise RuntimeError(
+                "Configuration production invalide — définissez des secrets uniques pour : "
+                + ", ".join(invalid)
+            )
+
 
 config_by_name = {
     "development": DevelopmentConfig,

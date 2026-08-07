@@ -17,7 +17,22 @@ class TestAuth:
         data = response.get_json()
         assert "access_token" in data
         assert "doit_changer_mdp" in data
-        assert "refresh_token" in response.headers.get("Set-Cookie", "") or True
+        set_cookie_header = " ".join(response.headers.getlist("Set-Cookie"))
+        assert "refresh_token=" in set_cookie_header
+        assert "HttpOnly" in set_cookie_header
+        assert "SameSite=Strict" in set_cookie_header
+
+    def test_create_app_production_requires_encryption_key(self, monkeypatch):
+        """Le mode production refuse de démarrer sans ENCRYPTION_KEY."""
+        from app import create_app
+
+        monkeypatch.setenv("JWT_SECRET_KEY", "prod-jwt-secret-32chars-minimum!!")
+        monkeypatch.setenv("REFRESH_SECRET_KEY", "prod-refresh-secret-32chars-min!!")
+        monkeypatch.setenv("QR_HMAC_SECRET", "prod-qr-hmac-secret-32chars-min!!")
+        monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
+
+        with pytest.raises(RuntimeError, match="ENCRYPTION_KEY"):
+            create_app("production")
 
     def test_login_invalid(self, client, admin_user):
         response = client.post(
