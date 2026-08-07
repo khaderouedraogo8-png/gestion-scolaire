@@ -17,6 +17,8 @@ node_modules/
 backups/
 frontend/e2e/.auth/
 frontend/test-results/
+frontend/playwright-report/
+backend/InstallationLog.txt
 dist/
 build/
 *.log
