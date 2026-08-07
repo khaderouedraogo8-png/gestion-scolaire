@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Carte Scolaire — {{ eleve.matricule }}</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; margin: 0; padding: 20px; }
+        .carte {
+            width: 85mm; height: 54mm; border: 2px solid #1a365d;
+            border-radius: 8px; padding: 10px; position: relative;
+            background: linear-gradient(135deg, #ebf8ff 0%, #ffffff 100%);
+        }
+        .carte-header { text-align: center; font-size: 10px; font-weight: bold; color: #1a365d; }
+        .carte-body { display: flex; margin-top: 8px; }
+        .photo { width: 25mm; height: 30mm; border: 1px solid #ccc; background: #eee;
+                 display: flex; align-items: center; justify-content: center; font-size: 8px; }
+        .info { flex: 1; padding-left: 8px; font-size: 9px; }
+        .info p { margin: 2px 0; }
+        .matricule { font-weight: bold; font-size: 11px; color: #1a365d; }
+        .qr { position: absolute; bottom: 8px; right: 8px; width: 18mm; height: 18mm; }
+        .qr img { width: 100%; height: 100%; }
+        .annee { font-size: 8px; color: #666; text-align: center; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="carte">
+        <div class="carte-header">{{ etablissement.nom if etablissement else 'Établissement Scolaire' }}</div>
+        <div class="carte-body">
+            <div class="photo">PHOTO</div>
+            <div class="info">
+                <p class="matricule">{{ eleve.matricule }}</p>
+                <p><strong>{{ eleve.nom }}</strong></p>
+                <p>{{ eleve.prenom }}</p>
+                <p>Classe : {{ classe.libelle if classe else '—' }}</p>
+                <p>Né(e) le : {{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else '—' }}</p>
+            </div>
+        </div>
+        <div class="qr"><img src="file://{{ qr_path }}" alt="QR"></div>
+        <div class="annee">Année {{ annee.libelle if annee else '' }} — Émise le {{ date_emission.strftime('%d/%m/%Y') }}</div>
+    </div>
+</body>
+</html>

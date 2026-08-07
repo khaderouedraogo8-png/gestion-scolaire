@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Bulletin — {{ eleve.prenom }} {{ eleve.nom }}</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 18px; }
+        .header h2 { margin: 5px 0; font-size: 14px; color: #555; }
+        .info-eleve { margin-bottom: 20px; }
+        .info-eleve table { width: 100%; }
+        .info-eleve td { padding: 3px 10px; }
+        table.notes { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table.notes th, table.notes td { border: 1px solid #333; padding: 6px 10px; text-align: center; }
+        table.notes th { background: #eee; }
+        .resultats { margin-top: 20px; padding: 15px; background: #f5f5f5; }
+        .resultats p { margin: 5px 0; }
+        .footer { margin-top: 40px; text-align: right; }
+        .mention { font-size: 16px; font-weight: bold; color: #006600; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ etablissement.nom if etablissement else 'Établissement Scolaire' }}</h1>
+        <h2>BULLETIN DE NOTES — Trimestre {{ trimestre.numero if trimestre else '' }}</h2>
+        <p>Année scolaire {{ annee.libelle if annee else '' }}</p>
+    </div>
+
+    <div class="info-eleve">
+        <table>
+            <tr>
+                <td><strong>Élève :</strong> {{ eleve.prenom }} {{ eleve.nom }}</td>
+                <td><strong>Matricule :</strong> {{ eleve.matricule }}</td>
+            </tr>
+            <tr>
+                <td><strong>Classe :</strong> {{ classe.libelle if classe else '—' }}</td>
+                <td><strong>Date :</strong> {{ date_generation.strftime('%d/%m/%Y') }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="notes">
+        <thead>
+            <tr>
+                <th>Matière</th>
+                <th>Coefficient</th>
+                <th>Moyenne /20</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in moyennes %}
+            <tr>
+                <td>{{ m.libelle }}</td>
+                <td>{{ m.coefficient }}</td>
+                <td>{{ '%.2f'|format(m.moyenne) if m.moyenne is not none else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="resultats">
+        <p><strong>Moyenne générale :</strong> {{ '%.2f'|format(bulletin.moyenne_generale) if bulletin.moyenne_generale else '—' }} /20</p>
+        <p><strong>Rang :</strong> {{ bulletin.rang or '—' }} / {{ bulletin.effectif_classe or '—' }}</p>
+        <p><strong>Moyenne de classe :</strong> {{ '%.2f'|format(bulletin.moyenne_classe) if bulletin.moyenne_classe else '—' }} /20</p>
+        <p class="mention"><strong>Mention :</strong> {{ bulletin.mention or '—' }}</p>
+        {% if bulletin.appreciation_generale %}
+        <p><strong>Appréciation :</strong> {{ bulletin.appreciation_generale }}</p>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        <p>Le Chef d'Établissement</p>
+        <p><em>Visa numérique — Document généré automatiquement</em></p>
+    </div>
+</body>
+</html>

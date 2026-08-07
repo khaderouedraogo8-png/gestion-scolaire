@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: gestion
+      POSTGRES_PASSWORD: gestion_dev
+      POSTGRES_DB: gestion_scolaire
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema_v2_mono_etablissement.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestion -d gestion_scolaire"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql+psycopg2://gestion:gestion_dev@postgres:5432/gestion_scolaire
+      JWT_SECRET_KEY: dev-jwt-secret-change-in-production
+      REFRESH_SECRET_KEY: dev-refresh-secret-change-in-production
+      ENCRYPTION_KEY: dev-encryption-key-32chars-min!!
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh /app/docker-entrypoint.sh
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_PROXY_TARGET: http://backend:5000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_data:
+  uploads_data:

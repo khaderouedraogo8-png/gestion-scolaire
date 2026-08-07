@@ -1,0 +1,18 @@
+# Override TLS — à combiner avec docker-compose.prod.yml
+# Usage : docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml -f docker-compose.prod.tls.yml up -d
+#
+# Prérequis : certificat Let's Encrypt (scripts/setup-ssl.sh) et DOMAIN= dans deploy/.env.prod
+
+services:
+  nginx:
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN requis dans .env.prod}
+    volumes:
+      - ./deploy/nginx.tls.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    command: >
+      /bin/sh -c "rm -f /etc/nginx/conf.d/default.conf &&
+      /docker-entrypoint.sh nginx -g 'daemon off;'"

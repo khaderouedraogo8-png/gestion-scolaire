@@ -1,0 +1,19 @@
+{
+  "name": "Gestion Scolaire",
+  "short_name": "GestionSco",
+  "description": "Progiciel de gestion scolaire pour établissement unique",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

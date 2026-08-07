@@ -1,0 +1,11 @@
+.git
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/node_modules
+frontend/node_modules
+backups
+*.md
+.env
+deploy/.env.prod
+frontend/e2e/.auth

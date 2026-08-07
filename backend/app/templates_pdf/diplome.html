@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Diplôme de fin d'études</title>
+  <style>
+    body { font-family: Georgia, serif; margin: 40px; color: #1a202c; }
+    .border { border: 3px double #2b6cb0; padding: 32px; min-height: 520px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 16px; color: #2b6cb0; margin: 0; }
+    .title { text-align: center; font-size: 22px; font-weight: bold; margin: 32px 0; letter-spacing: 2px; }
+    .body { font-size: 14px; line-height: 1.9; text-align: center; }
+    .name { font-size: 20px; font-weight: bold; margin: 24px 0; }
+    .footer { margin-top: 48px; display: flex; justify-content: space-between; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="border">
+    <div class="header">
+      <h1>{{ etablissement.nom if etablissement else 'Établissement scolaire' }}</h1>
+      <p>{{ etablissement.ville if etablissement else '' }}</p>
+    </div>
+    <div class="title">DIPLÔME DE FIN D'ÉTUDES</div>
+    <div class="body">
+      <p>Le Directeur de l'établissement certifie que</p>
+      <p class="name">{{ eleve.prenom }} {{ eleve.nom }}</p>
+      <p>Matricule : <strong>{{ eleve.matricule }}</strong></p>
+      <p>a satisfait aux épreuves de fin d'études du niveau<br>
+      <strong>{{ niveau.libelle if niveau else (classe.libelle if classe else '—') }}</strong></p>
+      <p>pour l'année scolaire <strong>{{ annee.libelle if annee else '—' }}</strong>.</p>
+      {% if mention %}
+      <p>Mention : <strong>{{ mention }}</strong></p>
+      {% endif %}
+    </div>
+    <div class="footer">
+      <span>Fait à {{ etablissement.ville if etablissement and etablissement.ville else '…' }}, le {{ date_emission.strftime('%d/%m/%Y') }}</span>
+      <span>Le Directeur<br><br>_________________</span>
+    </div>
+  </div>
+</body>
+</html>

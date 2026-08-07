@@ -1,0 +1,167 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: gestion
+          POSTGRES_PASSWORD: gestion_test
+          POSTGRES_DB: gestion_scolaire_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install ruff bandit
+
+      - name: Lint backend
+        working-directory: backend
+        run: ruff check app tests
+
+      - name: Security scan
+        working-directory: backend
+        run: bandit -r app -ll
+
+      - name: Init test database
+        run: PGPASSWORD=gestion_test psql -h localhost -U gestion -d gestion_scolaire_test -f database/schema_v2_mono_etablissement.sql
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg2://gestion:gestion_test@localhost:5432/gestion_scolaire_test
+          JWT_SECRET_KEY: test-jwt-secret
+          REFRESH_SECRET_KEY: test-refresh-secret
+          ENCRYPTION_KEY: test-encryption-key-32chars-min!!
+          FLASK_ENV: testing
+        run: pytest -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test -- --run
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start stack
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5000/api/health && exit 0
+            sleep 3
+          done
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium
+
+      - name: Reset admin for E2E
+        run: |
+          docker exec gestion-scolaire-backend-1 python -c "
+          from app import create_app
+          from app.extensions import get_db
+          from app.models import Utilisateur
+          from app.auth.jwt_handler import hash_password
+          app = create_app()
+          with app.app_context():
+              db = get_db()
+              u = db.query(Utilisateur).filter_by(email='admin@ecole.local').first()
+              if u:
+                  u.mot_de_passe_hash = hash_password('Admin123!')
+                  u.doit_changer_mdp = False
+                  u.tentatives_echouees = 0
+                  db.commit()
+          "
+
+      - name: Run Playwright E2E
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
+
+  prod-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare prod env for build
+        run: |
+          python3 scripts/init-env-prod.py --http-port 8080 --force
+
+      - name: Build production images
+        run: docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml build
+
+      - name: Smoke test prod stack
+        run: |
+          docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml up -d
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:8080/api/health && exit 0
+            sleep 3
+          done
+          docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml logs backend
+          exit 1
+
+      - name: Stop prod stack
+        if: always()
+        run: docker compose --env-file deploy/.env.prod -f docker-compose.prod.yml down -v
