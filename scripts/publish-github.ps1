@@ -17,10 +17,24 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-$auth = gh auth status 2>&1
-if ($LASTEXITCODE -ne 0) {
+function Test-GhAuth {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    gh auth status 2>$null | Out-Null
+    $ok = ($LASTEXITCODE -eq 0)
+    $ErrorActionPreference = $prev
+    return $ok
+}
+
+if (-not (Test-GhAuth)) {
     Write-Host "Connexion GitHub requise..." -ForegroundColor Yellow
+    Write-Host '  Un navigateur va souvrir - suivez les instructions.' -ForegroundColor Gray
     gh auth login -h github.com -p https -w
+    if (-not (Test-GhAuth)) {
+        Write-Host "Connexion GitHub echouee ou annulee." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Connecte a GitHub." -ForegroundColor Green
 }
 
 if (-not (Test-Path ".git")) {
@@ -46,12 +60,12 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  $url" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Inviter un testeur :" -ForegroundColor Yellow
-    Write-Host "  gh repo edit --visibility private --add-collaborator EMAIL" -ForegroundColor Gray
-    Write-Host "  (ou GitHub > Settings > Collaborators)" -ForegroundColor Gray
+    Write-Host "  gh repo edit --add-collaborator EMAIL" -ForegroundColor Gray
+    Write-Host '  (ou GitHub - Settings - Collaborators)' -ForegroundColor Gray
     Write-Host ""
     Write-Host "  Guide testeur : docs/INSTALL-TESTEUR.md" -ForegroundColor Yellow
     Write-Host "========================================" -ForegroundColor Green
 } else {
-    Write-Host "Echec creation depot. Verifiez gh auth status." -ForegroundColor Red
+    Write-Host "Echec creation depot. Verifiez : gh auth status" -ForegroundColor Red
     exit 1
 }
