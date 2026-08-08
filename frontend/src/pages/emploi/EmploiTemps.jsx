@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { emploiApi } from '../../services/api/emploi';
 import { configApi } from '../../services/api/config';
 import Modal from '../../components/Modal';
@@ -121,7 +121,7 @@ export default function EmploiTemps() {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
       </div>
     );
   }
@@ -130,8 +130,8 @@ export default function EmploiTemps() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Emploi du temps</h1>
-          <p className="text-sm text-slate-500">Créneaux par classe, matière et enseignant</p>
+          <h1 className="page-title">Emploi du temps</h1>
+          <p className="page-subtitle">Créneaux par classe, matière et enseignant</p>
         </div>
         <div className="flex gap-2">
           <select
@@ -155,13 +155,13 @@ export default function EmploiTemps() {
       </div>
 
       {creneaux.length === 0 ? (
-        <div className="card text-center text-sm text-slate-500">
+        <div className="card text-center page-subtitle">
           Aucun créneau — créez des affectations puis des créneaux
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="overflow-hidden rounded-card border border-bordure bg-white">
+          <table className="min-w-full divide-y divide-bordure">
+            <thead className="bg-craie">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Jour</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Horaire</th>
@@ -172,7 +172,7 @@ export default function EmploiTemps() {
                 {isAdmin && <th className="px-4 py-3" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-bordure/50">
               {creneaux.map((c) => (
                 <tr key={c.id}>
                   <td className="px-4 py-3 text-sm">{c.jour_libelle}</td>
@@ -185,10 +185,10 @@ export default function EmploiTemps() {
                   <td className="px-4 py-3 text-sm">{c.salle_libelle || '—'}</td>
                   {isAdmin && (
                     <td className="px-4 py-3 text-right text-sm space-x-2">
-                      <button type="button" onClick={() => openEdit(c)} className="text-primary-600 hover:underline">
+                      <button type="button" onClick={() => openEdit(c)} className="text-or-cachet hover:underline">
                         Modifier
                       </button>
-                      <button type="button" onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline">
+                      <button type="button" onClick={() => handleDelete(c.id)} className="text-brique hover:underline">
                         Suppr.
                       </button>
                     </td>

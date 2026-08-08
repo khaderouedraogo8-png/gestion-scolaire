@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import FormField from '../../components/FormField';
@@ -47,18 +47,18 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <div className="flex min-h-screen items-center justify-center bg-craie p-6">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">Changement de mot de passe</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <h1 className="page-title">Changement de mot de passe</h1>
+          <p className="mt-2 text-sm text-texte-secondaire">
             Pour des raisons de sécurité, vous devez définir un nouveau mot de passe
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-5">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="rounded-lg bg-brique-clair px-4 py-3 text-sm text-brique">{error}</div>
           )}
 
           <FormField

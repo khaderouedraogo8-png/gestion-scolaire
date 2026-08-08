@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Émargement composition</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 8px 10px; text-align: center; }
+        th { background: #eee; }
+        td.name { text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ etablissement.nom if etablissement else 'Établissement Scolaire' }}</h1>
+        <h2>Liste d'émargement — {{ evaluation.libelle or 'Composition' }}</h2>
+        <p>{{ matiere.libelle if matiere else '' }} — {{ classe.libelle if classe else '' }} — {{ evaluation.date_evaluation.strftime('%d/%m/%Y') }}</p>
+    </div>
+    <table>
+        <thead><tr><th>Élève</th><th>Présent</th><th>Absent</th><th>Signature</th></tr></thead>
+        <tbody>
+            {% for e in eleves %}
+            <tr>
+                <td class="name">{{ e.prenom }} {{ e.nom }} ({{ e.matricule }})</td>
+                <td></td><td></td><td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 30px; text-align: right; font-size: 10px;">Généré le {{ date_generation.strftime('%d/%m/%Y') }}</p>
+</body>
+</html>

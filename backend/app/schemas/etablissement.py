@@ -37,6 +37,7 @@ class NiveauEtudeSchema(Schema):
     id = fields.UUID(dump_only=True)
     libelle = fields.String(required=True)
     ordre = fields.Integer(allow_none=True)
+    cycle = fields.String(load_default="premier", validate=validate.OneOf(["premier", "second"]))
 
 
 class ClasseSchema(Schema):

@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Search } from 'lucide-react';
 
 export default function Table({
   columns,
   data = [],
   loading = false,
-  emptyMessage = 'Aucune donnée disponible',
+  emptyMessage = "Aucune donnée pour l'instant",
   searchable = false,
   searchPlaceholder = 'Rechercher...',
   onSearch,
@@ -27,19 +28,10 @@ export default function Table({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {searchable && (
             <div className="relative max-w-sm flex-1">
-              <svg
-                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+              <Search
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texte-secondaire"
+                strokeWidth={1.75}
+              />
               <input
                 type="search"
                 value={localSearch}
@@ -53,15 +45,17 @@ export default function Table({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-bordure">
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600"
+                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-table-header text-texte-secondaire ${
+                      col.align === 'right' ? 'text-right' : ''
+                    }`}
                     style={{ width: col.width }}
                   >
                     {col.header}
@@ -69,19 +63,19 @@ export default function Table({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-slate-500">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-200 border-t-primary-600" />
+                    <div className="inline-flex items-center gap-2 text-sm text-texte-secondaire">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-or-cachet-clair border-t-or-cachet" />
                       Chargement...
                     </div>
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-texte-secondaire">
                     {emptyMessage}
                   </td>
                 </tr>
@@ -90,10 +84,17 @@ export default function Table({
                   <tr
                     key={row[keyField]}
                     onClick={() => onRowClick?.(row)}
-                    className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                    className={`border-b border-bordure/50 last:border-b-0 transition-colors ${
+                      onRowClick ? 'cursor-pointer hover:bg-craie/60' : ''
+                    }`}
                   >
                     {columns.map((col) => (
-                      <td key={col.key} className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
+                      <td
+                        key={col.key}
+                        className={`whitespace-nowrap px-4 py-3 text-sm text-encre ${
+                          col.align === 'right' ? 'text-right tabular-nums' : ''
+                        }`}
+                      >
                         {col.render ? col.render(row) : row[col.key]}
                       </td>
                     ))}
@@ -105,8 +106,8 @@ export default function Table({
         </div>
 
         {pagination && (
-          <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row">
-            <p className="text-sm text-slate-600">
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-bordure px-4 py-3 sm:flex-row">
+            <p className="text-sm text-texte-secondaire">
               {pagination.total > 0
                 ? `${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(
                     pagination.page * pagination.perPage,
@@ -123,7 +124,7 @@ export default function Table({
               >
                 Précédent
               </button>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-texte-secondaire">
                 Page {pagination.page} / {pagination.totalPages || 1}
               </span>
               <button

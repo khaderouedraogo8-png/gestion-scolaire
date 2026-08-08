@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
 import { elevesApi } from '../../services/api/eleves';
@@ -53,8 +53,8 @@ export default function Encaissement() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Encaissement</h1>
-        <p className="text-sm text-slate-500">Génère un reçu numéroté automatiquement</p>
+        <h1 className="page-title">Encaissement</h1>
+        <p className="page-subtitle">Génère un reçu numéroté automatiquement</p>
       </div>
       <form onSubmit={handleSubmit} className="card space-y-4">
         <FormField

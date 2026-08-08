@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { absencesApi } from '../../services/api/absences';
 import { elevesApi } from '../../services/api/eleves';
 import Table from '../../components/Table';
@@ -127,7 +127,7 @@ export default function Discipline() {
           <p className="font-medium">
             {r.eleve?.prenom || r.prenom} {r.eleve?.nom || r.nom}
           </p>
-          <p className="text-xs text-slate-500">{r.eleve?.matricule || r.matricule || '—'}</p>
+          <p className="text-xs text-texte-secondaire">{r.eleve?.matricule || r.matricule || '—'}</p>
         </div>
       ),
     },
@@ -152,8 +152,8 @@ export default function Discipline() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Discipline</h1>
-          <p className="text-sm text-slate-500">Incidents disciplinaires et sanctions</p>
+          <h1 className="page-title">Discipline</h1>
+          <p className="page-subtitle">Incidents disciplinaires et sanctions</p>
         </div>
         {canWrite && (
           <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
@@ -198,7 +198,7 @@ export default function Discipline() {
               placeholder="Nom, prénom ou matricule..."
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button
@@ -208,10 +208,10 @@ export default function Discipline() {
                         setEleveSearch(`${el.prenom} ${el.nom}`);
                         setEleves([]);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-craie"
                     >
                       <span className="font-medium">{el.prenom} {el.nom}</span>
-                      <span className="ml-2 text-slate-500">{el.matricule}</span>
+                      <span className="ml-2 text-texte-secondaire">{el.matricule}</span>
                     </button>
                   </li>
                 ))}

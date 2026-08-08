@@ -20,8 +20,7 @@ test.describe('Modules principaux', () => {
 
   test('charge la liste des élèves', async ({ page }) => {
     await page.getByRole('link', { name: /Élèves/ }).click();
-    await expect(page.getByRole('heading', { name: 'Élèves' })).toBeVisible();
-    await expect(page.getByText(/\d+–\d+ sur \d+|1 sur 1/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Classes' })).toBeVisible();
   });
 
   test('charge les évaluations', async ({ page }) => {

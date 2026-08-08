@@ -8,7 +8,7 @@ from flask_smorest import Blueprint
 
 from app.auth.permissions import require_role
 from app.extensions import get_db
-from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, Trimestre
+from app.models import AnneeScolaire, Classe, Etablissement, EvenementCalendrier, NiveauEtude, Trimestre
 from app.schemas.etablissement import (
     AnneeScolaireSchema,
     ClasseSchema,
@@ -16,6 +16,7 @@ from app.schemas.etablissement import (
     NiveauEtudeSchema,
     TrimestreSchema,
 )
+from app.schemas.pedagogie import EvenementCalendrierSchema
 
 blp = Blueprint("etablissement", __name__, url_prefix="/etablissement", description="Configuration établissement")
 
@@ -181,15 +182,42 @@ class NiveauxResource(MethodView):
 class ClassesResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
-    @blp.response(200, ClasseSchema(many=True))
     def get(self):
         from flask import request
+
+        from app.auth.jwt_handler import get_current_user
+        from app.auth.permissions import get_teacher_class_ids
+        from app.services.classes_navigation import get_classes_navigation
+
         db = get_db()
-        q = db.query(Classe)
+        user = get_current_user()
         id_annee = request.args.get("id_annee")
+        cycle = request.args.get("cycle")
+        enriched = request.args.get("enriched", "").lower() in ("1", "true", "yes")
+
+        annee_uuid = uuid.UUID(id_annee) if id_annee else None
+        class_ids = None
+        if user.role == "enseignant":
+            class_ids = get_teacher_class_ids(user)
+
+        if enriched or cycle:
+            return jsonify(
+                get_classes_navigation(
+                    db,
+                    cycle=cycle,
+                    id_annee=annee_uuid,
+                    class_ids=class_ids,
+                )
+            )
+
+        q = db.query(Classe)
         if id_annee:
             q = q.filter(Classe.id_annee == uuid.UUID(id_annee))
-        return q.all()
+        if class_ids is not None:
+            if not class_ids:
+                return jsonify([])
+            q = q.filter(Classe.id.in_(class_ids))
+        return jsonify([ClasseSchema().dump(c) for c in q.all()])
 
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
@@ -218,3 +246,62 @@ class ClasseDetail(MethodView):
             setattr(classe, key, value)
         db.commit()
         return classe
+
+
+@blp.route("/calendrier")
+class CalendrierResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
+    def get(self):
+        db = get_db()
+        id_annee = request.args.get("id_annee")
+        if not id_annee:
+            return jsonify({"message": "id_annee requis"}), 400
+        rows = (
+            db.query(EvenementCalendrier)
+            .filter(EvenementCalendrier.id_annee == uuid.UUID(id_annee))
+            .order_by(EvenementCalendrier.date_debut)
+            .all()
+        )
+        return jsonify([EvenementCalendrierSchema().dump(r) for r in rows])
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(EvenementCalendrierSchema)
+    def post(self, data):
+        db = get_db()
+        if data["date_fin"] < data["date_debut"]:
+            return jsonify({"message": "La date de fin doit être après la date de début"}), 400
+        event = EvenementCalendrier(id=uuid.uuid4(), **data)
+        db.add(event)
+        db.commit()
+        return EvenementCalendrierSchema().dump(event), 201
+
+
+@blp.route("/calendrier/<uuid:id_evenement>")
+class CalendrierDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(EvenementCalendrierSchema)
+    def put(self, data, id_evenement):
+        db = get_db()
+        event = db.query(EvenementCalendrier).filter(EvenementCalendrier.id == id_evenement).first()
+        if not event:
+            return jsonify({"message": "Événement introuvable"}), 404
+        if data["date_fin"] < data["date_debut"]:
+            return jsonify({"message": "La date de fin doit être après la date de début"}), 400
+        for key, value in data.items():
+            setattr(event, key, value)
+        db.commit()
+        return EvenementCalendrierSchema().dump(event)
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    def delete(self, id_evenement):
+        db = get_db()
+        event = db.query(EvenementCalendrier).filter(EvenementCalendrier.id == id_evenement).first()
+        if not event:
+            return jsonify({"message": "Événement introuvable"}), 404
+        db.delete(event)
+        db.commit()
+        return jsonify({"message": "Événement supprimé"})

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
 import Modal from '../../components/Modal';
@@ -82,7 +82,7 @@ export default function Annees() {
           <button
             type="button"
             onClick={() => handleActivate(r)}
-            className="text-sm font-medium text-primary-600 hover:text-primary-800"
+            className="text-sm font-medium text-or-cachet hover:text-or-cachet/80"
           >
             Activer
           </button>
@@ -94,8 +94,8 @@ export default function Annees() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Années scolaires</h1>
-          <p className="text-sm text-slate-500">Gestion des périodes scolaires</p>
+          <h1 className="page-title">Années scolaires</h1>
+          <p className="page-subtitle">Gestion des périodes scolaires</p>
         </div>
         <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
           + Nouvelle année

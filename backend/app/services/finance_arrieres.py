@@ -5,10 +5,16 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 
-def list_arrieres(db: Session, id_annee: uuid.UUID) -> list[dict]:
+def list_arrieres(db: Session, id_annee: uuid.UUID, id_classe: uuid.UUID | None = None) -> list[dict]:
     """Retourne les élèves avec un solde impayé pour l'année donnée."""
+    classe_filter = ""
+    params: dict = {"id_annee": id_annee}
+    if id_classe:
+        classe_filter = "AND i.id_classe = :id_classe"
+        params["id_classe"] = id_classe
+
     rows = db.execute(
-        text("""
+        text(f"""
             SELECT
                 i.id_eleve,
                 e.matricule,
@@ -28,9 +34,10 @@ def list_arrieres(db: Session, id_annee: uuid.UUID) -> list[dict]:
             JOIN frais_scolaire fs ON fs.id_niveau = c.id_niveau AND fs.id_annee = i.id_annee
             JOIN echeance_paiement ec ON ec.id_frais = fs.id
             WHERE i.id_annee = :id_annee AND i.statut IN ('inscrit', 'reinscrit')
+            {classe_filter}
             GROUP BY i.id_eleve, e.matricule, e.nom, e.prenom
         """),
-        {"id_annee": id_annee},
+        params,
     ).fetchall()
 
     arrieres = []

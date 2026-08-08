@@ -13,6 +13,7 @@ from app.models.etablissement import (
     AnneeScolaire,
     Classe,
     Etablissement,
+    EvenementCalendrier,
     NiveauEtude,
     Trimestre,
 )
@@ -24,6 +25,8 @@ from app.models.pedagogie import (
     Evaluation,
     Matiere,
     Note,
+    ProgrammeDevoir,
+    SeanceCours,
 )
 from app.models.utilisateur import (
     ROLES,
@@ -47,6 +50,7 @@ __all__ = [
     "EleveParent",
     "Enseignant",
     "Etablissement",
+    "EvenementCalendrier",
     "Evaluation",
     "FraisScolaire",
     "IncidentDisciplinaire",
@@ -56,6 +60,8 @@ __all__ = [
     "NiveauEtude",
     "Note",
     "Notification",
+    "ProgrammeDevoir",
+    "SeanceCours",
     "Paiement",
     "ParentTuteur",
     "ReinitialisationMdp",

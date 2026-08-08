@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { documentsApi } from '../../services/api/documents';
 import FormField from '../../components/FormField';
 import { useToast } from '../../components/Toast';
@@ -28,8 +28,8 @@ export default function VerifierQR() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Vérifier un QR code</h1>
-        <p className="text-sm text-slate-500">Contrôle d'authenticité des cartes scolaires</p>
+        <h1 className="page-title">Vérifier un QR code</h1>
+        <p className="page-subtitle">Contrôle d'authenticité des cartes scolaires</p>
       </div>
       <form onSubmit={handleVerify} className="card space-y-4">
         <FormField
@@ -47,17 +47,17 @@ export default function VerifierQR() {
         </button>
       </form>
       {result && (
-        <div className={`card ${result.valide ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+        <div className={`card ${result.valide ? 'border-feuille/30 bg-feuille-clair' : 'border-brique/30 bg-brique-clair'}`}>
           {result.valide ? (
             <div className="space-y-2 text-sm">
-              <p className="font-semibold text-emerald-800">Carte authentique</p>
+              <p className="font-semibold text-feuille">Carte authentique</p>
               <p>
                 {result.data?.prenom} {result.data?.nom} — {result.data?.matricule}
               </p>
-              <p className="text-slate-600">Année : {result.data?.annee}</p>
+              <p className="text-texte-secondaire">Année : {result.data?.annee}</p>
             </div>
           ) : (
-            <p className="text-sm text-red-700">{result.message || 'QR code invalide'}</p>
+            <p className="text-sm text-brique">{result.message || 'QR code invalide'}</p>
           )}
         </div>
       )}

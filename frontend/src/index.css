@@ -4,65 +4,83 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900;
+    @apply bg-craie font-sans text-encre;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-medium;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-input px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-or-cachet/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700;
+    @apply btn bg-encre text-craie hover:bg-encre-clair;
   }
 
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply btn border border-bordure bg-transparent text-encre hover:bg-craie;
   }
 
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700;
+    @apply btn border border-brique text-brique hover:bg-brique-clair;
   }
 
   .btn-ghost {
-    @apply btn text-slate-600 hover:bg-slate-100;
+    @apply btn text-texte-secondaire hover:bg-or-cachet-clair hover:text-encre;
   }
 
   .card {
-    @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm;
+    @apply rounded-card border border-bordure bg-blanc p-6;
   }
 
   .input {
-    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-100;
+    @apply w-full rounded-input border border-bordure bg-blanc px-3 py-2 text-sm transition-colors placeholder:text-texte-secondaire/60 focus:border-or-cachet focus:outline-none focus:ring-2 focus:ring-or-cachet/20 disabled:bg-craie;
   }
 
   .label {
-    @apply mb-1 block text-sm font-medium text-slate-700;
+    @apply mb-1 block text-sm font-medium text-encre;
+  }
+
+  .page-title {
+    @apply font-display text-2xl font-medium text-encre;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-texte-secondaire;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-badge px-2 py-0.5 text-xs font-medium;
   }
 
   .badge-success {
-    @apply badge bg-emerald-100 text-emerald-800;
+    @apply badge bg-feuille-clair text-feuille;
   }
 
   .badge-warning {
-    @apply badge bg-amber-100 text-amber-800;
+    @apply badge bg-ambre-clair text-ambre;
   }
 
   .badge-danger {
-    @apply badge bg-red-100 text-red-800;
+    @apply badge bg-brique-clair text-brique;
   }
 
   .badge-info {
-    @apply badge bg-blue-100 text-blue-800;
+    @apply badge bg-or-cachet-clair text-or-cachet;
   }
 
   .badge-neutral {
-    @apply badge bg-slate-100 text-slate-700;
+    @apply badge bg-craie text-texte-secondaire;
   }
 }
 

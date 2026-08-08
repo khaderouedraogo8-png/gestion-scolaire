@@ -9,7 +9,7 @@ from flask_smorest import Blueprint
 from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import get_parent_eleve_ids, require_role
 from app.extensions import get_db
-from app.models import Absence, Eleve, IncidentDisciplinaire
+from app.models import Absence, Eleve, IncidentDisciplinaire, Inscription
 from app.schemas.absences import AbsenceSchema, IncidentDisciplinaireSchema
 from app.services.envoi_notification import creer_notification
 
@@ -47,6 +47,7 @@ class AbsencesResource(MethodView):
         user = get_current_user()
         q = db.query(Absence)
         id_eleve = request.args.get("id_eleve")
+        id_classe = request.args.get("id_classe")
         date_debut = request.args.get("date_debut")
         date_fin = request.args.get("date_fin")
         if user.role == "parent":
@@ -54,6 +55,24 @@ class AbsencesResource(MethodView):
             if not eleve_ids:
                 return jsonify([])
             q = q.filter(Absence.id_eleve.in_(eleve_ids))
+        if id_classe:
+            from app.models import AnneeScolaire
+
+            annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+            if annee:
+                inscr_eleve_ids = [
+                    r[0]
+                    for r in db.query(Inscription.id_eleve)
+                    .filter(
+                        Inscription.id_classe == uuid.UUID(id_classe),
+                        Inscription.id_annee == annee.id,
+                        Inscription.statut.in_(("inscrit", "reinscrit")),
+                    )
+                    .all()
+                ]
+                if not inscr_eleve_ids:
+                    return jsonify([])
+                q = q.filter(Absence.id_eleve.in_(inscr_eleve_ids))
         if id_eleve:
             q = q.filter(Absence.id_eleve == uuid.UUID(id_eleve))
         if date_debut:

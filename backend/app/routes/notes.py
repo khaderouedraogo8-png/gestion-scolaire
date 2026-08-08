@@ -9,7 +9,9 @@ from flask_smorest import Blueprint
 from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import (
     get_enseignant_for_user,
+    get_parent_classe_ids,
     get_parent_eleve_ids,
+    parent_has_classe_access,
     parent_has_eleve_access,
     require_role,
     teacher_has_matiere_classe_access,
@@ -44,6 +46,8 @@ from app.services.generation_bulletin import (
     publier_bulletin,
     valider_bulletin,
 )
+from app.services.envoi_notification import creer_notification
+from app.services.calendrier_scolaire import date_est_bloquee, id_annee_pour_trimestre
 from app.utils.audit_logger import log_audit
 
 blp = Blueprint("notes", __name__, url_prefix="/notes", description="Notes et bulletins")
@@ -57,6 +61,8 @@ def _serialize_evaluation(db, evaluation):
     data["matiere_nom"] = matiere.libelle if matiere else None
     data["classe_nom"] = classe.libelle if classe else None
     data["trimestre_numero"] = trimestre.numero if trimestre else None
+    data["statut_publication"] = evaluation.statut_publication
+    data["statut_saisie"] = evaluation.statut_saisie
     return data
 
 
@@ -202,21 +208,34 @@ class CoefficientDetail(MethodView):
 @blp.route("/evaluations")
 class EvaluationsResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "enseignant")
+    @require_role("administrateur", "directeur", "enseignant", "parent")
     def get(self):
         db = get_db()
         user = get_current_user()
         q = db.query(Evaluation)
         id_classe = request.args.get("id_classe")
         id_trimestre = request.args.get("id_trimestre")
+        type_evaluation = request.args.get("type_evaluation")
         if id_classe:
             q = q.filter(Evaluation.id_classe == uuid.UUID(id_classe))
         if id_trimestre:
             q = q.filter(Evaluation.id_trimestre == uuid.UUID(id_trimestre))
+        if type_evaluation:
+            q = q.filter(Evaluation.type_evaluation == type_evaluation)
         if user.role == "enseignant":
             enseignant = get_enseignant_for_user(user)
             if enseignant:
                 q = q.filter(Evaluation.id_enseignant == enseignant.id)
+        elif user.role == "parent":
+            classe_ids = get_parent_classe_ids(user)
+            if not classe_ids:
+                return jsonify([])
+            q = q.filter(Evaluation.id_classe.in_(classe_ids))
+            q = q.filter(
+                (Evaluation.type_evaluation != "examen")
+                | (Evaluation.statut_publication == "publie")
+            )
+            q = q.filter(Evaluation.statut_saisie == "cloturee")
         evaluations = q.order_by(Evaluation.date_evaluation.desc()).all()
         return jsonify([_serialize_evaluation(db, e) for e in evaluations])
 
@@ -241,7 +260,18 @@ class EvaluationsResource(MethodView):
             except ValueError as e:
                 return jsonify({"message": str(e)}), 400
 
-        evaluation = Evaluation(id=uuid.uuid4(), **data)
+        id_annee = id_annee_pour_trimestre(db, data["id_trimestre"])
+        if id_annee:
+            bloque, libelle = date_est_bloquee(db, id_annee, data["date_evaluation"])
+            if bloque:
+                return jsonify({"message": f"Date bloquée par le calendrier scolaire : {libelle}"}), 400
+
+        evaluation = Evaluation(
+            id=uuid.uuid4(),
+            statut_publication="brouillon" if data["type_evaluation"] == "examen" else "publie",
+            statut_saisie="en_cours",
+            **data,
+        )
         db.add(evaluation)
         db.commit()
         return evaluation, 201
@@ -259,16 +289,25 @@ class EvaluationDetail(MethodView):
         return jsonify(_serialize_evaluation(db, evaluation))
 
 
-@blp.route("/evaluations/<uuid:id_evaluation>/notes")
-class NotesEvaluation(MethodView):
+@blp.route("/evaluations/<uuid:id_evaluation>/publier")
+class PublierEvaluation(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "enseignant")
-    def get(self, id_evaluation):
+    def post(self, id_evaluation):
         db = get_db()
+        user = get_current_user()
         evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
         if not evaluation:
             return jsonify({"message": "Évaluation introuvable"}), 404
-
+        if evaluation.type_evaluation != "examen":
+            return jsonify({"message": "Seules les compositions peuvent être publiées"}), 400
+        if user.role == "enseignant" and not teacher_has_matiere_classe_access(
+            user, evaluation.id_classe, evaluation.id_matiere
+        ):
+            return jsonify({"message": "Accès refusé"}), 403
+        evaluation.statut_publication = "publie"
+        db.commit()
+        log_audit("PUBLICATION_COMPOSITION", user.id, "evaluation", evaluation.id)
         inscriptions = (
             db.query(Inscription)
             .filter(
@@ -277,6 +316,112 @@ class NotesEvaluation(MethodView):
             )
             .all()
         )
+        matiere = db.query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
+        libelle = evaluation.libelle or "Composition"
+        mat_nom = matiere.libelle if matiere else "—"
+        for ins in inscriptions:
+            creer_notification(
+                "sms",
+                "composition_publiee",
+                f"Composition programmée : {libelle} ({mat_nom}) le {evaluation.date_evaluation.strftime('%d/%m/%Y')}.",
+                id_eleve=ins.id_eleve,
+            )
+        return jsonify(_serialize_evaluation(db, evaluation))
+
+
+@blp.route("/evaluations/<uuid:id_evaluation>/cloturer")
+class CloturerEvaluation(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "enseignant")
+    def post(self, id_evaluation):
+        db = get_db()
+        user = get_current_user()
+        evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
+        if not evaluation:
+            return jsonify({"message": "Évaluation introuvable"}), 404
+        if user.role == "enseignant" and not teacher_has_matiere_classe_access(
+            user, evaluation.id_classe, evaluation.id_matiere
+        ):
+            return jsonify({"message": "Accès refusé"}), 403
+        evaluation.statut_saisie = "cloturee"
+        db.commit()
+        log_audit("CLOTURE_EVALUATION", user.id, "evaluation", evaluation.id)
+        inscriptions = (
+            db.query(Inscription)
+            .filter(
+                Inscription.id_classe == evaluation.id_classe,
+                Inscription.statut.in_(("inscrit", "reinscrit")),
+            )
+            .all()
+        )
+        matiere = db.query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
+        libelle = evaluation.libelle or evaluation.type_evaluation
+        mat_nom = matiere.libelle if matiere else "—"
+        for ins in inscriptions:
+            creer_notification(
+                "sms",
+                "notes_publiees",
+                f"Notes publiées pour {libelle} ({mat_nom}). Consultez l'espace parent.",
+                id_eleve=ins.id_eleve,
+            )
+        return jsonify(_serialize_evaluation(db, evaluation))
+
+
+@blp.route("/evaluations/<uuid:id_evaluation>/rouvrir")
+class RouvrirEvaluation(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "enseignant")
+    def post(self, id_evaluation):
+        db = get_db()
+        user = get_current_user()
+        evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
+        if not evaluation:
+            return jsonify({"message": "Évaluation introuvable"}), 404
+        if user.role == "enseignant" and not teacher_has_matiere_classe_access(
+            user, evaluation.id_classe, evaluation.id_matiere
+        ):
+            return jsonify({"message": "Accès refusé"}), 403
+        evaluation.statut_saisie = "en_cours"
+        db.commit()
+        log_audit("REOUVERTURE_EVALUATION", user.id, "evaluation", evaluation.id)
+        return jsonify(_serialize_evaluation(db, evaluation))
+
+
+@blp.route("/evaluations/<uuid:id_evaluation>/notes")
+class NotesEvaluation(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "enseignant", "parent")
+    def get(self, id_evaluation):
+        db = get_db()
+        user = get_current_user()
+        evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
+        if not evaluation:
+            return jsonify({"message": "Évaluation introuvable"}), 404
+
+        if user.role == "parent":
+            if evaluation.statut_saisie != "cloturee":
+                return jsonify({"message": "Notes non publiées"}), 403
+            if evaluation.type_evaluation == "examen" and evaluation.statut_publication != "publie":
+                return jsonify({"message": "Composition non publiée"}), 403
+            eleve_ids = get_parent_eleve_ids(user)
+            inscriptions = (
+                db.query(Inscription)
+                .filter(
+                    Inscription.id_classe == evaluation.id_classe,
+                    Inscription.id_eleve.in_(eleve_ids),
+                    Inscription.statut.in_(("inscrit", "reinscrit")),
+                )
+                .all()
+            )
+        else:
+            inscriptions = (
+                db.query(Inscription)
+                .filter(
+                    Inscription.id_classe == evaluation.id_classe,
+                    Inscription.statut.in_(("inscrit", "reinscrit")),
+                )
+                .all()
+            )
         notes_map = {
             n.id_eleve: n
             for n in db.query(Note).filter(Note.id_evaluation == id_evaluation).all()

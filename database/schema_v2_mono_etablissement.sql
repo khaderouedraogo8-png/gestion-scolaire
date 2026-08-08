@@ -129,7 +129,9 @@ CREATE TABLE eleve_parent (
 CREATE TABLE niveau_etude (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     libelle              VARCHAR(50) NOT NULL UNIQUE,   -- ex: 6ème, Terminale
-    ordre                SMALLINT
+    ordre                SMALLINT,
+    cycle                VARCHAR(20) NOT NULL DEFAULT 'premier'
+        CHECK (cycle IN ('premier', 'second'))
 );
 
 CREATE TABLE classe (

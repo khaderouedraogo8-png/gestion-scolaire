@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { notesApi } from '../../services/api/notes';
 import FormField from '../../components/FormField';
@@ -72,7 +72,7 @@ export default function Matieres() {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
       </div>
     );
   }
@@ -81,8 +81,8 @@ export default function Matieres() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Matières</h1>
-          <p className="text-sm text-slate-500">Référentiel des matières enseignées</p>
+          <h1 className="page-title">Matières</h1>
+          <p className="page-subtitle">Référentiel des matières enseignées</p>
         </div>
         <button type="button" onClick={openCreate} className="btn-primary">
           + Nouvelle matière
@@ -91,7 +91,7 @@ export default function Matieres() {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
             <tr>
               <th className="px-4 py-3">Libellé</th>
               <th className="px-4 py-3">Code</th>
@@ -100,14 +100,14 @@ export default function Matieres() {
           </thead>
           <tbody>
             {matieres.map((m) => (
-              <tr key={m.id} className="border-t border-slate-100">
+              <tr key={m.id} className="border-t border-bordure/50">
                 <td className="px-4 py-3 font-medium">{m.libelle}</td>
                 <td className="px-4 py-3">{m.code || '—'}</td>
                 <td className="px-4 py-3 text-right">
-                  <button type="button" onClick={() => openEdit(m)} className="text-primary-600 hover:underline">
+                  <button type="button" onClick={() => openEdit(m)} className="text-or-cachet hover:underline">
                     Modifier
                   </button>
-                  <button type="button" onClick={() => handleDelete(m.id)} className="ml-3 text-red-600 hover:underline">
+                  <button type="button" onClick={() => handleDelete(m.id)} className="ml-3 text-brique hover:underline">
                     Supprimer
                   </button>
                 </td>

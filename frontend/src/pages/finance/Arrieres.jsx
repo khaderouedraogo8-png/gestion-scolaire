@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
@@ -58,7 +58,7 @@ export default function Arrieres() {
       key: 'arriere',
       header: 'Arriéré',
       render: (r) => (
-        <span className="font-semibold text-red-600">
+        <span className="font-semibold text-brique">
           {Number(r.arriere).toLocaleString()} FCFA
         </span>
       ),
@@ -101,8 +101,8 @@ export default function Arrieres() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Arriérés</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="page-title">Arriérés</h1>
+          <p className="page-subtitle">
             Total impayé : <strong>{total.toLocaleString()} FCFA</strong>
           </p>
         </div>

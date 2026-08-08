@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { auditApi } from '../../services/api/audit';
 import Table from '../../components/Table';
 import { useToast } from '../../components/Toast';
@@ -39,7 +39,7 @@ export default function AuditJournal() {
       header: 'Détails',
       render: (r) =>
         r.details ? (
-          <span className="text-xs text-slate-500">{JSON.stringify(r.details).slice(0, 80)}</span>
+          <span className="text-xs text-texte-secondaire">{JSON.stringify(r.details).slice(0, 80)}</span>
         ) : (
           '—'
         ),
@@ -49,8 +49,8 @@ export default function AuditJournal() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Journal d'audit</h1>
-        <p className="text-sm text-slate-500">Traçabilité des actions sensibles</p>
+        <h1 className="page-title">Journal d'audit</h1>
+        <p className="page-subtitle">Traçabilité des actions sensibles</p>
       </div>
 
       <Table

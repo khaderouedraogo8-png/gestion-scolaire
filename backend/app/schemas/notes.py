@@ -27,6 +27,8 @@ class EvaluationSchema(Schema):
     coefficient = fields.Decimal(load_default=1)
     date_evaluation = fields.Date(required=True)
     libelle = fields.String(allow_none=True)
+    statut_publication = fields.String(dump_only=True)
+    statut_saisie = fields.String(dump_only=True)
 
 
 class EvaluationCreateSchema(Schema):
@@ -40,6 +42,8 @@ class EvaluationCreateSchema(Schema):
     coefficient = fields.Decimal(load_default=1)
     date_evaluation = fields.Date(required=True)
     libelle = fields.String(allow_none=True)
+    statut_publication = fields.String(dump_only=True)
+    statut_saisie = fields.String(dump_only=True)
 
 
 class NoteSchema(Schema):

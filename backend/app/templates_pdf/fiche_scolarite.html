@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Situation de scolarité</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 6px 8px; text-align: right; }
+        th { background: #eee; text-align: center; }
+        td.name { text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ etablissement.nom if etablissement else 'Établissement Scolaire' }}</h1>
+        <h2>Situation de scolarité — {{ classe.libelle if classe else '' }}</h2>
+        <p>{{ annee.libelle if annee else '' }}</p>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Élève</th><th>Matricule</th><th>Total dû</th><th>Payé</th><th>Arriéré</th></tr>
+        </thead>
+        <tbody>
+            {% for e in eleves %}
+            <tr>
+                <td class="name">{{ e.prenom }} {{ e.nom }}</td>
+                <td style="text-align:center">{{ e.matricule }}</td>
+                <td>{{ '{:,.0f}'.format(e.total_du|default(0)).replace(',', ' ') }} FCFA</td>
+                <td>{{ '{:,.0f}'.format(e.montant_paye|default(0)).replace(',', ' ') }} FCFA</td>
+                <td>{{ '{:,.0f}'.format(e.arriere|default(0)).replace(',', ' ') }} FCFA</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">Aucune donnée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 30px; text-align: right; font-size: 10px;">Généré le {{ date_generation.strftime('%d/%m/%Y') }}</p>
+</body>
+</html>

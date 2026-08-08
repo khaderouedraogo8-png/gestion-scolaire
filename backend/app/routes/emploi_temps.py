@@ -1,12 +1,12 @@
 """Module 4 — Routes emploi du temps, enseignants, affectations."""
 import uuid
 
-from flask import jsonify, request
+from flask import jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
 
-from app.auth.permissions import require_role
+from app.auth.permissions import get_enseignant_for_user, require_role
 from app.extensions import get_db
 from app.models import (
     AffectationEnseignant,
@@ -22,6 +22,7 @@ from app.schemas.emploi_temps import (
     EnseignantSchema,
     SalleSchema,
 )
+from app.services.generation_pedagogique import generer_pdf_fiche_enseignant
 
 blp = Blueprint("emploi_temps", __name__, url_prefix="/emploi-temps", description="Emploi du temps")
 
@@ -85,6 +86,41 @@ class EnseignantsResource(MethodView):
 @blp.route("/enseignants/<uuid:id_enseignant>")
 class EnseignantDetail(MethodView):
     @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self, id_enseignant):
+        db = get_db()
+        user = get_current_user()
+        enseignant = db.query(Enseignant).filter(Enseignant.id == id_enseignant).first()
+        if not enseignant:
+            return jsonify({"message": "Enseignant introuvable"}), 404
+        if user.role == "enseignant":
+            linked = get_enseignant_for_user(user)
+            if not linked or linked.id != enseignant.id:
+                return jsonify({"message": "Accès refusé"}), 403
+        id_annee = request.args.get("id_annee")
+        affectations_q = db.query(AffectationEnseignant).filter(
+            AffectationEnseignant.id_enseignant == id_enseignant
+        )
+        if id_annee:
+            affectations_q = affectations_q.filter(
+                AffectationEnseignant.id_annee == uuid.UUID(id_annee)
+            )
+        affectations = [_serialize_affectation(db, a) for a in affectations_q.all()]
+        volume_total = sum(float(a.get("volume_horaire_hebdo") or 0) for a in affectations)
+        aff_ids = [a["id"] for a in affectations]
+        creneaux = []
+        if aff_ids:
+            for c in db.query(CreneauEmploiTemps).filter(
+                CreneauEmploiTemps.id_affectation.in_([uuid.UUID(i) for i in aff_ids])
+            ).all():
+                creneaux.append(_serialize_creneau(db, c))
+        data = EnseignantSchema().dump(enseignant)
+        data["affectations"] = affectations
+        data["creneaux"] = creneaux
+        data["volume_horaire_total"] = volume_total
+        return jsonify(data)
+
+    @jwt_required()
     @require_role("administrateur", "directeur")
     @blp.arguments(EnseignantSchema)
     @blp.response(200, EnseignantSchema)
@@ -97,6 +133,21 @@ class EnseignantDetail(MethodView):
             setattr(enseignant, key, value)
         db.commit()
         return enseignant
+
+
+@blp.route("/enseignants/<uuid:id_enseignant>/pdf")
+class EnseignantPdf(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self, id_enseignant):
+        id_annee = request.args.get("id_annee")
+        if not id_annee:
+            return jsonify({"message": "id_annee requis"}), 400
+        try:
+            path = generer_pdf_fiche_enseignant(id_enseignant, uuid.UUID(id_annee))
+            return send_file(path, mimetype="application/pdf", as_attachment=False, download_name="fiche_enseignant.pdf")
+        except RuntimeError as e:
+            return jsonify({"message": str(e)}), 503
 
 
 @blp.route("/affectations")

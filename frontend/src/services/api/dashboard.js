@@ -5,4 +5,9 @@ export const dashboardApi = {
     const { data } = await apiClient.get('/dashboard/stats', { params });
     return data;
   },
+
+  getAbsencesParClasse: async (params = {}) => {
+    const { data } = await apiClient.get('/dashboard/absences-par-classe', { params });
+    return data;
+  },
 };

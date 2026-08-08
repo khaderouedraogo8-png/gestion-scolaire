@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
 import FormField from '../../components/FormField';
@@ -67,8 +67,8 @@ export default function Coefficients() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Coefficients par niveau</h1>
-          <p className="text-sm text-slate-500">Pondération des matières pour le calcul des moyennes</p>
+          <h1 className="page-title">Coefficients par niveau</h1>
+          <p className="page-subtitle">Pondération des matières pour le calcul des moyennes</p>
         </div>
         <button type="button" onClick={() => setModal(true)} className="btn-primary">
           + Coefficient
@@ -85,11 +85,11 @@ export default function Coefficients() {
       </select>
 
       {loading ? (
-        <p className="text-slate-500">Chargement...</p>
+        <p className="text-texte-secondaire">Chargement...</p>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
               <tr>
                 <th className="px-4 py-3">Matière</th>
                 <th className="px-4 py-3">Niveau</th>
@@ -99,12 +99,12 @@ export default function Coefficients() {
             </thead>
             <tbody>
               {coefficients.map((c) => (
-                <tr key={c.id} className="border-t border-slate-100">
+                <tr key={c.id} className="border-t border-bordure/50">
                   <td className="px-4 py-3">{c.matiere_libelle}</td>
                   <td className="px-4 py-3">{c.niveau_libelle}</td>
                   <td className="px-4 py-3 font-medium">{c.coefficient}</td>
                   <td className="px-4 py-3 text-right">
-                    <button type="button" onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline">
+                    <button type="button" onClick={() => handleDelete(c.id)} className="text-brique hover:underline">
                       Supprimer
                     </button>
                   </td>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
@@ -158,7 +158,7 @@ export default function BulletinList() {
           <p className="font-medium">
             {r.prenom} {r.nom}
           </p>
-          <p className="text-xs text-slate-500">{r.matricule}</p>
+          <p className="text-xs text-texte-secondaire">{r.matricule}</p>
         </div>
       ),
     },
@@ -191,13 +191,13 @@ export default function BulletinList() {
             <button
               type="button"
               onClick={() => openAppreciation(r)}
-              className="text-xs text-slate-600 hover:underline"
+              className="text-xs text-texte-secondaire hover:underline"
             >
               Appréciation
             </button>
           )}
           {r.statut === 'publie' && (
-            <button type="button" onClick={() => handlePdf(r.id)} className="text-xs text-primary-600 hover:underline">
+            <button type="button" onClick={() => handlePdf(r.id)} className="text-xs text-or-cachet hover:underline">
               PDF
             </button>
           )}
@@ -205,7 +205,7 @@ export default function BulletinList() {
             <button
               type="button"
               onClick={() => handleValider(r.id)}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-or-cachet hover:underline"
             >
               Valider
             </button>
@@ -214,7 +214,7 @@ export default function BulletinList() {
             <button
               type="button"
               onClick={() => handlePublier(r.id)}
-              className="text-xs text-emerald-600 hover:underline"
+              className="text-xs text-feuille hover:underline"
             >
               Publier
             </button>
@@ -228,8 +228,8 @@ export default function BulletinList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bulletins</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="page-title">Bulletins</h1>
+          <p className="page-subtitle">
             Workflow : brouillon → validé (directeur) → publié (parents)
           </p>
         </div>
@@ -313,7 +313,7 @@ export default function BulletinList() {
               label: `Trimestre ${t.numero}`,
             }))}
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-texte-secondaire">
             Un bulletin en brouillon sera créé pour chaque élève inscrit dans la classe.
           </p>
         </form>
@@ -341,7 +341,7 @@ export default function BulletinList() {
             onChange={(e) => setAppForm({ ...appForm, appreciation_generale: e.target.value })}
             placeholder="Appréciation du conseil de classe…"
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-texte-secondaire">
             Les incidents disciplinaires du trimestre sont injectés automatiquement à la génération.
           </p>
         </form>

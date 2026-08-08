@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
 import Modal from '../../components/Modal';
@@ -10,7 +10,7 @@ export default function Niveaux() {
   const [niveaux, setNiveaux] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ libelle: '', ordre: '' });
+  const [form, setForm] = useState({ libelle: '', ordre: '', cycle: 'premier' });
 
   const load = () => {
     setLoading(true);
@@ -31,10 +31,11 @@ export default function Niveaux() {
       await configApi.createNiveau({
         libelle: form.libelle,
         ordre: Number(form.ordre),
+        cycle: form.cycle,
       });
       toast.success('Niveau créé');
       setModalOpen(false);
-      setForm({ libelle: '', ordre: '' });
+      setForm({ libelle: '', ordre: '', cycle: 'premier' });
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur');
@@ -44,14 +45,19 @@ export default function Niveaux() {
   const columns = [
     { key: 'ordre', header: 'Ordre' },
     { key: 'libelle', header: 'Niveau' },
+    {
+      key: 'cycle',
+      header: 'Cycle',
+      render: (r) => (r.cycle === 'second' ? 'Second cycle' : 'Premier cycle'),
+    },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Niveaux d'étude</h1>
-          <p className="text-sm text-slate-500">6ème à Terminale</p>
+          <h1 className="page-title">Niveaux d'étude</h1>
+          <p className="page-subtitle">6ème à Terminale</p>
         </div>
         <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
           + Nouveau niveau
@@ -72,6 +78,17 @@ export default function Niveaux() {
             value={form.ordre}
             onChange={(e) => setForm({ ...form, ordre: e.target.value })}
             required
+          />
+          <FormField
+            label="Cycle"
+            name="cycle"
+            type="select"
+            value={form.cycle}
+            onChange={(e) => setForm({ ...form, cycle: e.target.value })}
+            options={[
+              { value: 'premier', label: 'Premier cycle' },
+              { value: 'second', label: 'Second cycle' },
+            ]}
           />
           <button type="submit" className="btn-primary w-full">
             Enregistrer

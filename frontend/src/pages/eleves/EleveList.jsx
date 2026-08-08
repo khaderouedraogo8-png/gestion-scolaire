@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+﻿import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { elevesApi } from '../../services/api/eleves';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
@@ -28,6 +28,8 @@ function StatutBadge({ statut, estBoursier }) {
 
 export default function EleveList() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isGlobalSearch = location.pathname.includes('/recherche');
   const toast = useToast();
   const { isAdmin, isSecretariat } = useAuth();
   const canWrite = isAdmin || isSecretariat;
@@ -105,7 +107,7 @@ export default function EleveList() {
       key: 'matricule',
       header: 'Matricule',
       render: (row) => (
-        <span className="font-mono text-xs font-medium text-primary-700">{row.matricule}</span>
+        <span className="font-mono text-xs font-medium text-or-cachet">{row.matricule}</span>
       ),
     },
     {
@@ -113,10 +115,10 @@ export default function EleveList() {
       header: 'Nom complet',
       render: (row) => (
         <div>
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-encre">
             {row.prenom} {row.nom}
           </p>
-          <p className="text-xs text-slate-500">{row.classe_nom || '—'}</p>
+          <p className="text-xs text-texte-secondaire">{row.classe_nom || '—'}</p>
         </div>
       ),
     },
@@ -137,7 +139,7 @@ export default function EleveList() {
       render: (row) => (
         <Link
           to={`/eleves/${row.id}`}
-          className="text-sm font-medium text-primary-600 hover:text-primary-800"
+          className="text-sm font-medium text-or-cachet hover:text-or-cachet/80"
           onClick={(e) => e.stopPropagation()}
         >
           Voir →
@@ -150,14 +152,25 @@ export default function EleveList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Élèves</h1>
-          <p className="text-sm text-slate-500">Gestion des fiches élèves et inscriptions</p>
+          <h1 className="page-title">{isGlobalSearch ? 'Recherche globale' : 'Élèves'}</h1>
+          <p className="page-subtitle">
+            {isGlobalSearch
+              ? 'Recherche par nom ou matricule — tous cycles confondus'
+              : 'Gestion des fiches élèves et inscriptions'}
+          </p>
         </div>
+        <div className="flex gap-2">
+          {isGlobalSearch && (
+            <Link to="/classes" className="btn-secondary">
+              ← Par classe
+            </Link>
+          )}
         {canWrite && (
           <Link to="/eleves/nouveau" className="btn-primary">
             + Nouvel élève
           </Link>
         )}
+        </div>
       </div>
 
       <Table

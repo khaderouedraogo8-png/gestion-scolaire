@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { emploiApi } from '../../services/api/emploi';
 import { usersApi } from '../../services/api/users';
 import Table from '../../components/Table';
@@ -8,6 +9,7 @@ import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
 export default function Enseignants() {
+  const navigate = useNavigate();
   const toast = useToast();
   const { isAdmin } = useAuth();
   const [enseignants, setEnseignants] = useState([]);
@@ -23,21 +25,50 @@ export default function Enseignants() {
     type_contrat: 'permanent',
     id_utilisateur: '',
   });
-
-  const load = () => {
-    setLoading(true);
-    Promise.all([emploiApi.listEnseignants(), isAdmin ? usersApi.list() : Promise.resolve([])])
-      .then(([ens, usr]) => {
-        setEnseignants(Array.isArray(ens) ? ens : ens.items || []);
-        setUsers(Array.isArray(usr) ? usr.filter((u) => u.role === 'enseignant') : []);
-      })
-      .catch(() => toast.error('Erreur chargement enseignants'))
-      .finally(() => setLoading(false));
-  };
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [ens, usr] = await Promise.all([
+          emploiApi.listEnseignants(),
+          isAdmin ? usersApi.list() : Promise.resolve([]),
+        ]);
+        if (cancelled) return;
+        setEnseignants(Array.isArray(ens) ? ens : ens.items || []);
+        setUsers(Array.isArray(usr) ? usr.filter((u) => u.role === 'enseignant') : []);
+      } catch {
+        if (!cancelled) toastRef.current.error('Impossible de charger les enseignants. Réessayer.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     load();
-  }, [toast, isAdmin]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const [ens, usr] = await Promise.all([
+        emploiApi.listEnseignants(),
+        isAdmin ? usersApi.list() : Promise.resolve([]),
+      ]);
+      setEnseignants(Array.isArray(ens) ? ens : ens.items || []);
+      setUsers(Array.isArray(usr) ? usr.filter((u) => u.role === 'enseignant') : []);
+    } catch {
+      toast.error('Impossible de charger les enseignants. Réessayer.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openCreate = () => {
     setEditId(null);
@@ -80,9 +111,9 @@ export default function Enseignants() {
         toast.success('Enseignant ajouté');
       }
       setModalOpen(false);
-      load();
+      reload();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement.");
     }
   };
 
@@ -102,7 +133,7 @@ export default function Enseignants() {
             key: 'actions',
             header: '',
             render: (r) => (
-              <button type="button" onClick={() => openEdit(r)} className="text-primary-600 hover:underline text-xs">
+              <button type="button" onClick={() => openEdit(r)} className="text-xs text-or-cachet hover:underline">
                 Modifier
               </button>
             ),
@@ -115,8 +146,8 @@ export default function Enseignants() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Enseignants</h1>
-          <p className="text-sm text-slate-500">Personnel enseignant et lien compte utilisateur</p>
+          <h1 className="page-title">Enseignants</h1>
+          <p className="page-subtitle">Personnel enseignant et lien compte utilisateur</p>
         </div>
         {isAdmin && (
           <button type="button" className="btn-primary" onClick={openCreate}>
@@ -124,7 +155,13 @@ export default function Enseignants() {
           </button>
         )}
       </div>
-      <Table columns={columns} data={enseignants} loading={loading} emptyMessage="Aucun enseignant" />
+      <Table
+        columns={columns}
+        data={enseignants}
+        loading={loading}
+        emptyMessage="Aucun enseignant pour l'instant — ajoutez le premier via le bouton ci-dessus."
+        onRowClick={(row) => navigate(`/emploi/enseignants/${row.id}`)}
+      />
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -133,24 +170,28 @@ export default function Enseignants() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <FormField
             label="Prénom"
+            name="prenom"
             value={form.prenom}
             onChange={(e) => setForm({ ...form, prenom: e.target.value })}
             required
           />
           <FormField
             label="Nom"
+            name="nom"
             value={form.nom}
             onChange={(e) => setForm({ ...form, nom: e.target.value })}
             required
           />
           <FormField
             label="Email"
+            name="email"
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <FormField
             label="Spécialité"
+            name="specialite"
             value={form.specialite}
             onChange={(e) => setForm({ ...form, specialite: e.target.value })}
           />

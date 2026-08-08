@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import Table from '../../components/Table';
 import Modal from '../../components/Modal';
@@ -91,7 +91,7 @@ export default function Recus() {
             <button
               type="button"
               onClick={() => handlePdf(r.id)}
-              className="text-xs text-primary-600 hover:underline"
+              className="text-xs text-or-cachet hover:underline"
             >
               PDF
             </button>
@@ -100,7 +100,7 @@ export default function Recus() {
             <button
               type="button"
               onClick={() => setAnnulModal(r)}
-              className="text-xs text-red-600 hover:underline"
+              className="text-xs text-brique hover:underline"
             >
               Annuler
             </button>
@@ -113,8 +113,8 @@ export default function Recus() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Reçus de paiement</h1>
-        <p className="text-sm text-slate-500">Aucune suppression — annulation tracée uniquement</p>
+        <h1 className="page-title">Reçus de paiement</h1>
+        <p className="page-subtitle">Aucune suppression — annulation tracée uniquement</p>
       </div>
       <Table columns={columns} data={paiements} loading={loading} emptyMessage="Aucun paiement" />
 

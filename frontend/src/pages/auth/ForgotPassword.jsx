@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usersApi } from '../../services/api/users';
 import FormField from '../../components/FormField';
@@ -43,11 +43,11 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-screen items-center justify-center bg-craie p-6">
       <div className="card w-full max-w-md space-y-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Mot de passe oublié</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="font-display text-xl font-medium text-encre">Mot de passe oublié</h1>
+          <p className="page-subtitle">
             {step === 'email' ? 'Entrez votre email pour recevoir un lien' : 'Définissez votre nouveau mot de passe'}
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function ForgotPassword() {
           </form>
         )}
 
-        <Link to="/login" className="block text-center text-sm text-primary-600 hover:underline">
+        <Link to="/login" className="block text-center text-sm text-or-cachet hover:underline">
           Retour à la connexion
         </Link>
       </div>

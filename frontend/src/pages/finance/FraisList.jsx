@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
@@ -102,7 +102,7 @@ export default function FraisList() {
       render: (r) => (
         <div className="space-y-1">
           {(r.echeances || []).map((ec) => (
-            <p key={ec.id} className="text-xs text-slate-600">
+            <p key={ec.id} className="text-xs text-texte-secondaire">
               {ec.libelle || 'Tranche'} — {Number(ec.montant).toLocaleString()} F (
               {ec.date_echeance})
             </p>
@@ -110,7 +110,7 @@ export default function FraisList() {
           <button
             type="button"
             onClick={() => setEcheanceModal(r)}
-            className="text-xs text-primary-600 hover:underline"
+            className="text-xs text-or-cachet hover:underline"
           >
             + Ajouter échéance
           </button>
@@ -123,8 +123,8 @@ export default function FraisList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Frais scolaires</h1>
-          <p className="text-sm text-slate-500">Paramétrage par niveau et année scolaire</p>
+          <h1 className="page-title">Frais scolaires</h1>
+          <p className="page-subtitle">Paramétrage par niveau et année scolaire</p>
         </div>
         <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
           + Nouveau frais

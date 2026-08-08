@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -7,12 +8,23 @@ export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const closeMobile = () => setMobileMenuOpen(false);
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-craie">
+      {mobileMenuOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-40 bg-encre/50 lg:hidden"
+            onClick={closeMobile}
+            aria-hidden="true"
+          />,
+          document.body
+        )}
       <Sidebar
         collapsed={sidebarCollapsed}
         mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
+        onCloseMobile={closeMobile}
       />
       <div className="flex flex-1 flex-col lg:min-w-0">
         <Header

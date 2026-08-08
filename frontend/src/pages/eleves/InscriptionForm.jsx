@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { elevesApi } from '../../services/api/eleves';
 import { configApi } from '../../services/api/config';
@@ -93,7 +93,7 @@ export default function InscriptionForm() {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
       </div>
     );
   }
@@ -101,11 +101,11 @@ export default function InscriptionForm() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <Link to={`/eleves/${id}`} className="text-sm text-primary-600 hover:underline">
+        <Link to={`/eleves/${id}`} className="text-sm text-or-cachet hover:underline">
           ← Retour à la fiche
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Réinscription</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="mt-2 page-title">Réinscription</h1>
+        <p className="page-subtitle">
           {eleve?.prenom} {eleve?.nom} — {eleve?.matricule}
         </p>
       </div>
@@ -162,7 +162,7 @@ export default function InscriptionForm() {
           onChange={handleChange}
         />
 
-        <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+        <div className="flex justify-end gap-3 border-t border-bordure pt-5">
           <Link to={`/eleves/${id}`} className="btn-secondary">
             Annuler
           </Link>

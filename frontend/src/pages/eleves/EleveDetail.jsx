@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { elevesApi } from '../../services/api/eleves';
 import { useToast } from '../../components/Toast';
@@ -6,9 +6,9 @@ import useAuth from '../../hooks/useAuth';
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:justify-between">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="text-sm font-medium text-slate-900">{value || '—'}</span>
+    <div className="flex flex-col gap-1 border-b border-bordure/50 py-3 sm:flex-row sm:justify-between">
+      <span className="page-subtitle">{label}</span>
+      <span className="text-sm font-medium text-encre">{value || '—'}</span>
     </div>
   );
 }
@@ -115,7 +115,7 @@ export default function EleveDetail() {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
       </div>
     );
   }
@@ -123,7 +123,7 @@ export default function EleveDetail() {
   if (!eleve) {
     return (
       <div className="card text-center">
-        <p className="text-slate-600">Élève introuvable</p>
+        <p className="text-texte-secondaire">Élève introuvable</p>
         <Link to="/eleves" className="btn-primary mt-4 inline-flex">
           Retour à la liste
         </Link>
@@ -148,7 +148,7 @@ export default function EleveDetail() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-100 text-3xl overflow-hidden">
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-or-cachet-clair text-3xl overflow-hidden">
             {photoPreview ? (
               <img src={photoPreview} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -175,11 +175,11 @@ export default function EleveDetail() {
             )}
           </div>
           <div>
-            <p className="font-mono text-sm text-primary-600">{eleve.matricule}</p>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <p className="font-mono text-sm text-or-cachet">{eleve.matricule}</p>
+            <h1 className="page-title">
               {eleve.prenom} {eleve.nom}
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="page-subtitle">
               {eleve.classe_nom || 'Classe non assignée'}
               {eleve.est_boursier && <span className="ml-2 badge-info">Boursier</span>}
             </p>
@@ -202,7 +202,7 @@ export default function EleveDetail() {
         </div>
       </div>
 
-      <div className="border-b border-slate-200">
+      <div className="border-b border-bordure">
         <nav className="flex gap-4 overflow-x-auto">
           {tabs.map((t) => (
             <button
@@ -211,8 +211,8 @@ export default function EleveDetail() {
               onClick={() => setTab(t.id)}
               className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
                 tab === t.id
-                  ? 'border-primary-600 text-primary-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  ? 'border-or-cachet text-or-cachet'
+                  : 'border-transparent text-texte-secondaire hover:text-encre'
               }`}
             >
               {t.label}
@@ -237,22 +237,22 @@ export default function EleveDetail() {
       {tab === 'inscriptions' && (
         <div className="card">
           {inscriptions.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucune inscription enregistrée</p>
+            <p className="page-subtitle">Aucune inscription enregistrée</p>
           ) : (
             <div className="space-y-3">
               {inscriptions.map((inscr) => (
-                <div key={inscr.id} className="rounded-lg border border-slate-200 p-4">
+                <div key={inscr.id} className="rounded-lg border border-bordure p-4">
                   <div className="flex justify-between">
                     <p className="font-medium">{inscr.annee_libelle || inscr.annee?.libelle}</p>
                     <span className="badge-success">{inscr.statut}</span>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 page-subtitle">
                     Classe : {inscr.classe_nom || inscr.classe?.libelle || '—'}
                   </p>
                   {inscr.est_boursier && (
-                    <p className="mt-1 text-xs text-blue-600">Élève boursier</p>
+                    <p className="mt-1 text-xs text-or-cachet">Élève boursier</p>
                   )}
-                  <p className="text-xs text-slate-400">Inscrit le {inscr.date_inscription}</p>
+                  <p className="text-xs text-texte-secondaire/70">Inscrit le {inscr.date_inscription}</p>
                 </div>
               ))}
             </div>
@@ -263,18 +263,18 @@ export default function EleveDetail() {
       {tab === 'parents' && (
         <div className="card">
           {parents.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucun parent/tuteur enregistré</p>
+            <p className="page-subtitle">Aucun parent/tuteur enregistré</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {parents.map((p) => (
-                <div key={p.id} className="rounded-lg border border-slate-200 p-4">
+                <div key={p.id} className="rounded-lg border border-bordure p-4">
                   <p className="font-medium">
                     {p.prenom} {p.nom}
                     {p.tuteur_legal && (
-                      <span className="ml-2 text-xs text-primary-600">Tuteur légal</span>
+                      <span className="ml-2 text-xs text-or-cachet">Tuteur légal</span>
                     )}
                   </p>
-                  <p className="text-sm text-slate-500">{p.lien_parente || '—'}</p>
+                  <p className="page-subtitle">{p.lien_parente || '—'}</p>
                   <p className="mt-2 text-sm">{p.telephone}</p>
                   <p className="text-sm">{p.email}</p>
                 </div>
@@ -289,18 +289,18 @@ export default function EleveDetail() {
           {canWrite && (
             <div className="flex items-center gap-3">
               <input ref={fileRef} type="file" onChange={handleUpload} className="text-sm" />
-              {uploading && <span className="text-sm text-slate-500">Upload...</span>}
+              {uploading && <span className="page-subtitle">Upload...</span>}
             </div>
           )}
           {documents.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucun document joint</p>
+            <p className="page-subtitle">Aucun document joint</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-bordure/50">
               {documents.map((doc, i) => (
                 <li key={i} className="flex items-center justify-between py-3">
                   <div>
-                    <p className="font-medium text-slate-900">{doc.type || 'Document'}</p>
-                    <p className="text-xs text-slate-500">{doc.date_upload}</p>
+                    <p className="font-medium text-encre">{doc.type || 'Document'}</p>
+                    <p className="text-xs text-texte-secondaire">{doc.date_upload}</p>
                   </div>
                 </li>
               ))}
@@ -311,7 +311,7 @@ export default function EleveDetail() {
 
       {tab === 'medical' && canViewMedical && (
         <div className="card space-y-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-texte-secondaire">
             Données chiffrées — accès réservé admin / directeur / secrétariat
           </p>
           <textarea

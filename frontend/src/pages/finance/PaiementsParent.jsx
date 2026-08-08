@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import Table from '../../components/Table';
 import { useToast } from '../../components/Toast';
@@ -48,7 +48,7 @@ export default function PaiementsParent() {
       header: '',
       render: (r) =>
         !r.annule ? (
-          <button type="button" onClick={() => handlePdf(r.id)} className="text-primary-600 text-sm hover:underline">
+          <button type="button" onClick={() => handlePdf(r.id)} className="text-or-cachet text-sm hover:underline">
             Reçu PDF
           </button>
         ) : null,
@@ -58,8 +58,8 @@ export default function PaiementsParent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Mes paiements</h1>
-        <p className="text-sm text-slate-500">Historique des paiements scolaires</p>
+        <h1 className="page-title">Mes paiements</h1>
+        <p className="page-subtitle">Historique des paiements scolaires</p>
       </div>
       <Table columns={columns} data={paiements.filter((p) => !p.annule)} loading={loading} emptyMessage="Aucun paiement" />
     </div>

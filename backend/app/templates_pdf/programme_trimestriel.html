@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Programme trimestriel</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        h2 { font-size: 14px; margin-top: 24px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #333; padding: 6px 8px; text-align: left; }
+        th { background: #eee; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ etablissement.nom if etablissement else 'Établissement Scolaire' }}</h1>
+        <h2>Programme trimestriel — {{ classe.libelle if classe else '' }}</h2>
+        <p>Trimestre {{ trimestre.numero if trimestre else '' }} — {{ annee.libelle if annee else '' }}</p>
+    </div>
+
+    <h2>Programme des devoirs</h2>
+    <table>
+        <thead><tr><th>Jour</th><th>Matière</th><th>Fréquence</th></tr></thead>
+        <tbody>
+            {% for d in devoirs %}
+            <tr><td>{{ d.jour }}</td><td>{{ d.matiere }}</td><td>{{ d.frequence }}</td></tr>
+            {% else %}
+            <tr><td colspan="3">Aucun devoir programmé.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Calendrier des compositions</h2>
+    <table>
+        <thead><tr><th>Date</th><th>Matière</th><th>Libellé</th><th>Coef.</th></tr></thead>
+        <tbody>
+            {% for c in compositions %}
+            <tr><td>{{ c.date }}</td><td>{{ c.matiere }}</td><td>{{ c.libelle }}</td><td>{{ c.coefficient }}</td></tr>
+            {% else %}
+            <tr><td colspan="4">Aucune composition publiée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Emploi du temps</h2>
+    <table>
+        <thead><tr><th>Jour</th><th>Horaire</th><th>Matière</th><th>Enseignant</th></tr></thead>
+        <tbody>
+            {% for c in creneaux %}
+            <tr><td>{{ c.jour }}</td><td>{{ c.debut }} – {{ c.fin }}</td><td>{{ c.matiere }}</td><td>{{ c.enseignant }}</td></tr>
+            {% else %}
+            <tr><td colspan="4">Aucun créneau.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p style="margin-top: 30px; text-align: right; font-size: 10px;">Généré le {{ date_generation.strftime('%d/%m/%Y') }}</p>
+</body>
+</html>

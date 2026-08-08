@@ -68,6 +68,13 @@ export const configApi = {
     return data;
   },
 
+  listClassesNav: async (params = {}) => {
+    const { data } = await apiClient.get('/etablissement/classes', {
+      params: { enriched: true, ...params },
+    });
+    return data;
+  },
+
   createClasse: async (payload) => {
     const { data } = await apiClient.post('/etablissement/classes', payload);
     return data;
@@ -85,6 +92,28 @@ export const configApi = {
 
   createNiveau: async (payload) => {
     const { data } = await apiClient.post('/etablissement/niveaux', payload);
+    return data;
+  },
+
+  listCalendrier: async (idAnnee) => {
+    const { data } = await apiClient.get('/etablissement/calendrier', {
+      params: { id_annee: idAnnee },
+    });
+    return data;
+  },
+
+  createEvenementCalendrier: async (payload) => {
+    const { data } = await apiClient.post('/etablissement/calendrier', payload);
+    return data;
+  },
+
+  updateEvenementCalendrier: async (id, payload) => {
+    const { data } = await apiClient.put(`/etablissement/calendrier/${id}`, payload);
+    return data;
+  },
+
+  deleteEvenementCalendrier: async (id) => {
+    const { data } = await apiClient.delete(`/etablissement/calendrier/${id}`);
     return data;
   },
 };

@@ -51,6 +51,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.finance import blp as finance_blp
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
+    from app.routes.pedagogie import blp as pedagogie_blp
     from app.routes.users import blp as users_blp
 
     # Auth : routes plates (/api/login, /api/me, …)
@@ -60,6 +61,7 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
     api.register_blueprint(notes_blp, url_prefix="/api/notes")
+    api.register_blueprint(pedagogie_blp, url_prefix="/api/pedagogie")
     api.register_blueprint(finance_blp, url_prefix="/api/finance")
     api.register_blueprint(emploi_temps_blp, url_prefix="/api/emploi-temps")
     api.register_blueprint(absences_blp, url_prefix="/api/absences")

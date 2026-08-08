@@ -58,6 +58,7 @@ class NiveauEtude(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     libelle: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     ordre: Mapped[int | None] = mapped_column(SmallInteger)
+    cycle: Mapped[str] = mapped_column(String(20), nullable=False, default="premier")
 
 
 class Classe(Base):
@@ -69,3 +70,15 @@ class Classe(Base):
     libelle: Mapped[str] = mapped_column(String(50), nullable=False)
     id_professeur_principal: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     capacite_max: Mapped[int] = mapped_column(default=50)
+
+
+class EvenementCalendrier(Base):
+    __tablename__ = "evenement_calendrier"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id_annee: Mapped[uuid.UUID] = mapped_column(ForeignKey("annee_scolaire.id", ondelete="CASCADE"), nullable=False)
+    type_evenement: Mapped[str] = mapped_column(String(30), nullable=False)
+    libelle: Mapped[str] = mapped_column(String(150), nullable=False)
+    date_debut: Mapped[date] = mapped_column(Date, nullable=False)
+    date_fin: Mapped[date] = mapped_column(Date, nullable=False)
+    bloque_programmation: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

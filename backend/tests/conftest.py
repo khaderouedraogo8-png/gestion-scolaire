@@ -92,9 +92,11 @@ def annee_classe(db, etablissement_data):
 
     niveau = db.query(NiveauEtude).filter(NiveauEtude.libelle == "6ème").first()
     if not niveau:
-        niveau = NiveauEtude(id=uuid.uuid4(), libelle="6ème", ordre=1)
+        niveau = NiveauEtude(id=uuid.uuid4(), libelle="6ème", ordre=1, cycle="premier")
         db.add(niveau)
         db.flush()
+    else:
+        niveau.cycle = "premier"
 
     classe = db.query(Classe).filter(Classe.libelle == "6ème A").first()
     if not classe:

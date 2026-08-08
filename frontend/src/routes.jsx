@@ -7,6 +7,10 @@ import Login from './pages/auth/Login';
 import ChangePassword from './pages/auth/ChangePassword';
 import Dashboard from './pages/dashboard/Dashboard';
 
+import ClassesHome from './pages/classes/ClassesHome';
+import CycleClasses from './pages/classes/CycleClasses';
+import ClassDetail from './pages/classes/ClassDetail';
+
 import EleveList from './pages/eleves/EleveList';
 import EleveDetail from './pages/eleves/EleveDetail';
 import EleveForm from './pages/eleves/EleveForm';
@@ -22,6 +26,7 @@ import Arrieres from './pages/finance/Arrieres';
 import Recus from './pages/finance/Recus';
 
 import Enseignants from './pages/emploi/Enseignants';
+import EnseignantDetail from './pages/emploi/EnseignantDetail';
 import EmploiTemps from './pages/emploi/EmploiTemps';
 import Affectations from './pages/emploi/Affectations';
 import Salles from './pages/emploi/Salles';
@@ -39,6 +44,7 @@ import Classes from './pages/config/Classes';
 import Niveaux from './pages/config/Niveaux';
 import Matieres from './pages/config/Matieres';
 import Coefficients from './pages/config/Coefficients';
+import CalendrierScolaire from './pages/config/CalendrierScolaire';
 import Trimestres from './pages/config/Trimestres';
 import AuditJournal from './pages/config/AuditJournal';
 import Utilisateurs from './pages/config/Utilisateurs';
@@ -60,14 +66,16 @@ const EMPLOI = [...ADMIN, 'enseignant'];
 const ABSENCES = [...ADMIN, 'enseignant', 'secretariat', 'parent'];
 const DOCS = [...ADMIN, 'secretariat'];
 const NOTIF = [...ADMIN, 'secretariat'];
+const CLASS_NAV = [...ADMIN, 'agent_comptable', 'secretariat', 'enseignant'];
+
 const CONFIG = ADMIN;
 
 function HomeRedirect() {
   const role = useAuthStore((s) => s.user?.role);
   if (role === 'parent') return <Navigate to="/parent" replace />;
   if (role && DASHBOARD.includes(role)) return <Navigate to="/dashboard" replace />;
-  if (role === 'enseignant') return <Navigate to="/notes/evaluations" replace />;
-  return <Navigate to="/eleves" replace />;
+  if (role === 'enseignant') return <Navigate to="/classes" replace />;
+  return <Navigate to="/classes" replace />;
 }
 
 export const routes = [
@@ -109,6 +117,38 @@ export const routes = [
         element: (
           <ProtectedRoute roles={DASHBOARD}>
             <Dashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'classes',
+        element: (
+          <ProtectedRoute roles={CLASS_NAV}>
+            <ClassesHome />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'classes/:cycle',
+        element: (
+          <ProtectedRoute roles={CLASS_NAV}>
+            <CycleClasses />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'classes/:cycle/:classeSlug',
+        element: (
+          <ProtectedRoute roles={CLASS_NAV}>
+            <ClassDetail />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'eleves/recherche',
+        element: (
+          <ProtectedRoute roles={[...ELEVE_READ.filter((r) => r !== 'parent')]}>
+            <EleveList />
           </ProtectedRoute>
         ),
       },
@@ -221,6 +261,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={EMPLOI}>
             <Enseignants />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'emploi/enseignants/:id',
+        element: (
+          <ProtectedRoute roles={EMPLOI}>
+            <EnseignantDetail />
           </ProtectedRoute>
         ),
       },
@@ -341,6 +389,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={CONFIG}>
             <Trimestres />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'config/calendrier',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <CalendrierScolaire />
           </ProtectedRoute>
         ),
       },

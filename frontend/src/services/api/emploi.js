@@ -65,4 +65,17 @@ export const emploiApi = {
     const { data } = await apiClient.put(`/emploi-temps/enseignants/${id}`, payload);
     return data;
   },
+
+  getEnseignant: async (id, params = {}) => {
+    const { data } = await apiClient.get(`/emploi-temps/enseignants/${id}`, { params });
+    return data;
+  },
+
+  getEnseignantPdf: async (id, params = {}) => {
+    const response = await apiClient.get(`/emploi-temps/enseignants/${id}/pdf`, {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };

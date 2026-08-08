@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Fiche enseignant</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+        th { background: #eee; }
+        h3 { margin-top: 24px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ etablissement.nom if etablissement else 'Établissement Scolaire' }}</h1>
+        <h2>Fiche enseignant</h2>
+    </div>
+    <p><strong>{{ enseignant.prenom }} {{ enseignant.nom }}</strong></p>
+    <p>Spécialité : {{ enseignant.specialite or '—' }} — Contrat : {{ enseignant.type_contrat or '—' }}</p>
+    <p>Volume horaire hebdomadaire total : <strong>{{ '%.1f'|format(volume_total) }} h</strong></p>
+    <p>Année scolaire : {{ annee.libelle if annee else '' }}</p>
+
+    <h3>Affectations</h3>
+    <table>
+        <thead><tr><th>Classe</th><th>Matière</th><th>Volume h/sem.</th></tr></thead>
+        <tbody>
+            {% for a in affectations %}
+            <tr><td>{{ a.classe }}</td><td>{{ a.matiere }}</td><td>{{ a.volume }}</td></tr>
+            {% else %}
+            <tr><td colspan="3">Aucune affectation.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Emploi du temps</h3>
+    <table>
+        <thead><tr><th>Jour</th><th>Horaire</th><th>Classe</th><th>Matière</th></tr></thead>
+        <tbody>
+            {% for c in creneaux %}
+            <tr><td>{{ c.jour }}</td><td>{{ c.debut }} – {{ c.fin }}</td><td>{{ c.classe }}</td><td>{{ c.matiere }}</td></tr>
+            {% else %}
+            <tr><td colspan="4">Aucun créneau.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 30px; text-align: right; font-size: 10px;">Généré le {{ date_generation.strftime('%d/%m/%Y') }}</p>
+</body>
+</html>

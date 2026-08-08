@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
@@ -98,8 +98,8 @@ export default function Trimestres() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Trimestres</h1>
-          <p className="text-sm text-slate-500">Périodes d'évaluation par année scolaire</p>
+          <h1 className="page-title">Trimestres</h1>
+          <p className="page-subtitle">Périodes d'évaluation par année scolaire</p>
         </div>
         <div className="flex gap-2">
           <select
@@ -120,11 +120,11 @@ export default function Trimestres() {
       </div>
 
       {loading ? (
-        <p className="text-slate-500">Chargement…</p>
+        <p className="text-texte-secondaire">Chargement…</p>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
               <tr>
                 <th className="px-4 py-3">N°</th>
                 <th className="px-4 py-3">Début</th>
@@ -134,15 +134,15 @@ export default function Trimestres() {
             </thead>
             <tbody>
               {trimestres.map((t) => (
-                <tr key={t.id} className="border-t border-slate-100">
+                <tr key={t.id} className="border-t border-bordure/50">
                   <td className="px-4 py-3">Trimestre {t.numero}</td>
                   <td className="px-4 py-3">{t.date_debut}</td>
                   <td className="px-4 py-3">{t.date_fin}</td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <button type="button" onClick={() => openEdit(t)} className="text-primary-600 hover:underline">
+                    <button type="button" onClick={() => openEdit(t)} className="text-or-cachet hover:underline">
                       Modifier
                     </button>
-                    <button type="button" onClick={() => handleDelete(t.id)} className="text-red-600 hover:underline">
+                    <button type="button" onClick={() => handleDelete(t.id)} className="text-brique hover:underline">
                       Supprimer
                     </button>
                   </td>

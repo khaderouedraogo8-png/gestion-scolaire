@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import { emploiApi } from '../../services/api/emploi';
 import Table from '../../components/Table';
@@ -161,7 +161,7 @@ export default function Classes() {
             e.stopPropagation();
             openEdit(r);
           }}
-          className="text-sm font-medium text-primary-600 hover:text-primary-800"
+          className="text-sm font-medium text-or-cachet hover:text-or-cachet/80"
         >
           Modifier
         </button>
@@ -173,8 +173,8 @@ export default function Classes() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Classes</h1>
-          <p className="text-sm text-slate-500">Organisation des classes par niveau et année</p>
+          <h1 className="page-title">Classes</h1>
+          <p className="page-subtitle">Organisation des classes par niveau et année</p>
         </div>
         <button type="button" onClick={openCreate} className="btn-primary">
           + Nouvelle classe

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { emploiApi } from '../../services/api/emploi';
 import Table from '../../components/Table';
 import Modal from '../../components/Modal';
@@ -52,8 +52,8 @@ export default function Salles() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Salles</h1>
-          <p className="text-sm text-slate-500">Salles de cours disponibles</p>
+          <h1 className="page-title">Salles</h1>
+          <p className="page-subtitle">Salles de cours disponibles</p>
         </div>
         {isAdmin && (
           <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>

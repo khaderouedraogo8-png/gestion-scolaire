@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { notificationsApi } from '../../services/api/notifications';
 import { elevesApi } from '../../services/api/eleves';
 import Table from '../../components/Table';
@@ -151,7 +151,7 @@ export default function Notifications() {
           <button
             type="button"
             onClick={() => handleRetry(r.id)}
-            className="text-sm font-medium text-primary-600 hover:underline"
+            className="text-sm font-medium text-or-cachet hover:underline"
           >
             Relancer
           </button>
@@ -166,8 +166,8 @@ export default function Notifications() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
-          <p className="text-sm text-slate-500">File d'envoi SMS et email aux parents</p>
+          <h1 className="page-title">Notifications</h1>
+          <p className="page-subtitle">File d'envoi SMS et email aux parents</p>
         </div>
         {isAdmin && (
           <button
@@ -193,16 +193,16 @@ export default function Notifications() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card">
-          <p className="text-sm text-slate-500">Total affiché</p>
-          <p className="text-2xl font-bold text-slate-900">{notifications.length}</p>
+          <p className="page-subtitle">Total affiché</p>
+          <p className="page-title">{notifications.length}</p>
         </div>
         <div className="card">
-          <p className="text-sm text-slate-500">En attente</p>
-          <p className="text-2xl font-bold text-amber-600">{pendingCount}</p>
+          <p className="page-subtitle">En attente</p>
+          <p className="text-2xl font-bold text-ambre">{pendingCount}</p>
         </div>
         <div className="card">
-          <p className="text-sm text-slate-500">Échecs</p>
-          <p className="text-2xl font-bold text-red-600">{failedCount}</p>
+          <p className="page-subtitle">Échecs</p>
+          <p className="text-2xl font-bold text-brique">{failedCount}</p>
         </div>
       </div>
 
@@ -280,7 +280,7 @@ export default function Notifications() {
               placeholder="Rechercher un élève..."
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button
@@ -290,7 +290,7 @@ export default function Notifications() {
                         setSearch(`${el.prenom} ${el.nom}`);
                         setEleves([]);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-craie"
                     >
                       <span className="font-medium">{el.prenom} {el.nom}</span>
                     </button>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { emploiApi } from '../../services/api/emploi';
 import { configApi } from '../../services/api/config';
 import { notesApi } from '../../services/api/notes';
@@ -147,7 +147,7 @@ export default function Affectations() {
               e.stopPropagation();
               handleDelete(r.id);
             }}
-            className="text-sm font-medium text-red-600 hover:text-red-800"
+            className="text-sm font-medium text-brique hover:text-brique/80"
           >
             Supprimer
           </button>
@@ -159,8 +159,8 @@ export default function Affectations() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Affectations</h1>
-          <p className="text-sm text-slate-500">Liaison enseignant / classe / matière</p>
+          <h1 className="page-title">Affectations</h1>
+          <p className="page-subtitle">Liaison enseignant / classe / matière</p>
         </div>
         {isAdmin && (
           <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">

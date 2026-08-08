@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { absencesApi } from '../../services/api/absences';
 import { elevesApi } from '../../services/api/eleves';
 import Table from '../../components/Table';
@@ -144,7 +144,7 @@ export default function Absences() {
           <p className="font-medium">
             {r.eleve?.prenom || r.prenom} {r.eleve?.nom || r.nom}
           </p>
-          <p className="text-xs text-slate-500">{r.eleve?.matricule || r.matricule || '—'}</p>
+          <p className="text-xs text-texte-secondaire">{r.eleve?.matricule || r.matricule || '—'}</p>
         </div>
       ),
     },
@@ -171,7 +171,7 @@ export default function Absences() {
               e.stopPropagation();
               setJustifyModal(r);
             }}
-            className="text-sm font-medium text-primary-600 hover:text-primary-800"
+            className="text-sm font-medium text-or-cachet hover:text-or-cachet/80"
           >
             Justifier
           </button>
@@ -183,8 +183,8 @@ export default function Absences() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Absences</h1>
-          <p className="text-sm text-slate-500">Suivi des absences et retards</p>
+          <h1 className="page-title">Absences</h1>
+          <p className="page-subtitle">Suivi des absences et retards</p>
         </div>
         {canWrite && (
           <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
@@ -246,7 +246,7 @@ export default function Absences() {
               placeholder="Nom, prénom ou matricule..."
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button
@@ -256,10 +256,10 @@ export default function Absences() {
                         setEleveSearch(`${el.prenom} ${el.nom}`);
                         setEleves([]);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-craie"
                     >
                       <span className="font-medium">{el.prenom} {el.nom}</span>
-                      <span className="ml-2 text-slate-500">{el.matricule}</span>
+                      <span className="ml-2 text-texte-secondaire">{el.matricule}</span>
                     </button>
                   </li>
                 ))}
@@ -309,7 +309,7 @@ export default function Absences() {
         }
       >
         <form id="just-form" onSubmit={handleJustify} className="space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-texte-secondaire">
             Absence du {justifyModal?.date_absence} —{' '}
             {justifyModal?.eleve?.prenom || justifyModal?.prenom}{' '}
             {justifyModal?.eleve?.nom || justifyModal?.nom}

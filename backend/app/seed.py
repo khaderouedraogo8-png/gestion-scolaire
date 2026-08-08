@@ -97,21 +97,23 @@ def run_seed():
 
     # Niveaux
     niveaux_data = [
-        ("6ème", 1),
-        ("5ème", 2),
-        ("4ème", 3),
-        ("3ème", 4),
-        ("Seconde", 5),
-        ("Première", 6),
-        ("Terminale", 7),
+        ("6ème", 1, "premier"),
+        ("5ème", 2, "premier"),
+        ("4ème", 3, "premier"),
+        ("3ème", 4, "premier"),
+        ("Seconde", 5, "second"),
+        ("Première", 6, "second"),
+        ("Terminale", 7, "second"),
     ]
     niveaux = {}
-    for libelle, ordre in niveaux_data:
+    for libelle, ordre, cycle in niveaux_data:
         n = db.query(NiveauEtude).filter(NiveauEtude.libelle == libelle).first()
         if not n:
-            n = NiveauEtude(id=uuid.uuid4(), libelle=libelle, ordre=ordre)
+            n = NiveauEtude(id=uuid.uuid4(), libelle=libelle, ordre=ordre, cycle=cycle)
             db.add(n)
             db.flush()
+        else:
+            n.cycle = cycle
         niveaux[libelle] = n
 
     # Classes pour 6ème et Terminale

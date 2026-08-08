@@ -1,3 +1,4 @@
+import { Menu, PanelLeftClose } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
@@ -16,38 +17,34 @@ export default function Header({ onMenuClick, sidebarCollapsed, onToggleSidebar 
     : 'U';
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-bordure bg-blanc px-4 lg:px-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+          className="rounded-input p-2 text-texte-secondaire hover:bg-or-cachet-clair lg:hidden"
           aria-label="Ouvrir le menu"
         >
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Menu className="h-6 w-6" strokeWidth={1.75} />
         </button>
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="hidden rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:block"
+          className="hidden rounded-input p-2 text-texte-secondaire hover:bg-or-cachet-clair lg:block"
           aria-label="Réduire le menu"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-          </svg>
+          <PanelLeftClose className="h-5 w-5" strokeWidth={1.75} />
         </button>
       </div>
 
       <div className="flex items-center gap-4">
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium text-slate-900">
+          <p className="text-sm font-medium text-encre">
             {user?.prenom} {user?.nom}
           </p>
-          <p className="text-xs capitalize text-slate-500">{user?.role?.replace('_', ' ')}</p>
+          <p className="text-xs capitalize text-texte-secondaire">{user?.role?.replace('_', ' ')}</p>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-or-cachet bg-or-cachet-clair text-sm font-medium text-or-cachet">
           {initials}
         </div>
         <button type="button" onClick={handleLogout} className="btn-ghost text-sm">

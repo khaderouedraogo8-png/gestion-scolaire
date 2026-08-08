@@ -208,7 +208,9 @@ class ArrieresResource(MethodView):
         if not id_annee:
             return jsonify({"message": "id_annee requis"}), 400
 
-        arrieres = list_arrieres(db, uuid.UUID(id_annee))
+        id_classe = request.args.get("id_classe")
+        classe_uuid = uuid.UUID(id_classe) if id_classe else None
+        arrieres = list_arrieres(db, uuid.UUID(id_annee), id_classe=classe_uuid)
         return jsonify([
             {**a, "id_eleve": str(a["id_eleve"])} for a in arrieres
         ])

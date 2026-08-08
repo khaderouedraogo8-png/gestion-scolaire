@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { elevesApi } from '../../services/api/eleves';
 import { configApi } from '../../services/api/config';
@@ -163,7 +163,7 @@ export default function EleveForm() {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
       </div>
     );
   }
@@ -171,14 +171,14 @@ export default function EleveForm() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link to={isEdit ? `/eleves/${id}` : '/eleves'} className="text-sm text-primary-600 hover:underline">
+        <Link to={isEdit ? `/eleves/${id}` : '/eleves'} className="text-sm text-or-cachet hover:underline">
           ← Retour
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">
+        <h1 className="mt-2 page-title">
           {isEdit ? "Modifier l'élève" : 'Nouvel élève — Inscription'}
         </h1>
         {!isEdit && (
-          <p className="text-sm text-slate-500">
+          <p className="page-subtitle">
             Création de la fiche élève et inscription pour l'année scolaire active
           </p>
         )}
@@ -186,7 +186,7 @@ export default function EleveForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className="card space-y-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-secondaire">
             Identité
           </h2>
           <div className="grid gap-5 sm:grid-cols-2">
@@ -224,7 +224,7 @@ export default function EleveForm() {
 
         {!isEdit && (
           <section className="card space-y-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-secondaire">
               Inscription
             </h2>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -261,7 +261,7 @@ export default function EleveForm() {
         {!isEdit && (
           <section className="card space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-texte-secondaire">
                 Parents / Tuteurs
               </h2>
               <button type="button" onClick={addParent} className="btn-secondary text-sm">
@@ -269,13 +269,13 @@ export default function EleveForm() {
               </button>
             </div>
             {parents.length === 0 ? (
-              <p className="text-sm text-slate-500">Aucun parent ajouté (optionnel)</p>
+              <p className="page-subtitle">Aucun parent ajouté (optionnel)</p>
             ) : (
               parents.map((parent, index) => (
-                <div key={index} className="rounded-lg border border-slate-200 p-4 space-y-4">
+                <div key={index} className="rounded-lg border border-bordure p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-700">Parent {index + 1}</p>
-                    <button type="button" onClick={() => removeParent(index)} className="text-sm text-red-600">
+                    <p className="text-sm font-medium text-encre">Parent {index + 1}</p>
+                    <button type="button" onClick={() => removeParent(index)} className="text-sm text-brique">
                       Supprimer
                     </button>
                   </div>

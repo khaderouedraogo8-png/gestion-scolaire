@@ -140,6 +140,30 @@ def get_parent_eleve_ids(user) -> list[uuid.UUID]:
     return [l[0] for l in links]
 
 
+def get_parent_classe_ids(user, id_annee: uuid.UUID | None = None) -> list[uuid.UUID]:
+    """Retourne les IDs de classes où le parent a un enfant inscrit."""
+    db = get_db()
+    eleve_ids = get_parent_eleve_ids(user)
+    if not eleve_ids:
+        return []
+    q = db.query(Inscription.id_classe).filter(
+        Inscription.id_eleve.in_(eleve_ids),
+        Inscription.statut.in_(("inscrit", "reinscrit")),
+    )
+    if id_annee:
+        q = q.filter(Inscription.id_annee == id_annee)
+    return list({row[0] for row in q.distinct().all()})
+
+
+def parent_has_classe_access(user, id_classe: uuid.UUID, id_annee: uuid.UUID | None = None) -> bool:
+    """Vérifie qu'un parent a un enfant inscrit dans la classe."""
+    if user.role in ("administrateur", "directeur", "secretariat"):
+        return True
+    if user.role != "parent":
+        return False
+    return id_classe in get_parent_classe_ids(user, id_annee)
+
+
 def filter_eleves_by_role(query, user):
     """Filtre une requête élèves selon le rôle de l'utilisateur."""
     if user.role in ("administrateur", "directeur", "secretariat", "agent_comptable"):

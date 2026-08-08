@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import FormField from '../../components/FormField';
 import { useToast } from '../../components/Toast';
@@ -82,7 +82,7 @@ export default function Etablissement() {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
       </div>
     );
   }
@@ -90,8 +90,8 @@ export default function Etablissement() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Établissement</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="page-title">Établissement</h1>
+        <p className="page-subtitle">
           {exists ? 'Paramètres généraux de l\'établissement' : 'Configuration initiale de l\'établissement'}
         </p>
       </div>

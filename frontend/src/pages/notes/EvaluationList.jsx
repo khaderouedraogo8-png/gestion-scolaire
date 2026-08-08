@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
@@ -129,7 +129,7 @@ export default function EvaluationList() {
       header: '',
       render: (r) =>
         canWrite ? (
-          <Link to={`/notes/saisie/${r.id}`} className="text-sm font-medium text-primary-600">
+          <Link to={`/notes/saisie/${r.id}`} className="text-sm font-medium text-or-cachet">
             Saisir notes →
           </Link>
         ) : null,
@@ -140,8 +140,8 @@ export default function EvaluationList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Évaluations</h1>
-          <p className="text-sm text-slate-500">Gestion des évaluations et saisie des notes</p>
+          <h1 className="page-title">Évaluations</h1>
+          <p className="page-subtitle">Gestion des évaluations et saisie des notes</p>
         </div>
         {canWrite && (
           <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">

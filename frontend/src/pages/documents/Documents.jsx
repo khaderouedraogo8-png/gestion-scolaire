@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { documentsApi } from '../../services/api/documents';
 import { configApi } from '../../services/api/config';
 import { elevesApi } from '../../services/api/eleves';
@@ -145,7 +145,7 @@ export default function Documents() {
         <button
           type="button"
           onClick={() => handleDownload(r.id, r.type_document)}
-          className="text-sm font-medium text-primary-600 hover:underline"
+          className="text-sm font-medium text-or-cachet hover:underline"
         >
           Télécharger PDF
         </button>
@@ -157,8 +157,8 @@ export default function Documents() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Documents administratifs</h1>
-          <p className="text-sm text-slate-500">Génération d'attestations, cartes et certificats</p>
+          <h1 className="page-title">Documents administratifs</h1>
+          <p className="page-subtitle">Génération d'attestations, cartes et certificats</p>
         </div>
         <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
           + Générer un document
@@ -225,7 +225,7 @@ export default function Documents() {
               required
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button
@@ -235,10 +235,10 @@ export default function Documents() {
                         setSearch(`${el.prenom} ${el.nom}`);
                         setEleves([]);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-craie"
                     >
                       <span className="font-medium">{el.prenom} {el.nom}</span>
-                      <span className="ml-2 text-slate-500">{el.matricule}</span>
+                      <span className="ml-2 text-texte-secondaire">{el.matricule}</span>
                     </button>
                   </li>
                 ))}

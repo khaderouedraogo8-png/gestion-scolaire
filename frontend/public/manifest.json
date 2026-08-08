@@ -4,8 +4,8 @@
   "description": "Progiciel de gestion scolaire pour établissement unique",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "background_color": "#F6F5F1",
+  "theme_color": "#14213D",
   "orientation": "portrait-primary",
   "lang": "fr",
   "icons": [

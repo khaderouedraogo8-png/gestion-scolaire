@@ -27,24 +27,24 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', f
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-encre/50"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${sizeClasses[size]} rounded-xl bg-white shadow-2xl`}
+        className={`relative w-full ${sizeClasses[size]} rounded-card border border-bordure bg-blanc`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 id="modal-title" className="text-lg font-semibold text-slate-900">
+        <div className="flex items-center justify-between border-b border-bordure px-6 py-4">
+          <h2 id="modal-title" className="font-display text-lg font-medium text-encre">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-input p-1 text-texte-secondaire hover:bg-craie hover:text-encre"
             aria-label="Fermer"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,7 +54,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', f
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-6 py-4">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+          <div className="flex items-center justify-end gap-3 border-t border-bordure px-6 py-4">
             {footer}
           </div>
         )}

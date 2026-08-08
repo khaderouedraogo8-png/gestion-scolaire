@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { usersApi } from '../../services/api/users';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
@@ -109,8 +109,8 @@ export default function Utilisateurs() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Utilisateurs</h1>
-          <p className="text-sm text-slate-500">Comptes et rôles d'accès</p>
+          <h1 className="page-title">Utilisateurs</h1>
+          <p className="page-subtitle">Comptes et rôles d'accès</p>
         </div>
         <button type="button" onClick={() => setModal(true)} className="btn-primary">
           + Nouvel utilisateur
@@ -118,11 +118,11 @@ export default function Utilisateurs() {
       </div>
 
       {loading ? (
-        <p className="text-slate-500">Chargement...</p>
+        <p className="text-texte-secondaire">Chargement...</p>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
               <tr>
                 <th className="px-4 py-3">Nom</th>
                 <th className="px-4 py-3">Email</th>
@@ -133,7 +133,7 @@ export default function Utilisateurs() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id} className="border-t border-slate-100">
+                <tr key={u.id} className="border-t border-bordure/50">
                   <td className="px-4 py-3">
                     {u.prenom} {u.nom}
                   </td>
@@ -145,13 +145,13 @@ export default function Utilisateurs() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <button type="button" onClick={() => openEdit(u)} className="text-slate-600 hover:underline">
+                    <button type="button" onClick={() => openEdit(u)} className="text-texte-secondaire hover:underline">
                       Modifier
                     </button>
-                    <button type="button" onClick={() => handleReset(u.id)} className="text-primary-600 hover:underline">
+                    <button type="button" onClick={() => handleReset(u.id)} className="text-or-cachet hover:underline">
                       Réinit. MDP
                     </button>
-                    <button type="button" onClick={() => toggleActif(u)} className="text-slate-600 hover:underline">
+                    <button type="button" onClick={() => toggleActif(u)} className="text-texte-secondaire hover:underline">
                       {u.actif ? 'Désactiver' : 'Activer'}
                     </button>
                   </td>

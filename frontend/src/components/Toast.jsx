@@ -14,7 +14,11 @@ export function ToastProvider({ children }) {
   const addToast = useCallback(
     (message, type = 'success', duration = 4000) => {
       const id = ++toastId;
-      setToasts((prev) => [...prev, { id, message, type }]);
+      setToasts((prev) => {
+        const isDuplicate = prev.some((t) => t.message === message && t.type === type);
+        if (isDuplicate) return prev;
+        return [...prev, { id, message, type }];
+      });
       if (duration > 0) {
         setTimeout(() => removeToast(id), duration);
       }
@@ -33,6 +37,13 @@ export function ToastProvider({ children }) {
     [addToast]
   );
 
+  const typeStyles = {
+    success: 'border-feuille bg-feuille-clair text-feuille',
+    error: 'border-brique bg-brique-clair text-brique',
+    warning: 'border-ambre bg-ambre-clair text-ambre',
+    info: 'border-or-cachet bg-or-cachet-clair text-or-cachet',
+  };
+
   return (
     <ToastContext.Provider value={toast}>
       {children}
@@ -40,21 +51,13 @@ export function ToastProvider({ children }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`toast-enter flex min-w-[280px] max-w-md items-center gap-3 rounded-lg px-4 py-3 shadow-lg ${
-              t.type === 'success'
-                ? 'bg-emerald-600 text-white'
-                : t.type === 'error'
-                  ? 'bg-red-600 text-white'
-                  : t.type === 'warning'
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-slate-800 text-white'
-            }`}
+            className={`toast-enter flex min-w-[280px] max-w-md items-center gap-3 rounded-card border px-4 py-3 ${typeStyles[t.type] || typeStyles.info}`}
           >
             <span className="flex-1 text-sm font-medium">{t.message}</span>
             <button
               type="button"
               onClick={() => removeToast(t.id)}
-              className="rounded p-1 hover:bg-white/20"
+              className="rounded p-1 hover:bg-black/5"
               aria-label="Fermer"
             >
               ✕

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function FormField({
   label,
@@ -16,10 +17,12 @@ export default function FormField({
   className = '',
   ...rest
 }) {
-  const inputId = `field-${name}`;
+  const [showPassword, setShowPassword] = useState(false);
+  const inputId = name ? `field-${name}` : undefined;
   const hasError = Boolean(error);
+  const isPassword = type === 'password';
 
-  const baseClass = `input ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''} ${className}`;
+  const baseClass = `input ${hasError ? 'border-brique focus:border-brique focus:ring-brique/20' : ''} ${isPassword ? 'pr-10' : ''} ${className}`;
 
   const renderInput = () => {
     if (type === 'select') {
@@ -69,26 +72,39 @@ export default function FormField({
             checked={Boolean(value)}
             onChange={onChange}
             disabled={disabled}
-            className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+            className="h-4 w-4 rounded border-bordure text-or-cachet focus:ring-or-cachet/30"
             {...rest}
           />
-          <span className="text-sm text-slate-700">{label}</span>
+          <span className="text-sm text-encre">{label}</span>
         </label>
       );
     }
 
     return (
-      <input
-        id={inputId}
-        type={type}
-        name={name}
-        value={value ?? ''}
-        onChange={onChange}
-        disabled={disabled}
-        placeholder={placeholder}
-        className={baseClass}
-        {...rest}
-      />
+      <div className="relative">
+        <input
+          id={inputId}
+          type={isPassword && showPassword ? 'text' : type}
+          name={name}
+          value={value ?? ''}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder={placeholder}
+          className={baseClass}
+          {...rest}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-texte-secondaire hover:text-encre"
+            aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     );
   };
 
@@ -96,8 +112,8 @@ export default function FormField({
     return (
       <div>
         {renderInput()}
-        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-        {helpText && !error && <p className="mt-1 text-xs text-slate-500">{helpText}</p>}
+        {error && <p className="mt-1 text-xs text-brique">{error}</p>}
+        {helpText && !error && <p className="mt-1 text-xs text-texte-secondaire">{helpText}</p>}
       </div>
     );
   }
@@ -107,12 +123,12 @@ export default function FormField({
       {label && (
         <label htmlFor={inputId} className="label">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-brique"> *</span>}
         </label>
       )}
       {renderInput()}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-xs text-slate-500">{helpText}</p>}
+      {error && <p className="mt-1 text-xs text-brique">{error}</p>}
+      {helpText && !error && <p className="mt-1 text-xs text-texte-secondaire">{helpText}</p>}
     </div>
   );
 }

@@ -102,4 +102,19 @@ export const notesApi = {
     const { data } = await apiClient.patch(`/notes/bulletins/${id}`, { appreciation_generale });
     return data;
   },
+
+  publierEvaluation: async (id) => {
+    const { data } = await apiClient.post(`/notes/evaluations/${id}/publier`);
+    return data;
+  },
+
+  cloturerEvaluation: async (id) => {
+    const { data } = await apiClient.post(`/notes/evaluations/${id}/cloturer`);
+    return data;
+  },
+
+  rouvrirEvaluation: async (id) => {
+    const { data } = await apiClient.post(`/notes/evaluations/${id}/rouvrir`);
+    return data;
+  },
 };

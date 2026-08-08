@@ -1,4 +1,6 @@
 """Module 8 — Tableau de bord BI."""
+import uuid
+
 from flask import jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
@@ -8,6 +10,7 @@ from sqlalchemy import func, text
 from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import Absence, Inscription, Paiement
+from app.services.classes_navigation import get_absences_par_classe_dashboard
 
 blp = Blueprint("dashboard", __name__, url_prefix="/dashboard", description="Tableau de bord")
 
@@ -108,3 +111,18 @@ class DashboardStats(MethodView):
             "total_eleves_inscrits": total_eleves,
             "total_absences": absences_mois,
         })
+
+
+@blp.route("/absences-par-classe")
+class DashboardAbsencesParClasse(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable", "secretariat", "enseignant")
+    def get(self):
+        db = get_db()
+        id_annee = request.args.get("id_annee")
+        jours = int(request.args.get("jours_non_justifiees", 7))
+        annee_uuid = uuid.UUID(id_annee) if id_annee else None
+        data = get_absences_par_classe_dashboard(
+            db, id_annee=annee_uuid, jours_non_justifiees=jours
+        )
+        return jsonify(data)

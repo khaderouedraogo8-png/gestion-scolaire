@@ -25,6 +25,7 @@ from app.models import (
     EleveParent,
     Etablissement,
     Inscription,
+    NiveauEtude,
     ParentTuteur,
 )
 from app.schemas.eleve import (
@@ -80,7 +81,13 @@ def _serialize_eleve_list_item(db, eleve, id_annee=None):
         classe = db.query(Classe).filter(Classe.id == inscr.id_classe).first()
         result["statut"] = inscr.statut
         result["est_boursier"] = inscr.est_boursier
+        result["id_classe"] = str(inscr.id_classe)
         result["classe_nom"] = classe.libelle if classe else None
+        if classe:
+            niveau = db.query(NiveauEtude).filter(NiveauEtude.id == classe.id_niveau).first()
+            if niveau:
+                result["niveau_libelle"] = niveau.libelle
+                result["cycle"] = niveau.cycle
     return result
 
 

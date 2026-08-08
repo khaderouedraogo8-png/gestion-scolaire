@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+﻿import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 export default function ProtectedRoute({ children, roles = [] }) {
@@ -17,8 +17,8 @@ export default function ProtectedRoute({ children, roles = [] }) {
   if (roles.length > 0 && user?.role && !roles.includes(user.role)) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 p-6 text-center">
-        <p className="text-lg font-semibold text-slate-900">Accès non autorisé</p>
-        <p className="text-sm text-slate-500">
+        <p className="text-lg font-semibold text-encre">Accès non autorisé</p>
+        <p className="page-subtitle">
           Votre rôle ({user.role}) ne permet pas d'accéder à cette page.
         </p>
       </div>

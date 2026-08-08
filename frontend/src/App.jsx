@@ -15,10 +15,10 @@ export default function App() {
 
   if (isInitializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-craie">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
-          <p className="mt-4 text-sm text-slate-600">Chargement...</p>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
+          <p className="mt-4 text-sm text-texte-secondaire">Chargement...</p>
         </div>
       </div>
     );
