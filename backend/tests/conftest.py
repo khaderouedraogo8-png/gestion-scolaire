@@ -7,7 +7,7 @@ import pytest
 from app import create_app
 from app.auth.jwt_handler import hash_password
 from app.extensions import get_db
-from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, Utilisateur
+from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, Trimestre, Utilisateur
 
 
 @pytest.fixture(scope="session")
@@ -113,6 +113,23 @@ def annee_classe(db, etablissement_data):
             libelle="6ème A",
         )
         db.add(classe)
-        db.commit()
+        db.flush()
 
-    return {"annee": annee, "classe": classe, "niveau": niveau}
+    trimestre = (
+        db.query(Trimestre)
+        .filter(Trimestre.id_annee == annee.id, Trimestre.numero == 1)
+        .first()
+    )
+    if not trimestre:
+        trimestre = Trimestre(
+            id=uuid.uuid4(),
+            id_annee=annee.id,
+            numero=1,
+            date_debut=date(2025, 9, 1),
+            date_fin=date(2025, 12, 20),
+        )
+        db.add(trimestre)
+
+    db.commit()
+
+    return {"annee": annee, "classe": classe, "niveau": niveau, "trimestre": trimestre}
