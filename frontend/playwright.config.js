@@ -12,6 +12,15 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
   },
+  ...(process.env.CI
+    ? {}
+    : {
+        webServer: {
+          command: 'npm run dev',
+          url: 'http://localhost:5173',
+          reuseExistingServer: true,
+        },
+      }),
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.js/ },
     {
@@ -27,9 +36,4 @@ export default defineConfig({
       dependencies: ['modules'],
     },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-  },
 });

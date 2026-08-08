@@ -22,8 +22,8 @@ test.describe('Page de connexion', () => {
   test('affiche le formulaire de connexion', async ({ page }) => {
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
-    await expect(page.getByLabel('Adresse email')).toBeVisible();
-    await expect(page.getByLabel('Mot de passe')).toBeVisible();
+    await expect(page.locator('#field-email')).toBeVisible();
+    await expect(page.locator('#field-password')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Se connecter' })).toBeVisible();
   });
 
