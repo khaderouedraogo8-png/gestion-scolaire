@@ -2,7 +2,7 @@
 import hashlib
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -55,7 +55,7 @@ def create_tokens_for_user(user: Utilisateur) -> tuple[str, str, RefreshToken]:
     )
 
     raw_refresh = secrets.token_urlsafe(64)
-    expire_at = datetime.now(timezone.utc) + current_app.config["JWT_REFRESH_TOKEN_EXPIRES"]
+    expire_at = datetime.now(UTC) + current_app.config["JWT_REFRESH_TOKEN_EXPIRES"]
 
     db = get_db()
     refresh_record = RefreshToken(
@@ -84,7 +84,7 @@ def rotate_refresh_token(old_raw_token: str) -> tuple[str, str] | None:
         .filter(
             RefreshToken.token_hash == token_hash,
             RefreshToken.revoque.is_(False),
-            RefreshToken.expire_at > datetime.now(timezone.utc),
+            RefreshToken.expire_at > datetime.now(UTC),
         )
         .first()
     )

@@ -1,5 +1,4 @@
 """Tests d'intégration — élèves."""
-import uuid
 
 
 class TestEleves:

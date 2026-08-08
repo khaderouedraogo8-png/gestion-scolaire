@@ -1,6 +1,4 @@
 """Tests d'intégration — absences."""
-import uuid
-from datetime import date
 
 
 class TestAbsences:

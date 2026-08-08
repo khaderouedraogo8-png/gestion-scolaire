@@ -35,7 +35,7 @@ describe('Login', () => {
 
     expect(screen.getByRole('heading', { name: /connexion/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/adresse email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/mot de passe/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /se connecter/i })).toBeInTheDocument();
   });
 
@@ -56,7 +56,7 @@ describe('Login', () => {
     renderLogin();
 
     await user.type(screen.getByLabelText(/adresse email/i), 'admin@ecole.fr');
-    await user.type(screen.getByLabelText(/mot de passe/i), 'secret123');
+    await user.type(screen.getByPlaceholderText('••••••••'), 'secret123');
     await user.click(screen.getByRole('button', { name: /se connecter/i }));
 
     await waitFor(() => {

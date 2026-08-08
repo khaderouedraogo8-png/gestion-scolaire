@@ -249,7 +249,45 @@ CREATE TABLE evaluation (
     type_evaluation      VARCHAR(20) NOT NULL CHECK (type_evaluation IN ('devoir', 'examen', 'interrogation')),
     coefficient          NUMERIC(4,2) NOT NULL DEFAULT 1,
     date_evaluation      DATE NOT NULL,
-    libelle              VARCHAR(150)
+    libelle              VARCHAR(150),
+    statut_publication   VARCHAR(20) NOT NULL DEFAULT 'brouillon'
+        CHECK (statut_publication IN ('brouillon', 'publie')),
+    statut_saisie        VARCHAR(20) NOT NULL DEFAULT 'en_cours'
+        CHECK (statut_saisie IN ('en_cours', 'cloturee'))
+);
+
+CREATE TABLE programme_devoir (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_classe            UUID NOT NULL REFERENCES classe(id) ON DELETE CASCADE,
+    id_matiere           UUID NOT NULL REFERENCES matiere(id) ON DELETE CASCADE,
+    jour_semaine         SMALLINT NOT NULL CHECK (jour_semaine BETWEEN 1 AND 7),
+    frequence            VARCHAR(20) NOT NULL DEFAULT 'hebdomadaire'
+        CHECK (frequence IN ('hebdomadaire', 'quinzomadaire')),
+    note                 VARCHAR(255),
+    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    UNIQUE (id_classe, id_matiere, jour_semaine, id_annee)
+);
+
+CREATE TABLE evenement_calendrier (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    type_evenement       VARCHAR(30) NOT NULL
+        CHECK (type_evenement IN ('ferie', 'vacances', 'rentree', 'examen_officiel', 'autre')),
+    libelle              VARCHAR(150) NOT NULL,
+    date_debut           DATE NOT NULL,
+    date_fin             DATE NOT NULL,
+    bloque_programmation BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE seance_cours (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_classe            UUID NOT NULL REFERENCES classe(id) ON DELETE CASCADE,
+    id_matiere           UUID NOT NULL REFERENCES matiere(id) ON DELETE CASCADE,
+    id_enseignant        UUID NOT NULL REFERENCES enseignant(id) ON DELETE RESTRICT,
+    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    date_seance          DATE NOT NULL,
+    contenu              TEXT NOT NULL,
+    UNIQUE (id_classe, id_matiere, date_seance)
 );
 
 CREATE TABLE note (

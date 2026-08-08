@@ -6,7 +6,7 @@ import pytest
 
 from app import create_app
 from app.auth.jwt_handler import hash_password
-from app.extensions import db_session, get_db
+from app.extensions import get_db
 from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, Utilisateur
 
 
@@ -46,6 +46,12 @@ def admin_user(db):
             doit_changer_mdp=True,
         )
         db.add(user)
+        db.commit()
+    else:
+        user.mot_de_passe_hash = hash_password("Admin123!")
+        user.tentatives_echouees = 0
+        user.verrouille_jusqu_a = None
+        user.actif = True
         db.commit()
     return user
 

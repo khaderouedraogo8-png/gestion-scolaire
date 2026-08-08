@@ -6,8 +6,16 @@ from datetime import date
 from flask import current_app, render_template
 
 from app.extensions import get_db
+from app.models import (
+    AnneeScolaire,
+    Classe,
+    DocumentAdministratif,
+    Eleve,
+    Etablissement,
+    Inscription,
+    NiveauEtude,
+)
 from app.services.pdf_render import html_to_pdf
-from app.models import AnneeScolaire, Classe, DocumentAdministratif, Eleve, Etablissement, Inscription, NiveauEtude
 
 
 def _generer_pdf_document(

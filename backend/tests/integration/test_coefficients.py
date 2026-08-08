@@ -1,5 +1,4 @@
 """Tests coefficients matière."""
-import pytest
 
 
 class TestCoefficients:

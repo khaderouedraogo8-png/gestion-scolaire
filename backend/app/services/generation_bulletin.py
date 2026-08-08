@@ -1,23 +1,19 @@
 """Génération de bulletins PDF via WeasyPrint."""
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import current_app, render_template
 from sqlalchemy import text
 
 from app.extensions import get_db
-from app.services.pdf_render import html_to_pdf
 from app.models import (
     Bulletin,
     Classe,
-    CoefficientMatiere,
     Eleve,
     Etablissement,
     IncidentDisciplinaire,
     Inscription,
-    Matiere,
-    NiveauEtude,
     Trimestre,
 )
 from app.services.calcul_moyennes import (
@@ -26,6 +22,7 @@ from app.services.calcul_moyennes import (
     determiner_mention,
     refresh_moyenne_matiere_view,
 )
+from app.services.pdf_render import html_to_pdf
 from app.utils.audit_logger import log_audit
 
 
@@ -171,7 +168,7 @@ def generer_bulletin_pdf(bulletin: Bulletin) -> str:
         classe=classe,
         bulletin=bulletin,
         moyennes=moyennes,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
 
     upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "bulletins")

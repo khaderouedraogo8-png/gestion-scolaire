@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001",  # blind except — usage intentionnel dans health checks / SMTP
+    "DTZ011",  # date.today() acceptable pour dates métier locales
+    "RUF012",  # mutable class attrs — pattern Flask config
+    "PLW1508", # os.getenv defaults numériques
+]

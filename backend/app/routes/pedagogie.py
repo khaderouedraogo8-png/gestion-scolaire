@@ -15,13 +15,22 @@ from app.auth.permissions import (
     teacher_has_matiere_classe_access,
 )
 from app.extensions import get_db
-from app.models import Classe, Enseignant, Inscription, Matiere, ProgrammeDevoir, SeanceCours
+from app.models import (
+    Classe,
+    Enseignant,
+    Matiere,
+    ProgrammeDevoir,
+    SeanceCours,
+)
 from app.schemas.pedagogie import (
     ProgrammeDevoirSchema,
     ProgrammeDevoirUpdateSchema,
     SeanceCoursSchema,
 )
-from app.services.calendrier_scolaire import date_est_bloquee, id_annee_pour_classe, notifier_parents_classe
+from app.services.calendrier_scolaire import (
+    date_est_bloquee,
+    notifier_parents_classe,
+)
 from app.services.charge_travail import stats_charge_classe
 from app.services.generation_pedagogique import (
     JOURS,

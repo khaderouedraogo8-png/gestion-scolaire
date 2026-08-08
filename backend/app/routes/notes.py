@@ -1,5 +1,6 @@
 """Module 2 — Routes évaluations, notes, bulletins."""
 import uuid
+from datetime import UTC
 
 from flask import jsonify, request, send_file
 from flask.views import MethodView
@@ -11,7 +12,6 @@ from app.auth.permissions import (
     get_enseignant_for_user,
     get_parent_classe_ids,
     get_parent_eleve_ids,
-    parent_has_classe_access,
     parent_has_eleve_access,
     require_role,
     teacher_has_matiere_classe_access,
@@ -37,17 +37,16 @@ from app.schemas.notes import (
     EvaluationSchema,
     MatiereSchema,
     NoteBatchSchema,
-    NoteSchema,
 )
 from app.services.calcul_moyennes import refresh_moyenne_matiere_view
+from app.services.calendrier_scolaire import date_est_bloquee, id_annee_pour_trimestre
+from app.services.envoi_notification import creer_notification
 from app.services.generation_bulletin import (
     generer_bulletin,
     generer_bulletin_pdf,
     publier_bulletin,
     valider_bulletin,
 )
-from app.services.envoi_notification import creer_notification
-from app.services.calendrier_scolaire import date_est_bloquee, id_annee_pour_trimestre
 from app.utils.audit_logger import log_audit
 
 blp = Blueprint("notes", __name__, url_prefix="/notes", description="Notes et bulletins")
@@ -472,7 +471,7 @@ class NotesEvaluation(MethodView):
                 .first()
             )
             if existing:
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 if note_data.get("absent"):
                     existing.absent = True
@@ -481,7 +480,7 @@ class NotesEvaluation(MethodView):
                     existing.absent = False
                     existing.valeur_note = note_data.get("valeur_note")
                 existing.modifie_par = user.id
-                existing.modifie_le = datetime.now(timezone.utc)
+                existing.modifie_le = datetime.now(UTC)
                 existing.appreciation = note_data.get("appreciation")
                 log_audit("MODIFICATION_NOTE", user.id, "note", existing.id)
             else:

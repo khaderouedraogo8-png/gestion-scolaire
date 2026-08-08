@@ -17,7 +17,12 @@ from app.models.etablissement import (
     NiveauEtude,
     Trimestre,
 )
-from app.models.finance import EcheancePaiement, FraisScolaire, Paiement, seq_numero_recu
+from app.models.finance import (
+    EcheancePaiement,
+    FraisScolaire,
+    Paiement,
+    seq_numero_recu,
+)
 from app.models.notification import Notification
 from app.models.pedagogie import (
     Bulletin,
@@ -30,8 +35,8 @@ from app.models.pedagogie import (
 )
 from app.models.utilisateur import (
     ROLES,
-    ReinitialisationMdp,
     RefreshToken,
+    ReinitialisationMdp,
     Utilisateur,
 )
 
@@ -50,8 +55,8 @@ __all__ = [
     "EleveParent",
     "Enseignant",
     "Etablissement",
-    "EvenementCalendrier",
     "Evaluation",
+    "EvenementCalendrier",
     "FraisScolaire",
     "IncidentDisciplinaire",
     "Inscription",
@@ -60,13 +65,13 @@ __all__ = [
     "NiveauEtude",
     "Note",
     "Notification",
-    "ProgrammeDevoir",
-    "SeanceCours",
     "Paiement",
     "ParentTuteur",
-    "ReinitialisationMdp",
+    "ProgrammeDevoir",
     "RefreshToken",
+    "ReinitialisationMdp",
     "Salle",
+    "SeanceCours",
     "Trimestre",
     "Utilisateur",
     "seq_numero_recu",

@@ -1,8 +1,7 @@
 """Routes authentification : login, refresh, logout, changement MDP."""
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from flask import jsonify, request
+from flask import jsonify
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -13,14 +12,14 @@ from app.auth.jwt_handler import (
     get_current_user,
     get_refresh_from_cookie,
     hash_password,
-    rotate_refresh_token,
     revoke_refresh_token,
+    rotate_refresh_token,
     set_refresh_cookie,
     verify_password,
 )
 from app.extensions import get_db, limiter
 from app.models import Utilisateur
-from app.schemas.auth import ChangePasswordSchema, LoginSchema, TokenResponseSchema, UserSchema
+from app.schemas.auth import ChangePasswordSchema, LoginSchema, UserSchema
 from app.utils.audit_logger import log_audit
 
 blp = Blueprint("auth", __name__, url_prefix="/auth", description="Authentification")
@@ -39,13 +38,13 @@ class Login(MethodView):
             return jsonify({"message": "Identifiants invalides"}), 401
 
         # Vérifier verrouillage compte
-        if user.verrouille_jusqu_a and user.verrouille_jusqu_a > datetime.now(timezone.utc):
+        if user.verrouille_jusqu_a and user.verrouille_jusqu_a > datetime.now(UTC):
             return jsonify({"message": "Compte verrouillé — réessayez plus tard"}), 423
 
         if not verify_password(user.mot_de_passe_hash, credentials["password"]):
             user.tentatives_echouees = (user.tentatives_echouees or 0) + 1
             if user.tentatives_echouees >= 5:
-                user.verrouille_jusqu_a = datetime.now(timezone.utc) + timedelta(minutes=30)
+                user.verrouille_jusqu_a = datetime.now(UTC) + timedelta(minutes=30)
             db.commit()
             log_audit("ECHEC_CONNEXION", user.id, details={"tentatives": user.tentatives_echouees})
             return jsonify({"message": "Identifiants invalides"}), 401
@@ -55,7 +54,7 @@ class Login(MethodView):
 
         user.tentatives_echouees = 0
         user.verrouille_jusqu_a = None
-        user.derniere_connexion = datetime.now(timezone.utc)
+        user.derniere_connexion = datetime.now(UTC)
         db.commit()
 
         access_token, raw_refresh, _ = create_tokens_for_user(user)

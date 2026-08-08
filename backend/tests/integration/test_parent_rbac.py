@@ -3,12 +3,9 @@ import uuid
 
 from app.auth.jwt_handler import hash_password
 from app.models import (
-    AnneeScolaire,
-    Classe,
     Eleve,
     EleveParent,
     Inscription,
-    NiveauEtude,
     ParentTuteur,
     Utilisateur,
 )

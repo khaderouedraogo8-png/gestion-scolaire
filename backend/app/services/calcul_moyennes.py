@@ -1,6 +1,6 @@
 """Calcul des moyennes — absent != note 0."""
 from collections import defaultdict
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 
 def calculer_moyenne_matiere(notes: list[dict]) -> float | None:
@@ -9,8 +9,8 @@ def calculer_moyenne_matiere(notes: list[dict]) -> float | None:
     Les absences sont exclues du calcul (absent != 0).
     Chaque note : {"valeur": float, "coefficient": float, "absent": bool}
     """
-    total_pondere = Decimal("0")
-    total_coef = Decimal("0")
+    total_pondere = Decimal(0)
+    total_coef = Decimal(0)
     for n in notes:
         if n.get("absent"):
             continue
@@ -30,8 +30,8 @@ def calculer_moyenne_generale(moyennes_matieres: list[dict]) -> float | None:
     Moyenne générale = Σ(moyenne matière × coef matière) / Σ(coef matière).
     Chaque entrée : {"moyenne": float, "coefficient_matiere": float}
     """
-    total_pondere = Decimal("0")
-    total_coef = Decimal("0")
+    total_pondere = Decimal(0)
+    total_coef = Decimal(0)
     for m in moyennes_matieres:
         if m.get("moyenne") is None:
             continue

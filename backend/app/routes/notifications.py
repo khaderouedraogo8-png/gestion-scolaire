@@ -1,5 +1,4 @@
 """Module 7 — Routes notifications."""
-import uuid
 
 from flask import jsonify, request
 from flask.views import MethodView
@@ -10,7 +9,10 @@ from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import Notification
 from app.schemas.documents import NotificationCreateSchema, NotificationSchema
-from app.services.envoi_notification import creer_notification, traiter_file_notifications
+from app.services.envoi_notification import (
+    creer_notification,
+    traiter_file_notifications,
+)
 
 blp = Blueprint("notifications", __name__, url_prefix="/notifications", description="Notifications")
 

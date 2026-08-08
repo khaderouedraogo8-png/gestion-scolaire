@@ -1,7 +1,7 @@
 """Génération PDF pédagogiques (devoirs, compositions, fiches classe, enseignant)."""
 import os
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from flask import current_app, render_template
 
@@ -77,7 +77,7 @@ def generer_pdf_programme_devoirs(id_classe: uuid.UUID, id_annee: uuid.UUID) -> 
         classe=classe,
         annee=annee,
         items=items,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("programme_devoirs")
     html_to_pdf(html, path)
@@ -120,7 +120,7 @@ def generer_pdf_calendrier_compositions(
         trimestre=trimestre,
         annee=annee,
         items=items,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("calendrier_compositions")
     html_to_pdf(html, path)
@@ -172,7 +172,7 @@ def generer_pdf_fiche_enseignant(id_enseignant: uuid.UUID, id_annee: uuid.UUID) 
         affectations=aff_rows,
         volume_total=volume_total,
         creneaux=creneaux,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("fiche_enseignant")
     html_to_pdf(html, path)
@@ -188,7 +188,7 @@ def generer_pdf_liste_eleves(id_classe: uuid.UUID) -> str:
         etablissement=_etablissement(db),
         classe=classe,
         eleves=eleves,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("liste_eleves")
     html_to_pdf(html, path)
@@ -212,7 +212,7 @@ def generer_pdf_fiche_correction(id_evaluation: uuid.UUID) -> str:
         matiere=matiere,
         trimestre=trimestre,
         eleves=eleves,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("fiche_correction")
     html_to_pdf(html, path)
@@ -230,7 +230,7 @@ def generer_pdf_fiche_appel(id_classe: uuid.UUID, date_appel: date | None = None
         classe=classe,
         eleves=eleves,
         date_appel=date_appel,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("fiche_appel")
     html_to_pdf(html, path)
@@ -282,7 +282,7 @@ def generer_pdf_fiche_scolarite(id_classe: uuid.UUID, id_annee: uuid.UUID) -> st
         classe=classe,
         annee=annee,
         eleves=eleves,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("fiche_scolarite")
     html_to_pdf(html, path)
@@ -304,7 +304,7 @@ def generer_pdf_emargement_composition(id_evaluation: uuid.UUID) -> str:
         classe=classe,
         matiere=matiere,
         eleves=eleves,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("emargement_composition")
     html_to_pdf(html, path)
@@ -384,7 +384,7 @@ def generer_pdf_programme_trimestriel(
         devoirs=devoirs,
         compositions=comp_items,
         creneaux=creneaux,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
     path = _pdf_path("programme_trimestriel")
     html_to_pdf(html, path)

@@ -6,6 +6,7 @@ from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
 
+from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import get_enseignant_for_user, require_role
 from app.extensions import get_db
 from app.models import (

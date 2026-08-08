@@ -1,13 +1,13 @@
 """Génération de reçus de paiement PDF."""
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import current_app, render_template
 
 from app.extensions import get_db
-from app.services.pdf_render import html_to_pdf
 from app.models import Eleve, Etablissement, Paiement
+from app.services.pdf_render import html_to_pdf
 
 
 def generer_recu_pdf(paiement_id: uuid.UUID) -> str:
@@ -27,7 +27,7 @@ def generer_recu_pdf(paiement_id: uuid.UUID) -> str:
         etablissement=etablissement,
         eleve=eleve,
         paiement=paiement,
-        date_generation=datetime.now(timezone.utc),
+        date_generation=datetime.now(UTC),
     )
 
     upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "recus")

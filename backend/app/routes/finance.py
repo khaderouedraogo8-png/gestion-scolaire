@@ -1,17 +1,27 @@
 """Module 3 — Routes finance : frais, échéances, paiements."""
 import uuid
-from decimal import Decimal
 
 from flask import jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
-from sqlalchemy import func, text
+from sqlalchemy import text
 
 from app.auth.jwt_handler import get_current_user
-from app.auth.permissions import get_parent_eleve_ids, parent_has_eleve_access, require_role
+from app.auth.permissions import (
+    get_parent_eleve_ids,
+    parent_has_eleve_access,
+    require_role,
+)
 from app.extensions import get_db
-from app.models import EcheancePaiement, FraisScolaire, Inscription, NiveauEtude, Paiement, AnneeScolaire, Eleve
+from app.models import (
+    AnneeScolaire,
+    EcheancePaiement,
+    Eleve,
+    FraisScolaire,
+    NiveauEtude,
+    Paiement,
+)
 from app.schemas.finance import (
     AnnulationPaiementSchema,
     EcheancePaiementSchema,
@@ -19,8 +29,8 @@ from app.schemas.finance import (
     PaiementCreateSchema,
     PaiementSchema,
 )
-from app.services.generation_recu import generer_recu_pdf
 from app.services.finance_arrieres import list_arrieres
+from app.services.generation_recu import generer_recu_pdf
 from app.services.relance_arrieres import relancer_arrieres
 from app.utils.audit_logger import log_audit
 

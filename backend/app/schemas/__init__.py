@@ -1,6 +1,11 @@
 """Export centralisé des schémas Marshmallow."""
 from app.schemas.absences import AbsenceSchema, IncidentDisciplinaireSchema
-from app.schemas.auth import ChangePasswordSchema, LoginSchema, TokenResponseSchema, UserSchema
+from app.schemas.auth import (
+    ChangePasswordSchema,
+    LoginSchema,
+    TokenResponseSchema,
+    UserSchema,
+)
 from app.schemas.documents import (
     DocumentAdministratifSchema,
     NotificationCreateSchema,

@@ -332,7 +332,7 @@ def run_seed():
                 id_eleve=first_eleve.id,
                 id_annee=annee.id,
                 motif="Scolarité",
-                montant_verse=Decimal("50000"),
+                montant_verse=Decimal(50000),
                 mode_paiement="Espèces",
                 numero_recu="REC-SEED-001",
                 encaisse_par=admin.id if admin else None,

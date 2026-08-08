@@ -2,13 +2,14 @@
 import hashlib
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from flask import jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
-from marshmallow import Schema, fields as mfields, validate
+from marshmallow import Schema, validate
+from marshmallow import fields as mfields
 
 from app.auth.jwt_handler import get_current_user, hash_password
 from app.auth.permissions import require_role
@@ -88,7 +89,7 @@ class UserDetail(MethodView):
         ):
             user.role = data["role"]
         for field in ("nom", "prenom", "email", "telephone"):
-            if field in data and data[field]:
+            if data.get(field):
                 setattr(user, field, data[field])
         db.commit()
         return UserSchema().dump(user)
@@ -129,7 +130,7 @@ class ForgotPassword(MethodView):
                 id=uuid.uuid4(),
                 id_utilisateur=user.id,
                 token_hash=_hash_token(token),
-                expire_at=datetime.now(timezone.utc) + timedelta(hours=24),
+                expire_at=datetime.now(UTC) + timedelta(hours=24),
             )
         )
         db.commit()
@@ -158,7 +159,7 @@ class ResetPasswordToken(MethodView):
             )
             .first()
         )
-        if not row or row.expire_at < datetime.now(timezone.utc):
+        if not row or row.expire_at < datetime.now(UTC):
             return jsonify({"message": "Lien invalide ou expiré"}), 400
         user = db.query(Utilisateur).filter(Utilisateur.id == row.id_utilisateur).first()
         user.mot_de_passe_hash = hash_password(new_password)

@@ -3,7 +3,7 @@ import json
 import smtplib
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.mime.text import MIMEText
 from urllib import error, request
 
@@ -144,7 +144,7 @@ def envoyer_notification(notif: Notification, destinataire: str) -> bool:
     notif.tentative_count = (notif.tentative_count or 0) + 1
     if success:
         notif.statut = "envoye"
-        notif.envoye_le = datetime.now(timezone.utc)
+        notif.envoye_le = datetime.now(UTC)
     else:
         notif.statut = "echec" if notif.tentative_count >= 3 else "en_attente"
     db.commit()

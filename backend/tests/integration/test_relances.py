@@ -9,7 +9,6 @@ from app.models import (
     FraisScolaire,
     Inscription,
     Notification,
-    Paiement,
 )
 
 
@@ -46,7 +45,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
         id_niveau=niveau.id,
         id_annee=annee.id,
         motif="Scolarité",
-        montant_total=Decimal("100000"),
+        montant_total=Decimal(100000),
     )
     db.add(frais)
     db.flush()
@@ -56,7 +55,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
             id=uuid.uuid4(),
             id_frais=frais.id,
             libelle="T1",
-            montant=Decimal("100000"),
+            montant=Decimal(100000),
             date_echeance=date(2025, 10, 1),
         )
     )
@@ -109,7 +108,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe):
         id_niveau=niveau.id,
         id_annee=annee.id,
         motif="Scolarité",
-        montant_total=Decimal("50000"),
+        montant_total=Decimal(50000),
     )
     db.add(frais)
     db.flush()
@@ -119,7 +118,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe):
             id=uuid.uuid4(),
             id_frais=frais.id,
             libelle="T1",
-            montant=Decimal("50000"),
+            montant=Decimal(50000),
             date_echeance=date(2025, 10, 1),
         )
     )

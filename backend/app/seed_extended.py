@@ -15,7 +15,6 @@ from app.models import (
     Evaluation,
     Inscription,
     Matiere,
-    NiveauEtude,
     Note,
     Notification,
     ParentTuteur,

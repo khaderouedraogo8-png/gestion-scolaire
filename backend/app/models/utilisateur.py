@@ -10,7 +10,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import Base
 
-
 ROLES = (
     "administrateur",
     "directeur",

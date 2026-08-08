@@ -8,7 +8,14 @@ from flask_smorest import Blueprint
 
 from app.auth.permissions import require_role
 from app.extensions import get_db
-from app.models import AnneeScolaire, Classe, Etablissement, EvenementCalendrier, NiveauEtude, Trimestre
+from app.models import (
+    AnneeScolaire,
+    Classe,
+    Etablissement,
+    EvenementCalendrier,
+    NiveauEtude,
+    Trimestre,
+)
 from app.schemas.etablissement import (
     AnneeScolaireSchema,
     ClasseSchema,

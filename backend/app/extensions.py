@@ -1,4 +1,5 @@
 """Initialisation des extensions Flask."""
+from flask import g
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
@@ -6,8 +7,6 @@ from flask_limiter.util import get_remote_address
 from flask_smorest import Api
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import DeclarativeBase, scoped_session, sessionmaker
-
-from flask import g
 
 
 class Base(DeclarativeBase):

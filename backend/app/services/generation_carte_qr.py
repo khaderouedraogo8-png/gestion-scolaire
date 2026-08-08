@@ -4,14 +4,14 @@ import hmac
 import json
 import os
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 
 import qrcode
 from flask import current_app, render_template
 
 from app.extensions import get_db
-from app.services.pdf_render import html_to_pdf
 from app.models import DocumentAdministratif, Eleve, Etablissement, Inscription
+from app.services.pdf_render import html_to_pdf
 
 
 def _sign_payload(payload: dict) -> str:

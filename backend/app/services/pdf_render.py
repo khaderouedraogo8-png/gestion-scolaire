@@ -2,6 +2,7 @@
 import os
 import sys
 
+
 def _gtk_dll_directories() -> list[str]:
     """Retourne les dossiers GTK/Pango, MSYS2 prioritaire."""
     custom = [d.strip() for d in os.getenv("WEASYPRINT_DLL_DIRECTORIES", "").split(";") if d.strip()]

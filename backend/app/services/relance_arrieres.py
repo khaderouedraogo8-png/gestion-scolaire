@@ -1,11 +1,14 @@
 """Relances automatiques aux parents pour arriérés de paiement."""
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.models import Notification
-from app.services.envoi_notification import creer_notification, traiter_file_notifications
+from app.services.envoi_notification import (
+    creer_notification,
+    traiter_file_notifications,
+)
 from app.services.finance_arrieres import list_arrieres
 
 
@@ -21,7 +24,7 @@ def relancer_arrieres(
     Évite les doublons si une relance a déjà été créée/envoyée récemment.
     """
     arrieres = list_arrieres(db, id_annee)
-    seuil = datetime.now(timezone.utc) - timedelta(days=min_jours_entre_relances)
+    seuil = datetime.now(UTC) - timedelta(days=min_jours_entre_relances)
     crees = 0
     ignores = 0
 

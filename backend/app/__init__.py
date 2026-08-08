@@ -39,7 +39,6 @@ def create_app(config_name: str | None = None) -> Flask:
     api.init_app(application)
 
     import app.models  # noqa: F401
-
     from app.routes.absences import blp as absences_blp
     from app.routes.audit import blp as audit_blp
     from app.routes.auth import blp as auth_blp
@@ -107,8 +106,9 @@ def create_app(config_name: str | None = None) -> Flask:
         storage_uri = application.config.get("RATELIMIT_STORAGE_URI", "")
         if storage_uri.startswith("redis://"):
             try:
-                import redis
                 from urllib.parse import urlparse
+
+                import redis
 
                 parsed = urlparse(storage_uri)
                 db_num = int((parsed.path or "/0").lstrip("/") or 0)
