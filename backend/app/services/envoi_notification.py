@@ -5,7 +5,8 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from email.mime.text import MIMEText
-from urllib import error, request
+from http.client import HTTPConnection, HTTPSConnection
+from urllib.parse import urlparse
 
 from flask import current_app
 
@@ -68,21 +69,32 @@ class HTTPAPIProvider(NotificationProvider):
             "message": contenu,
             "sender": current_app.config.get("SMS_SENDER", "ECOLE"),
         }).encode("utf-8")
-        req = request.Request(
-            api_url,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}" if api_key else "",
-            },
-            method="POST",
-        )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}" if api_key else "",
+        }
         try:
-            with request.urlopen(req, timeout=15) as resp:
-                return 200 <= resp.status < 300
-        except error.URLError as exc:
+            status = _post_json(api_url, payload, headers)
+            return 200 <= status < 300
+        except OSError as exc:
             current_app.logger.warning("SMS API error → %s : %s", destinataire, exc)
             return False
+
+
+def _post_json(url: str, payload: bytes, headers: dict, timeout: int = 15) -> int:
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https", "http") or not parsed.netloc:
+        raise ValueError("Invalid SMS API URL")
+    path = parsed.path or "/"
+    if parsed.query:
+        path = f"{path}?{parsed.query}"
+    conn_cls = HTTPSConnection if parsed.scheme == "https" else HTTPConnection
+    conn = conn_cls(parsed.netloc, timeout=timeout)
+    try:
+        conn.request("POST", path, body=payload, headers=headers)
+        return conn.getresponse().status
+    finally:
+        conn.close()
 
 
 def get_provider(canal: str) -> NotificationProvider:
