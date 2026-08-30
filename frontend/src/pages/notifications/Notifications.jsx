@@ -1,9 +1,12 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { notificationsApi } from '../../services/api/notifications';
 import { elevesApi } from '../../services/api/eleves';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
+import StatCard from '../../components/StatCard';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -30,6 +33,8 @@ function StatutBadge({ statut }) {
 
 export default function Notifications() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const { isAdmin } = useAuth();
 
   const [notifications, setNotifications] = useState([]);
@@ -54,11 +59,11 @@ export default function Notifications() {
       });
       setNotifications(data.items || data || []);
     } catch {
-      toast.error('Erreur lors du chargement des notifications');
+      toastRef.current.error('Impossible de charger les notifications. Réessayez.');
     } finally {
       setLoading(false);
     }
-  }, [statutFilter, toast]);
+  }, [statutFilter]);
 
   useEffect(() => {
     load();
@@ -163,47 +168,41 @@ export default function Notifications() {
   const failedCount = notifications.filter((n) => n.statut === 'echec').length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Notifications</h1>
-          <p className="page-subtitle">File d'envoi SMS et email aux parents</p>
-        </div>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const r = await notificationsApi.traiterFile();
-                toast.success(r.message || 'File traitée');
-                load();
-              } catch {
-                toast.error('Erreur traitement file');
-              }
-            }}
-            className="btn-secondary"
-          >
-            Traiter la file
-          </button>
-        )}
-        <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
-          + Nouvelle notification
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Notifications"
+        title="Notifications"
+        subtitle="File d'envoi SMS et email aux parents"
+        actions={
+          <>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const r = await notificationsApi.traiterFile();
+                    toast.success(r.message || 'File traitée');
+                    load();
+                  } catch {
+                    toast.error('Erreur traitement file');
+                  }
+                }}
+                className="btn-secondary"
+              >
+                Traiter la file
+              </button>
+            )}
+            <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
+              + Nouvelle notification
+            </button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="card">
-          <p className="page-subtitle">Total affiché</p>
-          <p className="page-title">{notifications.length}</p>
-        </div>
-        <div className="card">
-          <p className="page-subtitle">En attente</p>
-          <p className="text-2xl font-bold text-ambre">{pendingCount}</p>
-        </div>
-        <div className="card">
-          <p className="page-subtitle">Échecs</p>
-          <p className="text-2xl font-bold text-brique">{failedCount}</p>
-        </div>
+        <StatCard title="Total affiché" value={notifications.length} />
+        <StatCard title="En attente" value={pendingCount} tone="warning" />
+        <StatCard title="Échecs" value={failedCount} tone="negative" />
       </div>
 
       <Table
@@ -223,7 +222,8 @@ export default function Notifications() {
             ))}
           </select>
         }
-        emptyMessage="Aucune notification dans la file"
+        emptyIcon={emptyIcons.notifications}
+        emptyMessage="Aucune notification pour l'instant — créez-en une via le bouton ci-dessus."
       />
 
       <Modal
@@ -280,7 +280,7 @@ export default function Notifications() {
               placeholder="Rechercher un élève..."
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-blanc ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button

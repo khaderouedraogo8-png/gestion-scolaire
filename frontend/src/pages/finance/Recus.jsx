@@ -1,8 +1,10 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -111,12 +113,13 @@ export default function Recus() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Reçus de paiement</h1>
-        <p className="page-subtitle">Aucune suppression — annulation tracée uniquement</p>
-      </div>
-      <Table columns={columns} data={paiements} loading={loading} emptyMessage="Aucun paiement" />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Finance"
+        title="Reçus de paiement"
+        subtitle="Aucune suppression — annulation tracée uniquement"
+      />
+      <Table columns={columns} data={paiements} loading={loading} emptyIcon={emptyIcons.paiements} emptyMessage="Aucun paiement pour l'instant" />
 
       <Modal
         isOpen={Boolean(annulModal)}

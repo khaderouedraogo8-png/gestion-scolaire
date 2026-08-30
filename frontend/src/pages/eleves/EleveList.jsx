@@ -1,8 +1,10 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { emptyIcons } from '../../utils/emptyIcons';
 import { elevesApi } from '../../services/api/eleves';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -149,29 +151,30 @@ export default function EleveList() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">{isGlobalSearch ? 'Recherche globale' : 'Élèves'}</h1>
-          <p className="page-subtitle">
-            {isGlobalSearch
-              ? 'Recherche par nom ou matricule — tous cycles confondus'
-              : 'Gestion des fiches élèves et inscriptions'}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {isGlobalSearch && (
-            <Link to="/classes" className="btn-secondary">
-              ← Par classe
-            </Link>
-          )}
-        {canWrite && (
-          <Link to="/eleves/nouveau" className="btn-primary">
-            + Nouvel élève
-          </Link>
-        )}
-        </div>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Élèves"
+        title={isGlobalSearch ? 'Recherche globale' : 'Élèves'}
+        subtitle={
+          isGlobalSearch
+            ? 'Recherche par nom ou matricule — tous cycles confondus'
+            : 'Gestion des fiches élèves et inscriptions'
+        }
+        actions={
+          <>
+            {isGlobalSearch && (
+              <Link to="/classes" className="btn-secondary">
+                ← Par classe
+              </Link>
+            )}
+            {canWrite && (
+              <Link to="/eleves/nouveau" className="btn-primary">
+                + Nouvel élève
+              </Link>
+            )}
+          </>
+        }
+      />
 
       <Table
         columns={columns}
@@ -224,7 +227,8 @@ export default function EleveList() {
           totalPages: Math.ceil(total / perPage) || 1,
           onPageChange: setPage,
         }}
-        emptyMessage="Aucun élève trouvé pour cette année"
+        emptyIcon={emptyIcons.eleves}
+        emptyMessage="Aucun élève trouvé pour l'instant — modifiez les filtres ou inscrivez un élève."
       />
     </div>
   );

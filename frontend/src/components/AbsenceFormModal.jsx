@@ -112,7 +112,7 @@ export default function AbsenceFormModal({ isOpen, onClose, onCreated }) {
               autoComplete="off"
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-input border border-bordure bg-blanc shadow-sm">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-input border border-bordure bg-blanc">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button

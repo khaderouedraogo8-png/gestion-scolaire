@@ -2,8 +2,10 @@
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -225,20 +227,19 @@ export default function BulletinList() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Bulletins</h1>
-          <p className="page-subtitle">
-            Workflow : brouillon → validé (directeur) → publié (parents)
-          </p>
-        </div>
-        {isAdmin && (
-          <button type="button" onClick={() => setGenModal(true)} className="btn-primary">
-            Générer les bulletins
-          </button>
-        )}
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Notes & bulletins"
+        title="Bulletins"
+        subtitle="Workflow : brouillon → validé (directeur) → publié (parents)"
+        actions={
+          isAdmin && (
+            <button type="button" onClick={() => setGenModal(true)} className="btn-primary">
+              Générer les bulletins
+            </button>
+          )
+        }
+      />
 
       <Table
         columns={columns}
@@ -270,7 +271,8 @@ export default function BulletinList() {
             </select>
           </>
         }
-        emptyMessage="Aucun bulletin — saisissez des notes puis générez les bulletins"
+        emptyIcon={emptyIcons.bulletins}
+        emptyMessage="Aucun bulletin pour l'instant — saisissez des notes puis générez les bulletins."
       />
 
       <Modal

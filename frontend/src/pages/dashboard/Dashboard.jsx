@@ -1,39 +1,53 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Plus,
+  GraduationCap,
+  TrendingUp,
+  Wallet,
+  AlertCircle,
+  ClipboardList,
+  CalendarCheck,
+  Clock,
+  BarChart3,
+  PieChart,
+} from 'lucide-react';
 import { dashboardApi } from '../../services/api/dashboard';
 import { configApi } from '../../services/api/config';
 import { useToast } from '../../components/Toast';
 import StatCard from '../../components/StatCard';
 import Card from '../../components/Card';
+import PageHeader from '../../components/PageHeader';
+import EmptyState from '../../components/EmptyState';
 import AbsenceFormModal from '../../components/AbsenceFormModal';
 import { cycleLabel, toClassSlug } from '../../utils/classNavigation';
 
-function AbsencesParClasseBlock({ title, cycles, emptyMessage }) {
+function AbsencesParClasseBlock({ title, cycles, emptyMessage, emptyIcon: EmptyIcon }) {
   if (!cycles?.length) {
     return (
-      <Card>
-        <h3 className="mb-2 text-sm font-medium text-encre">{title}</h3>
-        <p className="text-sm text-texte-secondaire">{emptyMessage}</p>
+      <Card premium>
+        <h3 className="section-title mb-4 !text-base">{title}</h3>
+        <EmptyState icon={EmptyIcon} message={emptyMessage} />
       </Card>
     );
   }
 
   return (
-    <Card>
-      <h3 className="mb-4 text-sm font-medium text-encre">{title}</h3>
-      <div className="space-y-4">
+    <Card premium>
+      <h3 className="section-title mb-4 !text-base">{title}</h3>
+      <div className="space-y-5">
         {cycles.map((block) => (
-          <div key={block.cycle}>
-            <p className="text-sm font-medium text-encre">
-              {cycleLabel(block.cycle)} — {block.total} absence{block.total > 1 ? 's' : ''}
+          <div key={block.cycle} className="border-b border-bordure/50 pb-4 last:border-0 last:pb-0">
+            <p className="font-display text-sm font-medium text-encre">
+              {cycleLabel(block.cycle)}
+              <span className="ml-2 font-sans text-xs font-normal text-texte-secondaire">
+                — {block.total} absence{block.total > 1 ? 's' : ''}
+              </span>
             </p>
-            <ul className="mt-2 flex flex-wrap gap-2">
+            <ul className="mt-3 flex flex-wrap gap-2">
               {block.classes.map((cl) => (
                 <li key={cl.id_classe}>
-                  <Link
-                    to={`/classes/${block.cycle}/${toClassSlug(cl.libelle)}?onglet=absences`}
-                    className="inline-flex rounded-badge border border-bordure px-2 py-1 text-xs text-or-cachet hover:bg-or-cachet-clair"
-                  >
+                  <Link to={`/classes/${block.cycle}/${toClassSlug(cl.libelle)}?onglet=absences`} className="nav-pill">
                     {cl.libelle}: {cl.count}
                   </Link>
                 </li>
@@ -49,9 +63,9 @@ function AbsencesParClasseBlock({ title, cycles, emptyMessage }) {
 function BarChart({ data, labelKey, valueKey, title }) {
   if (!data?.length) {
     return (
-      <Card>
-        <h3 className="mb-4 text-sm font-medium text-encre">{title}</h3>
-        <p className="text-sm text-texte-secondaire">Aucune donnée pour l'instant</p>
+      <Card premium>
+        <h3 className="section-title mb-4 !text-base">{title}</h3>
+        <EmptyState icon={BarChart3} message="Aucune donnée pour l'instant." />
       </Card>
     );
   }
@@ -59,18 +73,18 @@ function BarChart({ data, labelKey, valueKey, title }) {
   const max = Math.max(...data.map((d) => d[valueKey] || 0), 1);
 
   return (
-    <Card>
-      <h3 className="mb-4 text-sm font-medium text-encre">{title}</h3>
-      <div className="space-y-3">
+    <Card premium>
+      <h3 className="section-title mb-5 !text-base">{title}</h3>
+      <div className="space-y-4">
         {data.map((item, i) => (
           <div key={i}>
-            <div className="mb-1 flex justify-between text-xs">
+            <div className="mb-1.5 flex justify-between text-xs">
               <span className="font-medium text-encre">{item[labelKey]}</span>
-              <span className="tabular-nums text-texte-secondaire">{item[valueKey]}%</span>
+              <span className="tabular-nums font-medium text-or-cachet">{item[valueKey]}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-craie">
+            <div className="chart-bar-track">
               <div
-                className="h-full rounded-full bg-or-cachet transition-all"
+                className="chart-bar-fill"
                 style={{ width: `${((item[valueKey] || 0) / max) * 100}%` }}
               />
             </div>
@@ -84,9 +98,9 @@ function BarChart({ data, labelKey, valueKey, title }) {
 function DonutChart({ data, title }) {
   if (!data?.length) {
     return (
-      <Card>
-        <h3 className="mb-4 text-sm font-medium text-encre">{title}</h3>
-        <p className="text-sm text-texte-secondaire">Aucune donnée pour l'instant</p>
+      <Card premium>
+        <h3 className="section-title mb-4 !text-base">{title}</h3>
+        <EmptyState icon={PieChart} message="Aucune donnée pour l'instant." />
       </Card>
     );
   }
@@ -102,25 +116,41 @@ function DonutChart({ data, title }) {
     return { ...d, pct, start, color: colors[i % colors.length] };
   });
 
-  const gradient = segments
-    .map((s) => `${s.color} ${s.start}% ${s.start + s.pct}%`)
-    .join(', ');
+  const gradient = segments.map((s) => `${s.color} ${s.start}% ${s.start + s.pct}%`).join(', ');
 
   return (
-    <Card>
-      <h3 className="mb-4 text-sm font-medium text-encre">{title}</h3>
-      <div className="flex items-center gap-6">
-        <div
-          className="h-32 w-32 shrink-0 rounded-full"
-          style={{ background: total > 0 ? `conic-gradient(${gradient})` : '#E4E2D9' }}
-        />
-        <div className="space-y-2">
+    <Card premium>
+      <h3 className="section-title mb-6 !text-base">{title}</h3>
+      <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start">
+        <div className="relative shrink-0">
+          <div
+            className="h-36 w-36 rounded-full ring-1 ring-bordure/60"
+            style={{ background: total > 0 ? `conic-gradient(${gradient})` : '#E4E2D9' }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-[4.5rem] w-[4.5rem] flex-col items-center justify-center rounded-full border border-bordure/60 bg-blanc">
+              <span className="font-display text-xl font-medium tabular-nums text-encre">{total}</span>
+              <span className="text-[10px] uppercase tracking-[0.06em] text-texte-secondaire">Total</span>
+            </div>
+          </div>
+        </div>
+        <div className="w-full flex-1 space-y-2.5">
           {segments.map((s, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
-              <span className="text-encre">{s.label}</span>
-              <span className="font-medium tabular-nums text-encre">{s.value}</span>
-              <span className="tabular-nums text-texte-secondaire">({s.pct.toFixed(0)}%)</span>
+            <div
+              key={i}
+              className="flex items-center justify-between gap-3 rounded-input border border-bordure/60 bg-craie/40 px-3 py-2.5"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-blanc"
+                  style={{ backgroundColor: s.color }}
+                />
+                <span className="truncate text-sm text-encre">{s.label}</span>
+              </div>
+              <div className="shrink-0 text-right text-sm">
+                <span className="font-medium tabular-nums text-encre">{s.value}</span>
+                <span className="ml-1.5 tabular-nums text-texte-secondaire">({s.pct.toFixed(0)}%)</span>
+              </div>
             </div>
           ))}
         </div>
@@ -197,8 +227,9 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+        <p className="text-sm text-texte-secondaire">Chargement du tableau de bord…</p>
       </div>
     );
   }
@@ -216,80 +247,103 @@ export default function Dashboard() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="page-title">Tableau de bord</h1>
-          <p className="page-subtitle">Vue d'ensemble de votre établissement</p>
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Administration"
+        title="Tableau de bord"
+        subtitle="Vue d'ensemble de votre établissement scolaire"
+        actions={
+          <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Signaler une absence
+          </button>
+        }
+      />
+
+      <section>
+        <h2 className="dashboard-section-label">Indicateurs clés</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard
+            title="Effectif total"
+            value={stats?.total_eleves_inscrits ?? stats?.effectif_total ?? 0}
+            subtitle="Élèves inscrits"
+            tone="neutral"
+            icon={GraduationCap}
+            delay={0}
+          />
+          <StatCard
+            title="Taux de recouvrement"
+            value={stats?.taux_recouvrement != null ? `${stats.taux_recouvrement}%` : '—'}
+            subtitle="Paiements encaissés"
+            tone="positive"
+            icon={TrendingUp}
+            delay={60}
+          />
+          <StatCard
+            title="Trésorerie"
+            value={
+              stats?.tresorerie != null
+                ? `${Number(stats.tresorerie).toLocaleString('fr-FR')} FCFA`
+                : '—'
+            }
+            subtitle="Total encaissé"
+            tone="neutral"
+            icon={Wallet}
+            delay={120}
+          />
+          <StatCard
+            title="Montant dû"
+            value={
+              stats?.total_du != null
+                ? `${Number(stats.total_du).toLocaleString('fr-FR')} FCFA`
+                : '—'
+            }
+            subtitle="Échéances scolaires"
+            tone="warning"
+            icon={AlertCircle}
+            delay={180}
+          />
+          <StatCard
+            title="Absences"
+            value={stats?.total_absences ?? 0}
+            subtitle="Total enregistrées"
+            tone="negative"
+            icon={ClipboardList}
+            delay={240}
+          />
         </div>
-        <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
-          + Signaler une absence
-        </button>
-      </div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard
-          title="Effectif total"
-          value={stats?.total_eleves_inscrits ?? stats?.effectif_total ?? 0}
-          subtitle="Élèves inscrits"
-          tone="neutral"
-        />
-        <StatCard
-          title="Taux de recouvrement"
-          value={stats?.taux_recouvrement != null ? `${stats.taux_recouvrement}%` : '—'}
-          subtitle="Paiements encaissés"
-          tone="positive"
-        />
-        <StatCard
-          title="Trésorerie"
-          value={
-            stats?.tresorerie != null
-              ? `${Number(stats.tresorerie).toLocaleString('fr-FR')} FCFA`
-              : '—'
-          }
-          subtitle="Total encaissé"
-          tone="neutral"
-        />
-        <StatCard
-          title="Montant dû"
-          value={
-            stats?.total_du != null
-              ? `${Number(stats.total_du).toLocaleString('fr-FR')} FCFA`
-              : '—'
-          }
-          subtitle="Échéances scolaires"
-          tone="warning"
-        />
-        <StatCard
-          title="Absences"
-          value={stats?.total_absences ?? 0}
-          subtitle="Total enregistrées"
-          tone="negative"
-        />
-      </div>
+      <section>
+        <h2 className="dashboard-section-label">Suivi des absences</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AbsencesParClasseBlock
+            title="Absences du jour"
+            cycles={absencesData?.absences_jour}
+            emptyMessage="Aucune absence signalée aujourd'hui."
+            emptyIcon={CalendarCheck}
+          />
+          <AbsencesParClasseBlock
+            title="Non justifiées en attente (7 jours)"
+            cycles={absencesData?.non_justifiees_en_attente}
+            emptyMessage="Aucune absence non justifiée en attente."
+            emptyIcon={Clock}
+          />
+        </div>
+      </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <AbsencesParClasseBlock
-          title="Absences du jour"
-          cycles={absencesData?.absences_jour}
-          emptyMessage="Aucune absence signalée aujourd'hui."
-        />
-        <AbsencesParClasseBlock
-          title="Non justifiées en attente (7 jours)"
-          cycles={absencesData?.non_justifiees_en_attente}
-          emptyMessage="Aucune absence non justifiée en attente."
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DonutChart data={effectifData} title="Effectifs par niveau" />
-        <BarChart
-          data={reussiteData}
-          labelKey="matiere"
-          valueKey="taux"
-          title="Taux de réussite par matière (%)"
-        />
-      </div>
+      <section>
+        <h2 className="dashboard-section-label">Analyses pédagogiques</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DonutChart data={effectifData} title="Effectifs par niveau" />
+          <BarChart
+            data={reussiteData}
+            labelKey="matiere"
+            valueKey="taux"
+            title="Taux de réussite par matière (%)"
+          />
+        </div>
+      </section>
 
       <AbsenceFormModal
         isOpen={absenceModalOpen}

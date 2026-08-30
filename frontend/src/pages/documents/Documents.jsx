@@ -3,8 +3,10 @@ import { documentsApi } from '../../services/api/documents';
 import { configApi } from '../../services/api/config';
 import { elevesApi } from '../../services/api/eleves';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 const DOC_TYPES = {
@@ -154,16 +156,17 @@ export default function Documents() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Documents administratifs</h1>
-          <p className="page-subtitle">Génération d'attestations, cartes et certificats</p>
-        </div>
-        <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
-          + Générer un document
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Documents"
+        title="Documents administratifs"
+        subtitle="Génération d'attestations, cartes et certificats"
+        actions={
+          <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
+            + Générer un document
+          </button>
+        }
+      />
 
       <Table
         columns={columns}
@@ -183,7 +186,8 @@ export default function Documents() {
             ))}
           </select>
         }
-        emptyMessage="Aucun document généré"
+        emptyIcon={emptyIcons.documents}
+        emptyMessage="Aucun document pour l'instant — utilisez le formulaire ci-dessus pour en générer un."
       />
 
       <Modal
@@ -225,7 +229,7 @@ export default function Documents() {
               required
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-blanc ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button

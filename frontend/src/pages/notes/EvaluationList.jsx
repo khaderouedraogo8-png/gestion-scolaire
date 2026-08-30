@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -137,18 +139,19 @@ export default function EvaluationList() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Évaluations</h1>
-          <p className="page-subtitle">Gestion des évaluations et saisie des notes</p>
-        </div>
-        {canWrite && (
-          <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
-            + Nouvelle évaluation
-          </button>
-        )}
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Notes & bulletins"
+        title="Évaluations"
+        subtitle="Gestion des évaluations et saisie des notes"
+        actions={
+          canWrite && (
+            <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
+              + Nouvelle évaluation
+            </button>
+          )
+        }
+      />
 
       <Table
         columns={columns}
@@ -168,7 +171,8 @@ export default function EvaluationList() {
             ))}
           </select>
         }
-        emptyMessage="Aucune évaluation — créez-en une pour commencer la saisie"
+        emptyIcon={emptyIcons.evaluations}
+        emptyMessage="Aucune évaluation pour l'instant — créez-en une pour commencer la saisie."
       />
 
       <Modal

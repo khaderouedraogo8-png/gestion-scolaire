@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { emploiApi } from '../../services/api/emploi';
 import { usersApi } from '../../services/api/users';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -143,22 +145,24 @@ export default function Enseignants() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Enseignants</h1>
-          <p className="page-subtitle">Personnel enseignant et lien compte utilisateur</p>
-        </div>
-        {isAdmin && (
-          <button type="button" className="btn-primary" onClick={openCreate}>
-            + Ajouter
-          </button>
-        )}
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Emploi du temps"
+        title="Enseignants"
+        subtitle="Personnel enseignant et lien compte utilisateur"
+        actions={
+          isAdmin && (
+            <button type="button" className="btn-primary" onClick={openCreate}>
+              + Ajouter
+            </button>
+          )
+        }
+      />
       <Table
         columns={columns}
         data={enseignants}
         loading={loading}
+        emptyIcon={emptyIcons.enseignants}
         emptyMessage="Aucun enseignant pour l'instant — ajoutez le premier via le bouton ci-dessus."
         onRowClick={(row) => navigate(`/emploi/enseignants/${row.id}`)}
       />

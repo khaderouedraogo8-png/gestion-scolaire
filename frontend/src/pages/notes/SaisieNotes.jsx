@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { notesApi } from '../../services/api/notes';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import Badge from '../../components/Badge';
 
@@ -89,13 +90,11 @@ export default function SaisieNotes() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link to="/notes/evaluations" className="text-sm text-or-cachet hover:underline">
-          ← Retour aux évaluations
-        </Link>
-        <h1 className="mt-2 page-title">Saisie des notes</h1>
-      </div>
+    <div className="space-y-8">
+      <Link to="/notes/evaluations" className="text-sm text-or-cachet hover:underline">
+        ← Retour aux évaluations
+      </Link>
+      <PageHeader eyebrow="Notes & bulletins" title="Saisie des notes" />
 
       <div className="card">
         <label className="label">Sélectionner une évaluation</label>
@@ -152,10 +151,10 @@ export default function SaisieNotes() {
 
           {notes.length === 0 ? (
             <div className="card text-center page-subtitle">
-              Aucun élève inscrit dans cette classe
+              Aucun élève inscrit dans cette classe pour l'instant
             </div>
           ) : (
-            <div className="overflow-hidden rounded-card border border-bordure bg-white">
+            <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
               <table className="min-w-full divide-y divide-bordure">
                 <thead className="bg-craie">
                   <tr>

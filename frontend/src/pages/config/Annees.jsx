@@ -1,12 +1,16 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Annees() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const [annees, setAnnees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,11 +29,11 @@ export default function Annees() {
       const data = await configApi.listAnnees();
       setAnnees(data.items || data || []);
     } catch {
-      toast.error('Erreur lors du chargement des années');
+      toastRef.current.error('Impossible de charger les années. Réessayez.');
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     load();
@@ -91,22 +95,24 @@ export default function Annees() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Années scolaires</h1>
-          <p className="page-subtitle">Gestion des périodes scolaires</p>
-        </div>
-        <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
-          + Nouvelle année
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Années scolaires"
+        subtitle="Gestion des périodes scolaires"
+        actions={
+          <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
+            + Nouvelle année
+          </button>
+        }
+      />
 
       <Table
         columns={columns}
         data={annees}
         loading={loading}
-        emptyMessage="Aucune année scolaire configurée"
+        emptyIcon={emptyIcons.annees}
+        emptyMessage="Aucune année scolaire pour l'instant — créez-en une via le bouton ci-dessus."
       />
 
       <Modal

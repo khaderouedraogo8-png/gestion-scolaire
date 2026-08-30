@@ -3,8 +3,10 @@ import { emploiApi } from '../../services/api/emploi';
 import { configApi } from '../../services/api/config';
 import { notesApi } from '../../services/api/notes';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -156,18 +158,19 @@ export default function Affectations() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Affectations</h1>
-          <p className="page-subtitle">Liaison enseignant / classe / matière</p>
-        </div>
-        {isAdmin && (
-          <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
-            + Nouvelle affectation
-          </button>
-        )}
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Emploi du temps"
+        title="Affectations"
+        subtitle="Liaison enseignant / classe / matière"
+        actions={
+          isAdmin && (
+            <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
+              + Nouvelle affectation
+            </button>
+          )
+        }
+      />
 
       <Table
         columns={columns}
@@ -201,7 +204,8 @@ export default function Affectations() {
             </select>
           </>
         }
-        emptyMessage="Aucune affectation configurée"
+        emptyIcon={emptyIcons.affectations}
+        emptyMessage="Aucune affectation pour l'instant — configurez les affectations ci-dessus."
       />
 
       <Modal

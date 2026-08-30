@@ -1,12 +1,18 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
+import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Coefficients() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const [coefficients, setCoefficients] = useState([]);
   const [matieres, setMatieres] = useState([]);
   const [niveaux, setNiveaux] = useState([]);
@@ -15,7 +21,7 @@ export default function Coefficients() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ id_matiere: '', id_niveau: '', coefficient: '1' });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [coefs, mats, nivs] = await Promise.all([
@@ -27,15 +33,15 @@ export default function Coefficients() {
       setMatieres(Array.isArray(mats) ? mats : []);
       setNiveaux(Array.isArray(nivs) ? nivs : nivs.items || []);
     } catch {
-      toast.error('Erreur chargement coefficients');
+      toastRef.current.error('Impossible de charger les coefficients. Réessayez.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [niveauFilter]);
 
   useEffect(() => {
     load();
-  }, [niveauFilter]);
+  }, [load]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,71 +55,71 @@ export default function Coefficients() {
       setModal(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
     }
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Supprimer ce coefficient ?')) return;
     try {
       await notesApi.deleteCoefficient(id);
       toast.success('Coefficient supprimé');
       load();
     } catch {
-      toast.error('Erreur suppression');
+      toast.error('Impossible de supprimer ce coefficient');
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Coefficients par niveau</h1>
-          <p className="page-subtitle">Pondération des matières pour le calcul des moyennes</p>
-        </div>
-        <button type="button" onClick={() => setModal(true)} className="btn-primary">
-          + Coefficient
+  const columns = [
+    { key: 'matiere', header: 'Matière', render: (r) => r.matiere_libelle },
+    { key: 'niveau', header: 'Niveau', render: (r) => r.niveau_libelle },
+    {
+      key: 'coefficient',
+      header: 'Coefficient',
+      align: 'right',
+      render: (r) => <span className="font-medium tabular-nums">{r.coefficient}</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (r) => (
+        <button type="button" onClick={() => handleDelete(r.id)} className="text-brique hover:underline">
+          Supprimer
         </button>
-      </div>
+      ),
+    },
+  ];
 
-      <select value={niveauFilter} onChange={(e) => setNiveauFilter(e.target.value)} className="input w-auto">
-        <option value="">Tous les niveaux</option>
-        {niveaux.map((n) => (
-          <option key={n.id} value={n.id}>
-            {n.libelle}
-          </option>
-        ))}
-      </select>
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Coefficients par niveau"
+        subtitle="Pondération des matières pour le calcul des moyennes"
+        actions={
+          <button type="button" onClick={() => setModal(true)} className="btn-primary">
+            + Coefficient
+          </button>
+        }
+      />
 
-      {loading ? (
-        <p className="text-texte-secondaire">Chargement...</p>
-      ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
-              <tr>
-                <th className="px-4 py-3">Matière</th>
-                <th className="px-4 py-3">Niveau</th>
-                <th className="px-4 py-3">Coefficient</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {coefficients.map((c) => (
-                <tr key={c.id} className="border-t border-bordure/50">
-                  <td className="px-4 py-3">{c.matiere_libelle}</td>
-                  <td className="px-4 py-3">{c.niveau_libelle}</td>
-                  <td className="px-4 py-3 font-medium">{c.coefficient}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button type="button" onClick={() => handleDelete(c.id)} className="text-brique hover:underline">
-                      Supprimer
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Table
+        columns={columns}
+        data={coefficients}
+        loading={loading}
+        filters={
+          <select value={niveauFilter} onChange={(e) => setNiveauFilter(e.target.value)} className="input w-auto">
+            <option value="">Tous les niveaux</option>
+            {niveaux.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.libelle}
+              </option>
+            ))}
+          </select>
+        }
+        emptyIcon={emptyIcons.coefficients}
+        emptyMessage="Aucun coefficient pour l'instant — ajoutez-en un via le bouton ci-dessus."
+      />
 
       <Modal isOpen={modal} onClose={() => setModal(false)} title="Nouveau coefficient">
         <form onSubmit={handleSubmit} className="space-y-4">

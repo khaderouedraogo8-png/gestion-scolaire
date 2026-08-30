@@ -1,13 +1,17 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import { emploiApi } from '../../services/api/emploi';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Classes() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const [classes, setClasses] = useState([]);
   const [niveaux, setNiveaux] = useState([]);
@@ -34,11 +38,11 @@ export default function Classes() {
       });
       setClasses(data.items || data || []);
     } catch {
-      toast.error('Erreur lors du chargement des classes');
+      toastRef.current.error('Impossible de charger les classes. Réessayez.');
     } finally {
       setLoading(false);
     }
-  }, [anneeFilter, toast]);
+  }, [anneeFilter]);
 
   useEffect(() => {
     load();
@@ -170,16 +174,17 @@ export default function Classes() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Classes</h1>
-          <p className="page-subtitle">Organisation des classes par niveau et année</p>
-        </div>
-        <button type="button" onClick={openCreate} className="btn-primary">
-          + Nouvelle classe
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Classes"
+        subtitle="Organisation des classes par niveau et année"
+        actions={
+          <button type="button" onClick={openCreate} className="btn-primary">
+            + Nouvelle classe
+          </button>
+        }
+      />
 
       <Table
         columns={columns}
@@ -199,7 +204,8 @@ export default function Classes() {
             ))}
           </select>
         }
-        emptyMessage="Aucune classe configurée"
+        emptyIcon={emptyIcons.classes}
+        emptyMessage="Aucune classe pour l'instant — créez-en une via le bouton ci-dessus."
       />
 
       <Modal

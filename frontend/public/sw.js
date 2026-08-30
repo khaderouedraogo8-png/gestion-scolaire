@@ -1,4 +1,4 @@
-const CACHE = 'gestion-scolaire-v1';
+const CACHE = 'gestion-scolaire-v2';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

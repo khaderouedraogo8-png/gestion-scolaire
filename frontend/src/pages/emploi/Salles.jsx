@@ -1,8 +1,10 @@
 ﻿import { useEffect, useState } from 'react';
 import { emploiApi } from '../../services/api/emploi';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -49,19 +51,20 @@ export default function Salles() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Salles</h1>
-          <p className="page-subtitle">Salles de cours disponibles</p>
-        </div>
-        {isAdmin && (
-          <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
-            + Nouvelle salle
-          </button>
-        )}
-      </div>
-      <Table columns={columns} data={salles} loading={loading} emptyMessage="Aucune salle" />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Emploi du temps"
+        title="Salles"
+        subtitle="Salles de cours disponibles"
+        actions={
+          isAdmin && (
+            <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
+              + Nouvelle salle
+            </button>
+          )
+        }
+      />
+      <Table columns={columns} data={salles} loading={loading} emptyIcon={emptyIcons.salles} emptyMessage="Aucune salle pour l'instant — ajoutez-en une via le bouton ci-dessus." />
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nouvelle salle">
         <form onSubmit={handleSubmit} className="space-y-4">
           <FormField

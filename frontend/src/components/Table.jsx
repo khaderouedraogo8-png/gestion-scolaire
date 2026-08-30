@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Inbox, Search } from 'lucide-react';
+import EmptyState from './EmptyState';
 
 export default function Table({
   columns,
   data = [],
   loading = false,
   emptyMessage = "Aucune donnée pour l'instant",
+  emptyIcon = Inbox,
   searchable = false,
   searchPlaceholder = 'Rechercher...',
   onSearch,
@@ -49,11 +51,11 @@ export default function Table({
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-bordure">
+              <tr className="border-b border-bordure/60 bg-craie/40">
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-table-header text-texte-secondaire ${
+                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.03em] text-texte-secondaire ${
                       col.align === 'right' ? 'text-right' : ''
                     }`}
                     style={{ width: col.width }}
@@ -68,15 +70,15 @@ export default function Table({
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center">
                     <div className="inline-flex items-center gap-2 text-sm text-texte-secondaire">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-or-cachet-clair border-t-or-cachet" />
+                      <div className="loading-ring h-5 w-5" />
                       Chargement...
                     </div>
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-texte-secondaire">
-                    {emptyMessage}
+                  <td colSpan={columns.length} className="p-4">
+                    <EmptyState icon={emptyIcon} message={emptyMessage} />
                   </td>
                 </tr>
               ) : (

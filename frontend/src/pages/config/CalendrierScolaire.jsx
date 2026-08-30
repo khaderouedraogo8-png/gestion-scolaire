@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Badge from '../../components/Badge';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 const TYPES = [
@@ -16,6 +18,8 @@ const TYPES = [
 
 export default function CalendrierScolaire() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [annees, setAnnees] = useState([]);
   const [anneeId, setAnneeId] = useState('');
   const [events, setEvents] = useState([]);
@@ -39,22 +43,22 @@ export default function CalendrierScolaire() {
     });
   }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!anneeId) return;
     setLoading(true);
     try {
       const data = await configApi.listCalendrier(anneeId);
       setEvents(Array.isArray(data) ? data : []);
     } catch {
-      toast.error('Erreur chargement calendrier');
+      toastRef.current.error('Impossible de charger le calendrier. Réessayez.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [anneeId]);
 
   useEffect(() => {
     load();
-  }, [anneeId]);
+  }, [load]);
 
   const openCreate = () => {
     setEditId(null);
@@ -110,16 +114,17 @@ export default function CalendrierScolaire() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Calendrier scolaire</h1>
-          <p className="page-subtitle">Jours fériés, vacances et dates bloquées pour la programmation</p>
-        </div>
-        <button type="button" className="btn-primary" onClick={openCreate}>
-          + Ajouter
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Calendrier scolaire"
+        subtitle="Jours fériés, vacances et dates bloquées pour la programmation"
+        actions={
+          <button type="button" className="btn-primary" onClick={openCreate}>
+            + Ajouter
+          </button>
+        }
+      />
 
       <FormField
         label="Année scolaire"
@@ -163,7 +168,8 @@ export default function CalendrierScolaire() {
         ]}
         data={events}
         loading={loading}
-        emptyMessage="Aucun événement — ajoutez les jours fériés et vacances."
+        emptyIcon={emptyIcons.calendrier}
+        emptyMessage="Aucun événement pour l'instant — ajoutez les jours fériés et vacances."
       />
 
       <Modal isOpen={modal} onClose={() => setModal(false)} title={editId ? 'Modifier événement' : 'Nouvel événement'}>

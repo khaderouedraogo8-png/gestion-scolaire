@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Card from '../../components/Card';
+import PageHeader from '../../components/PageHeader';
 import { cycleLabel } from '../../utils/classNavigation';
 
 const CYCLES = [
@@ -17,16 +18,17 @@ const CYCLES = [
 
 export default function ClassesHome() {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="page-title">Classes</h1>
-          <p className="page-subtitle">Choisissez un cycle pour accéder aux classes</p>
-        </div>
-        <Link to="/eleves/recherche" className="btn-secondary text-sm">
-          Recherche globale
-        </Link>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Élèves"
+        title="Classes"
+        subtitle="Choisissez un cycle pour accéder aux classes"
+        actions={
+          <Link to="/eleves/recherche" className="btn-secondary text-sm">
+            Recherche globale
+          </Link>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         {CYCLES.map((cycle) => (

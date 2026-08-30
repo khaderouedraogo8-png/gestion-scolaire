@@ -1,11 +1,17 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { configApi } from '../../services/api/config';
+import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Trimestres() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const [annees, setAnnees] = useState([]);
   const [anneeId, setAnneeId] = useState('');
   const [trimestres, setTrimestres] = useState([]);
@@ -19,30 +25,33 @@ export default function Trimestres() {
   });
 
   useEffect(() => {
-    configApi.listAnnees().then((data) => {
-      const list = data.items || data || [];
-      setAnnees(list);
-      const active = list.find((a) => a.est_active) || list[0];
-      if (active) setAnneeId(String(active.id));
-    });
+    configApi
+      .listAnnees()
+      .then((data) => {
+        const list = data.items || data || [];
+        setAnnees(list);
+        const active = list.find((a) => a.est_active) || list[0];
+        if (active) setAnneeId(String(active.id));
+      })
+      .catch(() => toastRef.current.error('Impossible de charger les années. Réessayez.'));
   }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!anneeId) return;
     setLoading(true);
     try {
       const data = await configApi.listTrimestres(anneeId);
       setTrimestres(Array.isArray(data) ? data : data.items || []);
     } catch {
-      toast.error('Erreur chargement trimestres');
+      toastRef.current.error('Impossible de charger les trimestres. Réessayez.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [anneeId]);
 
   useEffect(() => {
     load();
-  }, [anneeId]);
+  }, [load]);
 
   const openCreate = () => {
     setEditId(null);
@@ -79,7 +88,7 @@ export default function Trimestres() {
       setModal(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
     }
   };
 
@@ -90,68 +99,67 @@ export default function Trimestres() {
       toast.success('Trimestre supprimé');
       load();
     } catch {
-      toast.error('Erreur suppression');
+      toast.error('Impossible de supprimer ce trimestre');
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Trimestres</h1>
-          <p className="page-subtitle">Périodes d'évaluation par année scolaire</p>
-        </div>
-        <div className="flex gap-2">
-          <select
-            className="input w-auto"
-            value={anneeId}
-            onChange={(e) => setAnneeId(e.target.value)}
-          >
-            {annees.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.libelle}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={openCreate} className="btn-primary">
-            + Trimestre
+  const columns = [
+    {
+      key: 'numero',
+      header: 'N°',
+      render: (r) => `Trimestre ${r.numero}`,
+    },
+    { key: 'date_debut', header: 'Début' },
+    { key: 'date_fin', header: 'Fin' },
+    {
+      key: 'actions',
+      header: '',
+      render: (r) => (
+        <div className="space-x-3 text-right">
+          <button type="button" onClick={() => openEdit(r)} className="text-or-cachet hover:underline">
+            Modifier
+          </button>
+          <button type="button" onClick={() => handleDelete(r.id)} className="text-brique hover:underline">
+            Supprimer
           </button>
         </div>
-      </div>
+      ),
+    },
+  ];
 
-      {loading ? (
-        <p className="text-texte-secondaire">Chargement…</p>
-      ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
-              <tr>
-                <th className="px-4 py-3">N°</th>
-                <th className="px-4 py-3">Début</th>
-                <th className="px-4 py-3">Fin</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {trimestres.map((t) => (
-                <tr key={t.id} className="border-t border-bordure/50">
-                  <td className="px-4 py-3">Trimestre {t.numero}</td>
-                  <td className="px-4 py-3">{t.date_debut}</td>
-                  <td className="px-4 py-3">{t.date_fin}</td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button type="button" onClick={() => openEdit(t)} className="text-or-cachet hover:underline">
-                      Modifier
-                    </button>
-                    <button type="button" onClick={() => handleDelete(t.id)} className="text-brique hover:underline">
-                      Supprimer
-                    </button>
-                  </td>
-                </tr>
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Trimestres"
+        subtitle="Périodes d'évaluation par année scolaire"
+        actions={
+          <>
+            <select
+              className="input w-auto"
+              value={anneeId}
+              onChange={(e) => setAnneeId(e.target.value)}
+            >
+              {annees.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.libelle}
+                </option>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </select>
+            <button type="button" onClick={openCreate} className="btn-primary">
+              + Trimestre
+            </button>
+          </>
+        }
+      />
+
+      <Table
+        columns={columns}
+        data={trimestres}
+        loading={loading}
+        emptyIcon={emptyIcons.trimestres}
+        emptyMessage="Aucun trimestre pour l'instant — ajoutez-en un pour cette année scolaire."
+      />
 
       <Modal
         isOpen={modal}

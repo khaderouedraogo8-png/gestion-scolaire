@@ -3,6 +3,7 @@ import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
 import { elevesApi } from '../../services/api/eleves';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Encaissement() {
@@ -51,11 +52,12 @@ export default function Encaissement() {
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <div>
-        <h1 className="page-title">Encaissement</h1>
-        <p className="page-subtitle">Génère un reçu numéroté automatiquement</p>
-      </div>
+    <div className="mx-auto max-w-lg space-y-8">
+      <PageHeader
+        eyebrow="Finance"
+        title="Encaissement"
+        subtitle="Génère un reçu numéroté automatiquement"
+      />
       <form onSubmit={handleSubmit} className="card space-y-4">
         <FormField
           label="Élève"

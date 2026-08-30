@@ -1,6 +1,7 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 const EMPTY_FORM = {
@@ -18,6 +19,8 @@ const EMPTY_FORM = {
 
 export default function Etablissement() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
@@ -46,14 +49,14 @@ export default function Etablissement() {
         if (err.response?.status === 404) {
           setExists(false);
         } else {
-          toast.error('Erreur lors du chargement');
+          toastRef.current.error('Impossible de charger l\'établissement. Réessayez.');
         }
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [toast]);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,13 +91,12 @@ export default function Etablissement() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="page-title">Établissement</h1>
-        <p className="page-subtitle">
-          {exists ? 'Paramètres généraux de l\'établissement' : 'Configuration initiale de l\'établissement'}
-        </p>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Établissement"
+        subtitle={exists ? 'Paramètres généraux de l\'établissement' : 'Configuration initiale de l\'établissement'}
+      />
 
       <form onSubmit={handleSubmit} className="card space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">

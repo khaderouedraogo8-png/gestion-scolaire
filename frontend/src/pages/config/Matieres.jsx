@@ -1,12 +1,17 @@
-﻿import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+﻿import { useEffect, useRef, useState } from 'react';
 import { notesApi } from '../../services/api/notes';
+import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Matieres() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const [matieres, setMatieres] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -19,7 +24,7 @@ export default function Matieres() {
       const data = await notesApi.listMatieres();
       setMatieres(Array.isArray(data) ? data : []);
     } catch {
-      toast.error('Erreur chargement matières');
+      toastRef.current.error('Impossible de charger les matières. Réessayez.');
     } finally {
       setLoading(false);
     }
@@ -54,7 +59,7 @@ export default function Matieres() {
       setModal(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
     }
   };
 
@@ -65,57 +70,53 @@ export default function Matieres() {
       toast.success('Matière supprimée');
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur suppression');
+      toast.error(err.response?.data?.message || 'Impossible de supprimer cette matière');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
-      </div>
-    );
-  }
+  const columns = [
+    {
+      key: 'libelle',
+      header: 'Libellé',
+      render: (r) => <span className="font-medium">{r.libelle}</span>,
+    },
+    { key: 'code', header: 'Code', render: (r) => r.code || '—' },
+    {
+      key: 'actions',
+      header: '',
+      render: (r) => (
+        <div className="space-x-3 text-right">
+          <button type="button" onClick={() => openEdit(r)} className="text-or-cachet hover:underline">
+            Modifier
+          </button>
+          <button type="button" onClick={() => handleDelete(r.id)} className="text-brique hover:underline">
+            Supprimer
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Matières</h1>
-          <p className="page-subtitle">Référentiel des matières enseignées</p>
-        </div>
-        <button type="button" onClick={openCreate} className="btn-primary">
-          + Nouvelle matière
-        </button>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Matières"
+        subtitle="Référentiel des matières enseignées"
+        actions={
+          <button type="button" onClick={openCreate} className="btn-primary">
+            + Nouvelle matière
+          </button>
+        }
+      />
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
-            <tr>
-              <th className="px-4 py-3">Libellé</th>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {matieres.map((m) => (
-              <tr key={m.id} className="border-t border-bordure/50">
-                <td className="px-4 py-3 font-medium">{m.libelle}</td>
-                <td className="px-4 py-3">{m.code || '—'}</td>
-                <td className="px-4 py-3 text-right">
-                  <button type="button" onClick={() => openEdit(m)} className="text-or-cachet hover:underline">
-                    Modifier
-                  </button>
-                  <button type="button" onClick={() => handleDelete(m.id)} className="ml-3 text-brique hover:underline">
-                    Supprimer
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table
+        columns={columns}
+        data={matieres}
+        loading={loading}
+        emptyIcon={emptyIcons.matieres}
+        emptyMessage="Aucune matière pour l'instant — créez-en une via le bouton ci-dessus."
+      />
 
       <Modal isOpen={modal} onClose={() => setModal(false)} title={editId ? 'Modifier matière' : 'Nouvelle matière'}>
         <form onSubmit={handleSubmit} className="space-y-4">

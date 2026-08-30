@@ -1,6 +1,11 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { GraduationCap, Users, FolderOpen, HeartPulse } from 'lucide-react';
 import { elevesApi } from '../../services/api/eleves';
+import SealMedallion from '../../components/SealMedallion';
+import DetailHeader from '../../components/DetailHeader';
+import TabBar from '../../components/TabBar';
+import EmptyState from '../../components/EmptyState';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -55,7 +60,7 @@ export default function EleveDetail() {
         setInscriptions([]);
       }
     } catch {
-      toast.error('Erreur lors du chargement de la fiche élève');
+      toast.error('Impossible de charger la fiche élève. Réessayez.');
     } finally {
       setLoading(false);
     }
@@ -114,17 +119,18 @@ export default function EleveDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+        <p className="text-sm text-texte-secondaire">Chargement de la fiche…</p>
       </div>
     );
   }
 
   if (!eleve) {
     return (
-      <div className="card text-center">
-        <p className="text-texte-secondaire">Élève introuvable</p>
-        <Link to="/eleves" className="btn-primary mt-4 inline-flex">
+      <div className="card-premium mx-auto max-w-md text-center">
+        <EmptyState icon={GraduationCap} title="Élève introuvable" message="Cette fiche n'existe pas ou a été supprimée." />
+        <Link to="/eleves" className="btn-primary mt-6 inline-flex">
           Retour à la liste
         </Link>
       </div>
@@ -145,14 +151,22 @@ export default function EleveDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-or-cachet-clair text-3xl overflow-hidden">
+    <div className="space-y-8">
+      <DetailHeader
+        eyebrow={eleve.matricule}
+        title={`${eleve.prenom} ${eleve.nom}`}
+        subtitle={
+          <>
+            {eleve.classe_nom || 'Classe non assignée'}
+            {eleve.est_boursier && <span className="ml-2 badge-info">Boursier</span>}
+          </>
+        }
+        media={
+          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-card border border-or-cachet/30 bg-or-cachet-clair">
             {photoPreview ? (
               <img src={photoPreview} alt="" className="h-full w-full object-cover" />
             ) : (
-              '👨‍🎓'
+              <SealMedallion size="md" />
             )}
             {canWrite && (
               <>
@@ -166,7 +180,7 @@ export default function EleveDetail() {
                 <button
                   type="button"
                   onClick={() => photoRef.current?.click()}
-                  className="absolute inset-0 flex items-end justify-center bg-black/40 text-xs text-white opacity-0 hover:opacity-100 transition-opacity"
+                  className="absolute inset-0 flex items-end justify-center bg-encre/60 text-xs text-craie opacity-0 transition-opacity hover:opacity-100"
                   disabled={uploadingPhoto}
                 >
                   {uploadingPhoto ? '…' : 'Photo'}
@@ -174,55 +188,30 @@ export default function EleveDetail() {
               </>
             )}
           </div>
-          <div>
-            <p className="font-mono text-sm text-or-cachet">{eleve.matricule}</p>
-            <h1 className="page-title">
-              {eleve.prenom} {eleve.nom}
-            </h1>
-            <p className="page-subtitle">
-              {eleve.classe_nom || 'Classe non assignée'}
-              {eleve.est_boursier && <span className="ml-2 badge-info">Boursier</span>}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to={isParent ? '/parent' : '/eleves'} className="btn-secondary">
-            ← Retour
-          </Link>
-          {canWrite && (
-            <>
-              <Link to={`/eleves/${id}/modifier`} className="btn-secondary">
-                Modifier
-              </Link>
-              <Link to={`/eleves/${id}/inscription`} className="btn-primary">
-                Réinscrire
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            <Link to={isParent ? '/parent' : '/eleves'} className="btn-secondary">
+              ← Retour
+            </Link>
+            {canWrite && (
+              <>
+                <Link to={`/eleves/${id}/modifier`} className="btn-secondary">
+                  Modifier
+                </Link>
+                <Link to={`/eleves/${id}/inscription`} className="btn-primary">
+                  Réinscrire
+                </Link>
+              </>
+            )}
+          </>
+        }
+      />
 
-      <div className="border-b border-bordure">
-        <nav className="flex gap-4 overflow-x-auto">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
-                tab === t.id
-                  ? 'border-or-cachet text-or-cachet'
-                  : 'border-transparent text-texte-secondaire hover:text-encre'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
       {tab === 'identite' && (
-        <div className="card">
+        <div className="card-premium">
           <InfoRow label="Date de naissance" value={eleve.date_naissance} />
           <InfoRow label="Lieu de naissance" value={eleve.lieu_naissance} />
           <InfoRow
@@ -235,9 +224,9 @@ export default function EleveDetail() {
       )}
 
       {tab === 'inscriptions' && (
-        <div className="card">
+        <div className="card-premium">
           {inscriptions.length === 0 ? (
-            <p className="page-subtitle">Aucune inscription enregistrée</p>
+            <EmptyState icon={GraduationCap} message="Aucune inscription enregistrée pour l'instant." />
           ) : (
             <div className="space-y-3">
               {inscriptions.map((inscr) => (
@@ -261,9 +250,9 @@ export default function EleveDetail() {
       )}
 
       {tab === 'parents' && (
-        <div className="card">
+        <div className="card-premium">
           {parents.length === 0 ? (
-            <p className="page-subtitle">Aucun parent/tuteur enregistré</p>
+            <EmptyState icon={Users} message="Aucun parent ou tuteur enregistré pour l'instant." />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {parents.map((p) => (
@@ -285,7 +274,7 @@ export default function EleveDetail() {
       )}
 
       {tab === 'documents' && (
-        <div className="card space-y-4">
+        <div className="card-premium space-y-4">
           {canWrite && (
             <div className="flex items-center gap-3">
               <input ref={fileRef} type="file" onChange={handleUpload} className="text-sm" />
@@ -293,7 +282,7 @@ export default function EleveDetail() {
             </div>
           )}
           {documents.length === 0 ? (
-            <p className="page-subtitle">Aucun document joint</p>
+            <EmptyState icon={FolderOpen} message="Aucun document joint pour l'instant." />
           ) : (
             <ul className="divide-y divide-bordure/50">
               {documents.map((doc, i) => (
@@ -310,10 +299,11 @@ export default function EleveDetail() {
       )}
 
       {tab === 'medical' && canViewMedical && (
-        <div className="card space-y-4">
-          <p className="text-xs text-texte-secondaire">
+        <div className="card-premium space-y-4">
+          <div className="flex items-center gap-2 text-xs text-texte-secondaire">
+            <HeartPulse className="h-4 w-4 text-or-cachet" strokeWidth={1.75} />
             Données chiffrées — accès réservé admin / directeur / secrétariat
-          </p>
+          </div>
           <textarea
             className="input min-h-[120px] w-full"
             value={medicalNotes}

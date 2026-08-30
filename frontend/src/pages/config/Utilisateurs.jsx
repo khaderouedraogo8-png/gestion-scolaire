@@ -1,7 +1,10 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { usersApi } from '../../services/api/users';
+import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import FormField from '../../components/FormField';
 import Modal from '../../components/Modal';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 const ROLES = [
@@ -15,6 +18,9 @@ const ROLES = [
 
 export default function Utilisateurs() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -35,7 +41,7 @@ export default function Utilisateurs() {
       const data = await usersApi.list();
       setUsers(data);
     } catch {
-      toast.error('Erreur chargement utilisateurs');
+      toastRef.current.error('Impossible de charger les utilisateurs. Réessayez.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +59,7 @@ export default function Utilisateurs() {
       setModal(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur création');
+      toast.error(err.response?.data?.message || 'Erreur lors de la création');
     }
   };
 
@@ -62,7 +68,7 @@ export default function Utilisateurs() {
       const res = await usersApi.resetPassword(id);
       toast.success(`MDP temporaire : ${res.mot_de_passe_temporaire}`);
     } catch {
-      toast.error('Erreur réinitialisation');
+      toast.error('Impossible de réinitialiser le mot de passe');
     }
   };
 
@@ -71,7 +77,7 @@ export default function Utilisateurs() {
       await usersApi.update(user.id, { actif: !user.actif });
       load();
     } catch {
-      toast.error('Erreur mise à jour');
+      toast.error('Impossible de mettre à jour le statut');
     }
   };
 
@@ -101,66 +107,74 @@ export default function Utilisateurs() {
       setEditModal(false);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur');
+      toast.error(err.response?.data?.message || 'Erreur lors de la mise à jour');
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Utilisateurs</h1>
-          <p className="page-subtitle">Comptes et rôles d'accès</p>
+  const columns = [
+    {
+      key: 'nom',
+      header: 'Nom',
+      render: (r) => (
+        <span className="font-medium">
+          {r.prenom} {r.nom}
+        </span>
+      ),
+    },
+    { key: 'email', header: 'Email' },
+    {
+      key: 'role',
+      header: 'Rôle',
+      render: (r) => <span className="capitalize">{r.role?.replace('_', ' ')}</span>,
+    },
+    {
+      key: 'statut',
+      header: 'Statut',
+      render: (r) => (
+        <span className={r.actif ? 'badge-success' : 'badge-neutral'}>
+          {r.actif ? 'Actif' : 'Inactif'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (r) => (
+        <div className="space-x-2 text-right text-sm">
+          <button type="button" onClick={() => openEdit(r)} className="text-texte-secondaire hover:underline">
+            Modifier
+          </button>
+          <button type="button" onClick={() => handleReset(r.id)} className="text-or-cachet hover:underline">
+            Réinit. MDP
+          </button>
+          <button type="button" onClick={() => toggleActif(r)} className="text-texte-secondaire hover:underline">
+            {r.actif ? 'Désactiver' : 'Activer'}
+          </button>
         </div>
-        <button type="button" onClick={() => setModal(true)} className="btn-primary">
-          + Nouvel utilisateur
-        </button>
-      </div>
+      ),
+    },
+  ];
 
-      {loading ? (
-        <p className="text-texte-secondaire">Chargement...</p>
-      ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-craie text-left text-xs uppercase text-texte-secondaire">
-              <tr>
-                <th className="px-4 py-3">Nom</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Rôle</th>
-                <th className="px-4 py-3">Statut</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-t border-bordure/50">
-                  <td className="px-4 py-3">
-                    {u.prenom} {u.nom}
-                  </td>
-                  <td className="px-4 py-3">{u.email}</td>
-                  <td className="px-4 py-3 capitalize">{u.role?.replace('_', ' ')}</td>
-                  <td className="px-4 py-3">
-                    <span className={u.actif ? 'badge-success' : 'badge-neutral'}>
-                      {u.actif ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button type="button" onClick={() => openEdit(u)} className="text-texte-secondaire hover:underline">
-                      Modifier
-                    </button>
-                    <button type="button" onClick={() => handleReset(u.id)} className="text-or-cachet hover:underline">
-                      Réinit. MDP
-                    </button>
-                    <button type="button" onClick={() => toggleActif(u)} className="text-texte-secondaire hover:underline">
-                      {u.actif ? 'Désactiver' : 'Activer'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Utilisateurs"
+        subtitle="Comptes et rôles d'accès"
+        actions={
+          <button type="button" onClick={() => setModal(true)} className="btn-primary">
+            + Nouvel utilisateur
+          </button>
+        }
+      />
+
+      <Table
+        columns={columns}
+        data={users}
+        loading={loading}
+        emptyIcon={emptyIcons.utilisateurs}
+        emptyMessage="Aucun utilisateur pour l'instant — créez un compte via le bouton ci-dessus."
+      />
 
       <Modal isOpen={modal} onClose={() => setModal(false)} title="Nouvel utilisateur">
         <form onSubmit={handleCreate} className="space-y-4">

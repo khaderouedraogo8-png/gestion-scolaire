@@ -1,12 +1,16 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Niveaux() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [niveaux, setNiveaux] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -17,13 +21,13 @@ export default function Niveaux() {
     configApi
       .listNiveaux()
       .then((data) => setNiveaux(Array.isArray(data) ? data : data.items || []))
-      .catch(() => toast.error('Erreur chargement niveaux'))
+      .catch(() => toastRef.current.error('Impossible de charger les niveaux. Réessayez.'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
-  }, [toast]);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,17 +57,18 @@ export default function Niveaux() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Niveaux d'étude</h1>
-          <p className="page-subtitle">6ème à Terminale</p>
-        </div>
-        <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
-          + Nouveau niveau
-        </button>
-      </div>
-      <Table columns={columns} data={niveaux} loading={loading} emptyMessage="Aucun niveau" />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Niveaux d'étude"
+        subtitle="6ème à Terminale"
+        actions={
+          <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
+            + Nouveau niveau
+          </button>
+        }
+      />
+      <Table columns={columns} data={niveaux} loading={loading} emptyIcon={emptyIcons.niveaux} emptyMessage="Aucun niveau pour l'instant — ajoutez-en un via le bouton ci-dessus." />
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nouveau niveau">
         <form onSubmit={handleSubmit} className="space-y-4">
           <FormField

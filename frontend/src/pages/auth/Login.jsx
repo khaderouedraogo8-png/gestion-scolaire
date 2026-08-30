@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
+import AuthShell from '../../components/AuthShell';
 import FormField from '../../components/FormField';
-import SealMedallion from '../../components/SealMedallion';
 
 export default function Login() {
   const { login, isAuthenticated, isLoading, error, clearError, user } = useAuth();
@@ -58,87 +59,73 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <div className="hidden w-1/2 flex-col justify-center bg-encre p-12 lg:flex">
-        <div className="max-w-md">
-          <SealMedallion size="lg" className="mb-8" />
-          <h1 className="font-display text-3xl font-medium text-craie">Gestion Scolaire</h1>
-          <p className="mt-4 text-lg text-craie/70">
-            Plateforme complète de gestion pour votre établissement scolaire : élèves, notes,
-            finances, absences et bien plus.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-1 items-center justify-center bg-craie p-6">
-        <div className="w-full max-w-md">
-          <div className="mb-8 text-center lg:text-left">
-            <h2 className="page-title">Connexion</h2>
-            <p className="page-subtitle mt-2">
-              Entrez vos identifiants pour accéder à votre espace
+    <AuthShell
+      title="Connexion"
+      subtitle="Entrez vos identifiants pour accéder à votre espace"
+      footer={
+        <p className="text-xs text-texte-secondaire">
+          © {new Date().getFullYear()} Gestion Scolaire — Tous droits réservés
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {serverOk === false && (
+          <div className="auth-alert auth-alert-error">
+            <AlertCircle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <p>
+              Le backend n&apos;est pas joignable. Ouvrez un terminal à la racine du projet et
+              exécutez&nbsp;: <code className="font-mono text-xs">.\scripts\start-native.ps1</code>
             </p>
           </div>
+        )}
+        {error && (
+          <div className="auth-alert auth-alert-error">
+            <AlertCircle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <p>{error}</p>
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="card space-y-5">
-            {serverOk === false && (
-              <div className="rounded-input border border-brique bg-brique-clair px-4 py-3 text-sm text-brique">
-                Le backend n&apos;est pas joignable. Ouvrez un terminal à la racine du projet et
-                exécutez&nbsp;: <code className="font-mono">.\scripts\start-native.ps1</code>
-              </div>
-            )}
-            {error && (
-              <div className="rounded-input border border-brique bg-brique-clair px-4 py-3 text-sm text-brique">
-                {error}
-              </div>
-            )}
+        <FormField
+          label="Adresse email"
+          name="email"
+          type="email"
+          value={form.email}
+          onChange={handleChange}
+          error={errors.email}
+          required
+          placeholder="nom@etablissement.fr"
+          autoComplete="email"
+        />
 
-            <FormField
-              label="Adresse email"
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              error={errors.email}
-              required
-              placeholder="nom@etablissement.fr"
-              autoComplete="email"
-            />
+        <FormField
+          label="Mot de passe"
+          name="password"
+          type="password"
+          value={form.password}
+          onChange={handleChange}
+          error={errors.password}
+          required
+          placeholder="••••••••"
+          autoComplete="current-password"
+        />
 
-            <FormField
-              label="Mot de passe"
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              error={errors.password}
-              required
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
+        <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5">
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+              Connexion...
+            </span>
+          ) : (
+            'Se connecter'
+          )}
+        </button>
 
-            <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5">
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-craie/30 border-t-craie" />
-                  Connexion...
-                </span>
-              ) : (
-                'Se connecter'
-              )}
-            </button>
-
-            <p className="text-center text-sm">
-              <Link to="/forgot-password" className="text-or-cachet hover:underline">
-                Mot de passe oublié ?
-              </Link>
-            </p>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-texte-secondaire">
-            © {new Date().getFullYear()} Gestion Scolaire — Tous droits réservés
-          </p>
-        </div>
-      </div>
-    </div>
+        <p className="text-center text-sm">
+          <Link to="/forgot-password" className="font-medium text-or-cachet hover:underline">
+            Mot de passe oublié ?
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

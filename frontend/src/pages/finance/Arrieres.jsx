@@ -1,11 +1,15 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function Arrieres() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [arrieres, setArrieres] = useState([]);
   const [annees, setAnnees] = useState([]);
   const [idAnnee, setIdAnnee] = useState('');
@@ -21,8 +25,8 @@ export default function Arrieres() {
         const active = list.find((x) => x.est_active);
         if (active) setIdAnnee(String(active.id));
       })
-      .catch(() => toast.error('Erreur chargement années'));
-  }, [toast]);
+      .catch(() => toastRef.current.error('Impossible de charger les années. Réessayez.'));
+  }, []);
 
   const load = useCallback(async () => {
     if (!idAnnee) return;
@@ -98,41 +102,44 @@ export default function Arrieres() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="page-title">Arriérés</h1>
-          <p className="page-subtitle">
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Finance"
+        title="Arriérés"
+        subtitle={
+          <>
             Total impayé : <strong>{total.toLocaleString()} FCFA</strong>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleRelancer}
-            disabled={!idAnnee || arrieres.length === 0 || relancing}
-            className="btn-primary"
-          >
-            {relancing ? 'Envoi…' : 'Relancer les parents'}
-          </button>
-          <button type="button" onClick={handleExport} disabled={!idAnnee} className="btn-secondary">
-            Export Excel
-          </button>
-          <select
-          className="input w-auto"
-          value={idAnnee}
-          onChange={(e) => setIdAnnee(e.target.value)}
-        >
-          <option value="">Année scolaire</option>
-          {annees.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.libelle}
-            </option>
-          ))}
-        </select>
-        </div>
-      </div>
-      <Table columns={columns} data={arrieres} loading={loading} emptyMessage="Aucun arriéré" />
+          </>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={handleRelancer}
+              disabled={!idAnnee || arrieres.length === 0 || relancing}
+              className="btn-primary"
+            >
+              {relancing ? 'Envoi…' : 'Relancer les parents'}
+            </button>
+            <button type="button" onClick={handleExport} disabled={!idAnnee} className="btn-secondary">
+              Export Excel
+            </button>
+            <select
+              className="input w-auto"
+              value={idAnnee}
+              onChange={(e) => setIdAnnee(e.target.value)}
+            >
+              <option value="">Année scolaire</option>
+              {annees.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.libelle}
+                </option>
+              ))}
+            </select>
+          </>
+        }
+      />
+      <Table columns={columns} data={arrieres} loading={loading} emptyIcon={emptyIcons.arrieres} emptyMessage="Aucun arriéré pour l'instant" />
     </div>
   );
 }

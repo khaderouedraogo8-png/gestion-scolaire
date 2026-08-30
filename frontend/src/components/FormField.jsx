@@ -98,7 +98,7 @@ export default function FormField({
             type="button"
             tabIndex={-1}
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-texte-secondaire hover:text-encre"
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-input p-2 text-texte-secondaire hover:bg-or-cachet-clair hover:text-encre"
             aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

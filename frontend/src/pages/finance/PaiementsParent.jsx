@@ -1,6 +1,8 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { financeApi } from '../../services/api/finance';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function PaiementsParent() {
@@ -56,12 +58,13 @@ export default function PaiementsParent() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Mes paiements</h1>
-        <p className="page-subtitle">Historique des paiements scolaires</p>
-      </div>
-      <Table columns={columns} data={paiements.filter((p) => !p.annule)} loading={loading} emptyMessage="Aucun paiement" />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Finance"
+        title="Mes paiements"
+        subtitle="Historique des paiements scolaires"
+      />
+      <Table columns={columns} data={paiements.filter((p) => !p.annule)} loading={loading} emptyIcon={emptyIcons.paiements} emptyMessage="Aucun paiement enregistré pour l'instant" />
     </div>
   );
 }

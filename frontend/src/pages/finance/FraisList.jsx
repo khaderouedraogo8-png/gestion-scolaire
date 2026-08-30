@@ -1,9 +1,11 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
+import { emptyIcons } from '../../utils/emptyIcons';
 import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
 import Table from '../../components/Table';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function FraisList() {
@@ -120,17 +122,18 @@ export default function FraisList() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Frais scolaires</h1>
-          <p className="page-subtitle">Paramétrage par niveau et année scolaire</p>
-        </div>
-        <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
-          + Nouveau frais
-        </button>
-      </div>
-      <Table columns={columns} data={frais} loading={loading} emptyMessage="Aucun frais configuré" />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Finance"
+        title="Frais scolaires"
+        subtitle="Paramétrage par niveau et année scolaire"
+        actions={
+          <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
+            + Nouveau frais
+          </button>
+        }
+      />
+      <Table columns={columns} data={frais} loading={loading} emptyIcon={emptyIcons.finance} emptyMessage="Aucun frais configuré pour l'instant" />
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nouveau frais">
         <form onSubmit={handleSubmit} className="space-y-4">

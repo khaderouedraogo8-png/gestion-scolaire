@@ -2,8 +2,10 @@
 import { absencesApi } from '../../services/api/absences';
 import { elevesApi } from '../../services/api/eleves';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -149,18 +151,19 @@ export default function Discipline() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Discipline</h1>
-          <p className="page-subtitle">Incidents disciplinaires et sanctions</p>
-        </div>
-        {canWrite && (
-          <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
-            + Déclarer un incident
-          </button>
-        )}
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Vie scolaire"
+        title="Discipline"
+        subtitle="Incidents disciplinaires et sanctions"
+        actions={
+          canWrite && (
+            <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
+              + Déclarer un incident
+            </button>
+          )
+        }
+      />
 
       <Table
         columns={columns}
@@ -169,7 +172,8 @@ export default function Discipline() {
         searchable
         searchPlaceholder="Rechercher par élève ou description..."
         onSearch={setSearch}
-        emptyMessage="Aucun incident disciplinaire enregistré"
+        emptyIcon={emptyIcons.discipline}
+        emptyMessage="Aucun incident disciplinaire pour l'instant"
       />
 
       <Modal
@@ -198,7 +202,7 @@ export default function Discipline() {
               placeholder="Nom, prénom ou matricule..."
             />
             {eleves.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-white ">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-bordure bg-blanc ">
                 {eleves.map((el) => (
                   <li key={el.id}>
                     <button

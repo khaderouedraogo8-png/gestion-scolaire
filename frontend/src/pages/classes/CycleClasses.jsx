@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import Breadcrumb from '../../components/Breadcrumb';
 import Card from '../../components/Card';
 import { configApi } from '../../services/api/config';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import { cycleLabel, toClassSlug } from '../../utils/classNavigation';
 
@@ -41,17 +42,18 @@ export default function CycleClasses() {
   }, [cycle, toast]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Breadcrumb
         items={[
           { label: 'Classes', to: '/classes' },
           { label: cycleLabel(cycle) },
         ]}
       />
-      <div>
-        <h1 className="page-title">{cycleLabel(cycle)}</h1>
-        <p className="page-subtitle">Sélectionnez une classe</p>
-      </div>
+      <PageHeader
+        eyebrow="Élèves"
+        title={cycleLabel(cycle)}
+        subtitle="Sélectionnez une classe"
+      />
 
       {loading ? (
         <div className="flex justify-center py-16">

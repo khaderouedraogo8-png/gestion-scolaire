@@ -3,6 +3,7 @@ import { emploiApi } from '../../services/api/emploi';
 import { configApi } from '../../services/api/config';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -127,39 +128,40 @@ export default function EmploiTemps() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Emploi du temps</h1>
-          <p className="page-subtitle">Créneaux par classe, matière et enseignant</p>
-        </div>
-        <div className="flex gap-2">
-          <select
-            className="input w-auto"
-            value={classeFilter}
-            onChange={(e) => setClasseFilter(e.target.value)}
-          >
-            <option value="">Toutes les classes</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.libelle}
-              </option>
-            ))}
-          </select>
-          {isAdmin && (
-            <button type="button" className="btn-primary" onClick={openCreate}>
-              + Créneau
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Emploi du temps"
+        title="Emploi du temps"
+        subtitle="Créneaux par classe, matière et enseignant"
+        actions={
+          <>
+            <select
+              className="input w-auto"
+              value={classeFilter}
+              onChange={(e) => setClasseFilter(e.target.value)}
+            >
+              <option value="">Toutes les classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.libelle}
+                </option>
+              ))}
+            </select>
+            {isAdmin && (
+              <button type="button" className="btn-primary" onClick={openCreate}>
+                + Créneau
+              </button>
+            )}
+          </>
+        }
+      />
 
       {creneaux.length === 0 ? (
         <div className="card text-center page-subtitle">
-          Aucun créneau — créez des affectations puis des créneaux
+          Aucun créneau pour l'instant — créez des affectations puis des créneaux
         </div>
       ) : (
-        <div className="overflow-hidden rounded-card border border-bordure bg-white">
+        <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
           <table className="min-w-full divide-y divide-bordure">
             <thead className="bg-craie">
               <tr>

@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { documentsApi } from '../../services/api/documents';
 import FormField from '../../components/FormField';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function VerifierQR() {
@@ -26,11 +27,12 @@ export default function VerifierQR() {
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <div>
-        <h1 className="page-title">Vérifier un QR code</h1>
-        <p className="page-subtitle">Contrôle d'authenticité des cartes scolaires</p>
-      </div>
+    <div className="mx-auto max-w-lg space-y-8">
+      <PageHeader
+        eyebrow="Documents"
+        title="Vérifier un QR code"
+        subtitle="Contrôle d'authenticité des cartes scolaires"
+      />
       <form onSubmit={handleVerify} className="card space-y-4">
         <FormField
           label="Données QR (JSON scanné)"

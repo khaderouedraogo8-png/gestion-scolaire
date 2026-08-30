@@ -9,10 +9,16 @@ export default function SealMedallion({ size = 'md', className = '' }) {
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full border-or-cachet bg-transparent font-display font-medium text-or-cachet ${s.outer} ${s.text} ${s.border} ${className}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-full font-display font-medium text-or-cachet ${s.outer} ${s.text} ${className}`}
       aria-hidden="true"
     >
-      GS
+      <span
+        className={`absolute inset-0 rounded-full border-or-cachet/40 ${s.border} bg-gradient-to-br from-or-cachet/10 to-transparent`}
+      />
+      <span
+        className={`absolute inset-[2px] rounded-full border-or-cachet/20 ${size === 'lg' ? 'border' : 'border-[0.5px]'}`}
+      />
+      <span className="relative z-10">GS</span>
     </div>
   );
 }

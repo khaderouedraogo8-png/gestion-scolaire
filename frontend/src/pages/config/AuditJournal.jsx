@@ -1,10 +1,14 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { auditApi } from '../../services/api/audit';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 
 export default function AuditJournal() {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('');
@@ -15,11 +19,11 @@ export default function AuditJournal() {
       const data = await auditApi.list({ action: actionFilter || undefined, limit: 200 });
       setEntries(data.items || []);
     } catch {
-      toast.error('Erreur chargement journal audit');
+      toastRef.current.error('Impossible de charger le journal d\'audit. Réessayez.');
     } finally {
       setLoading(false);
     }
-  }, [actionFilter, toast]);
+  }, [actionFilter]);
 
   useEffect(() => {
     load();
@@ -47,11 +51,12 @@ export default function AuditJournal() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Journal d'audit</h1>
-        <p className="page-subtitle">Traçabilité des actions sensibles</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Journal d'audit"
+        subtitle="Traçabilité des actions sensibles"
+      />
 
       <Table
         columns={columns}
@@ -65,7 +70,8 @@ export default function AuditJournal() {
             onChange={(e) => setActionFilter(e.target.value)}
           />
         }
-        emptyMessage="Aucune entrée"
+        emptyIcon={emptyIcons.audit}
+        emptyMessage="Aucune entrée pour l'instant — ajustez les filtres si besoin."
       />
     </div>
   );

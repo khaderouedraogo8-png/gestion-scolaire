@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Table from '../../components/Table';
+import { emptyIcons } from '../../utils/emptyIcons';
 import Badge from '../../components/Badge';
 import FormField from '../../components/FormField';
 import { configApi } from '../../services/api/config';
 import { notesApi } from '../../services/api/notes';
 import { pedagogieApi, downloadBlob } from '../../services/api/pedagogie';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useParentChildren from '../../hooks/useParentChildren';
 import { cycleLabel } from '../../utils/classNavigation';
@@ -117,9 +119,12 @@ export default function ParentPedagogie() {
 
   if (children.length === 0) {
     return (
-      <div className="space-y-4">
-        <h1 className="page-title">Programme pédagogique</h1>
-        <p className="page-subtitle">Aucun enfant rattaché à votre compte pour l'année en cours.</p>
+      <div className="space-y-8">
+        <PageHeader
+          eyebrow="Espace parent"
+          title="Programme pédagogique"
+          subtitle="Aucun enfant rattaché à votre compte pour l'année en cours."
+        />
       </div>
     );
   }
@@ -127,13 +132,12 @@ export default function ParentPedagogie() {
   const classeLabel = selectedChild?.classe_nom || 'classe';
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Programme pédagogique</h1>
-        <p className="page-subtitle">
-          Devoirs, compositions et cahier de texte — consultation en lecture seule
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Espace parent"
+        title="Programme pédagogique"
+        subtitle="Devoirs, compositions et cahier de texte — consultation en lecture seule"
+      />
 
       <div className="card flex flex-wrap items-end gap-4">
         <FormField
@@ -210,6 +214,7 @@ export default function ParentPedagogie() {
                 ]}
                 data={programmeDevoirs}
                 loading={loadingTab}
+                emptyIcon={emptyIcons.devoirs}
                 emptyMessage="Aucun devoir programmé pour cette classe."
               />
               {chargeStats && (
@@ -302,6 +307,7 @@ export default function ParentPedagogie() {
                     ]}
                     data={items}
                     loading={loadingTab}
+                    emptyIcon={emptyIcons.compositions}
                     emptyMessage="Aucune composition publiée."
                   />
                 </div>
@@ -328,6 +334,7 @@ export default function ParentPedagogie() {
                 ]}
                 data={seances}
                 loading={loadingTab}
+                emptyIcon={emptyIcons.seances}
                 emptyMessage="Aucune séance consignée pour cette classe."
               />
             </>

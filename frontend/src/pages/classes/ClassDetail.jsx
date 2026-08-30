@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  BookOpen,
+  ClipboardList,
+  FileText,
+  GraduationCap,
+  NotebookPen,
+  Wallet,
+} from 'lucide-react';
 import Breadcrumb from '../../components/Breadcrumb';
+import DetailHeader from '../../components/DetailHeader';
+import TabBar from '../../components/TabBar';
 import Table from '../../components/Table';
 import Badge from '../../components/Badge';
 import FormField from '../../components/FormField';
@@ -287,8 +297,9 @@ export default function ClassDetail() {
 
   if (loadingMeta) {
     return (
-      <div className="flex justify-center py-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+        <p className="text-sm text-texte-secondaire">Chargement de la classe…</p>
       </div>
     );
   }
@@ -306,29 +317,20 @@ export default function ClassDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <Breadcrumb items={breadcrumbItems} />
-      <div>
-        <h1 className="page-title">{classe.libelle}</h1>
-        <p className="page-subtitle">{cycleLabel(cycle)}</p>
-      </div>
+    <div className="space-y-8">
+      <DetailHeader
+        breadcrumb={<Breadcrumb items={breadcrumbItems} />}
+        eyebrow={cycleLabel(cycle)}
+        title={classe.libelle}
+        subtitle="Pédagogie, absences, scolarité et bulletins"
+        media={
+          <div className="stat-card-icon bg-or-cachet-clair text-or-cachet">
+            <GraduationCap className="h-[22px] w-[22px]" strokeWidth={1.75} />
+          </div>
+        }
+      />
 
-      <div className="flex flex-wrap gap-2 border-b border-bordure">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'border-b-2 border-or-cachet text-or-cachet'
-                : 'text-texte-secondaire hover:text-encre'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <TabBar tabs={TABS} active={activeTab} onChange={setTab} />
 
       {activeTab === 'eleves' && (
         <>
@@ -355,6 +357,7 @@ export default function ClassDetail() {
             ]}
             data={eleves}
             loading={loadingTab}
+            emptyIcon={GraduationCap}
             emptyMessage="Aucun élève inscrit dans cette classe pour l'instant."
             onRowClick={(row) => navigate(`/eleves/${row.id}`)}
           />
@@ -445,6 +448,7 @@ export default function ClassDetail() {
             ]}
             data={programmeDevoirs}
             loading={loadingTab}
+            emptyIcon={BookOpen}
             emptyMessage="Aucun devoir programmé pour cette classe."
           />
           {chargeStats && (
@@ -556,7 +560,8 @@ export default function ClassDetail() {
                 ]}
                 data={items}
                 loading={loadingTab}
-                emptyMessage="Aucune composition."
+                emptyIcon={FileText}
+                emptyMessage="Aucune composition publiée pour l'instant."
               />
             </div>
           ))}
@@ -638,6 +643,7 @@ export default function ClassDetail() {
             ]}
             data={seances}
             loading={loadingTab}
+            emptyIcon={NotebookPen}
             emptyMessage="Aucune séance consignée pour cette classe."
           />
         </>
@@ -683,6 +689,7 @@ export default function ClassDetail() {
             ]}
             data={absences}
             loading={loadingTab}
+            emptyIcon={ClipboardList}
             emptyMessage="Aucune absence enregistrée pour cette classe."
           />
         </>
@@ -718,6 +725,7 @@ export default function ClassDetail() {
             ]}
             data={arrieres}
             loading={loadingTab}
+            emptyIcon={Wallet}
             emptyMessage="Aucun arriéré pour les élèves de cette classe."
           />
           <p className="text-center text-sm">
@@ -775,6 +783,7 @@ export default function ClassDetail() {
             ]}
             data={evaluations}
             loading={loadingTab}
+            emptyIcon={FileText}
             emptyMessage="Aucune évaluation pour cette classe pour l'instant."
             onRowClick={(row) => navigate(`/notes/saisie/${row.id}`)}
           />

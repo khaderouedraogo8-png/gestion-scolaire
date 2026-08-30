@@ -12,6 +12,7 @@ import {
   Home,
   Receipt,
   BookOpen,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import SealMedallion from './SealMedallion';
@@ -156,7 +157,7 @@ function NavItem({ item, collapsed, onNavigate }) {
 
   const linkClass = isActive
     ? 'border-l-2 border-or-cachet bg-or-cachet-clair text-craie rounded-r-lg'
-    : 'text-craie/70 hover:bg-encre-clair hover:text-craie rounded-lg';
+    : 'text-craie/70 hover:bg-or-cachet-clair/40 hover:text-craie rounded-lg';
 
   if (item.children) {
     return (
@@ -164,7 +165,7 @@ function NavItem({ item, collapsed, onNavigate }) {
         <Link
           to={item.path}
           onClick={onNavigate}
-          className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${linkClass}`}
+          className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
         >
           <NavIcon name={item.icon} />
           {!collapsed && <span>{item.label}</span>}
@@ -195,7 +196,7 @@ function NavItem({ item, collapsed, onNavigate }) {
     <Link
       to={item.path}
       onClick={onNavigate}
-      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${linkClass}`}
+      className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
     >
       <NavIcon name={item.icon} />
       {!collapsed && <span>{item.label}</span>}
@@ -210,23 +211,37 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 w-64 transform bg-encre transition-transform lg:static lg:translate-x-0 ${
+      className={`sidebar-premium fixed inset-y-0 left-0 z-50 w-64 transform shadow-[4px_0_24px_rgba(13,22,40,0.15)] transition-transform duration-300 lg:static lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       } ${collapsed ? 'lg:w-20' : 'lg:w-64'}`}
     >
       <div className="flex h-full flex-col">
         <div
-          className={`flex items-center border-b border-craie/10 px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
+          className={`flex items-center border-b border-white/[0.08] px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
         >
           <SealMedallion size="md" />
           {!collapsed && (
-            <div>
-              <h1 className="font-display text-sm font-medium text-craie">Gestion Scolaire</h1>
-              <p className="text-xs capitalize text-craie/60">{role?.replace('_', ' ')}</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-display text-sm font-medium tracking-tight text-craie">
+                Gestion Scolaire
+              </h1>
+              <p className="text-[11px] capitalize tracking-wide text-craie/50">
+                {role?.replace('_', ' ')}
+              </p>
             </div>
           )}
+          {mobileOpen && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="rounded-input p-2 text-craie/70 hover:bg-encre-clair hover:text-craie lg:hidden"
+              aria-label="Fermer le menu"
+            >
+              <X className="h-5 w-5" strokeWidth={1.75} />
+            </button>
+          )}
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
           {visibleItems.map((item) => (
             <NavItem key={item.path} item={item} collapsed={collapsed} onNavigate={onCloseMobile} />
           ))}
