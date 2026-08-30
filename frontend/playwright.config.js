@@ -37,7 +37,7 @@ export default defineConfig({
     },
     {
       name: 'pedagogie',
-      testMatch: /pedagogie\.spec\.js/,
+      testMatch: /^pedagogie\.spec\.js$/,
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
@@ -49,7 +49,7 @@ export default defineConfig({
     },
     {
       name: 'parent-pedagogie',
-      testMatch: /parent-pedagogie\.spec\.js/,
+      testMatch: /^parent-pedagogie\.spec\.js$/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

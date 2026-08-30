@@ -1,13 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { expectPageTitle, loginWithCredentials } from './helpers';
 
 const ADMIN_EMAIL = 'admin@ecole.local';
 const ADMIN_PASSWORD = 'Admin123!';
 
 async function loginAsAdmin(page) {
-  await page.goto('/login');
-  await page.locator('#field-email').fill(ADMIN_EMAIL);
-  await page.locator('#field-password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await loginWithCredentials(page, ADMIN_EMAIL, ADMIN_PASSWORD);
   await page.waitForURL(/\/(dashboard|change-password)/, { timeout: 15000 });
   if (page.url().includes('change-password')) {
     await page.locator('input[name="currentPassword"]').fill(ADMIN_PASSWORD);
@@ -29,6 +27,6 @@ test.describe('Page de connexion', () => {
 
   test('redirige vers le dashboard après connexion réussie', async ({ page }) => {
     await loginAsAdmin(page);
-    await expect(page.getByRole('heading', { name: 'Tableau de bord' })).toBeVisible();
+    await expectPageTitle(page, 'Tableau de bord');
   });
 });

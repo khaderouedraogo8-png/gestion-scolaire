@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { elevesApi } from '../services/api/eleves';
 import { absencesApi } from '../services/api/absences';
 import FormField from './FormField';
