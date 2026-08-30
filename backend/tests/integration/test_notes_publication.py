@@ -117,3 +117,107 @@ def test_parent_cannot_see_notes_en_cours(client, db, annee_classe):
 
     ok = client.get(f"/api/notes/evaluations/{evaluation.id}/notes", headers=headers)
     assert ok.status_code == 200
+
+
+def test_parent_sees_published_exam_before_cloture(client, db, annee_classe):
+    """Une composition publiée apparaît au parent même si les notes ne sont pas clôturées."""
+    annee = annee_classe["annee"]
+    classe = annee_classe["classe"]
+    suffix = uuid.uuid4().hex[:8]
+
+    trimestre = db.query(Trimestre).filter(Trimestre.id_annee == annee.id).first()
+    matiere = Matiere(libelle=f"Hist-{suffix}", code=f"H{suffix[:4]}")
+    db.add(matiere)
+    db.flush()
+
+    enseignant = Enseignant(
+        id=uuid.uuid4(),
+        nom="Prof",
+        prenom="Examen",
+        email=f"prof-exam-{suffix}@ecole.local",
+    )
+    db.add(enseignant)
+    db.flush()
+
+    eleve = Eleve(
+        id=uuid.uuid4(),
+        matricule=f"EXAM-{suffix}",
+        nom="Eleve",
+        prenom="Examen",
+        sexe="M",
+    )
+    db.add(eleve)
+    db.flush()
+
+    db.add(
+        Inscription(
+            id=uuid.uuid4(),
+            id_eleve=eleve.id,
+            id_classe=classe.id,
+            id_annee=annee.id,
+            statut="inscrit",
+        )
+    )
+
+    evaluation = Evaluation(
+        id=uuid.uuid4(),
+        id_classe=classe.id,
+        id_matiere=matiere.id,
+        id_trimestre=trimestre.id,
+        id_enseignant=enseignant.id,
+        type_evaluation="examen",
+        coefficient=2,
+        date_evaluation=date.today(),
+        libelle="Composition trimestre",
+        statut_publication="publie",
+        statut_saisie="en_cours",
+    )
+    db.add(evaluation)
+
+    parent_user = Utilisateur(
+        id=uuid.uuid4(),
+        nom="Parent",
+        prenom="Examen",
+        email=f"parent-exam-{suffix}@ecole.local",
+        mot_de_passe_hash=hash_password("Parent123!"),
+        role="parent",
+        actif=True,
+        doit_changer_mdp=False,
+    )
+    db.add(parent_user)
+    db.flush()
+
+    parent_tuteur = ParentTuteur(
+        id=uuid.uuid4(),
+        nom="Parent",
+        prenom="Examen",
+        telephone="70000002",
+        id_utilisateur=parent_user.id,
+    )
+    db.add(parent_tuteur)
+    db.flush()
+
+    db.add(
+        EleveParent(
+            id_eleve=eleve.id,
+            id_parent=parent_tuteur.id,
+            tuteur_legal=True,
+        )
+    )
+    db.commit()
+
+    login = client.post(
+        "/api/login",
+        json={"email": f"parent-exam-{suffix}@ecole.local", "password": "Parent123!"},
+    )
+    token = login.get_json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.get(
+        "/api/notes/evaluations",
+        query_string={"id_classe": str(classe.id), "type_evaluation": "examen"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    ids = [e["id"] for e in response.get_json()]
+    assert str(evaluation.id) in ids

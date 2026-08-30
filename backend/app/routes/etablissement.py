@@ -72,7 +72,9 @@ class EtablissementResource(MethodView):
 @blp.route("/annees")
 class AnneesResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
+    @require_role(
+        "administrateur", "directeur", "secretariat", "enseignant", "agent_comptable", "parent"
+    )
     @blp.response(200, AnneeScolaireSchema(many=True))
     def get(self):
         db = get_db()
@@ -114,7 +116,7 @@ class AnneeDetail(MethodView):
 @blp.route("/trimestres")
 class TrimestresResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
     @blp.response(200, TrimestreSchema(many=True))
     def get(self):
         db = get_db()

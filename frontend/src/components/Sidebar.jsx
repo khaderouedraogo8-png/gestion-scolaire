@@ -11,6 +11,7 @@ import {
   Settings,
   Home,
   Receipt,
+  BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import SealMedallion from './SealMedallion';
@@ -29,10 +30,17 @@ const ICONS = {
   documents: FolderOpen,
   notifications: Bell,
   config: Settings,
+  pedagogie: BookOpen,
 };
 
 const menuItems = [
   { label: 'Accueil', path: '/parent', icon: 'home', roles: ['parent'] },
+  {
+    label: 'Programme pédagogique',
+    path: '/parent/pedagogie',
+    icon: 'pedagogie',
+    roles: ['parent'],
+  },
   { label: 'Bulletins', path: '/notes/bulletins', icon: 'notes', roles: ['parent'] },
   { label: 'Absences', path: '/absences', icon: 'absences', roles: ['parent'] },
   {

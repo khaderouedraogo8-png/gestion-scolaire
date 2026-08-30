@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import FormField from '../../components/FormField';
@@ -10,6 +10,13 @@ export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
+  const [serverOk, setServerOk] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then((r) => setServerOk(r.ok))
+      .catch(() => setServerOk(false));
+  }, []);
 
   const from = location.state?.from?.pathname || (user?.role === 'parent' ? '/parent' : '/dashboard');
 
@@ -73,6 +80,12 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="card space-y-5">
+            {serverOk === false && (
+              <div className="rounded-input border border-brique bg-brique-clair px-4 py-3 text-sm text-brique">
+                Le backend n&apos;est pas joignable. Ouvrez un terminal à la racine du projet et
+                exécutez&nbsp;: <code className="font-mono">.\scripts\start-native.ps1</code>
+              </div>
+            )}
             {error && (
               <div className="rounded-input border border-brique bg-brique-clair px-4 py-3 text-sm text-brique">
                 {error}

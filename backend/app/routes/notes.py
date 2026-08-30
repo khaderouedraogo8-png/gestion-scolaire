@@ -234,7 +234,10 @@ class EvaluationsResource(MethodView):
                 (Evaluation.type_evaluation != "examen")
                 | (Evaluation.statut_publication == "publie")
             )
-            q = q.filter(Evaluation.statut_saisie == "cloturee")
+            q = q.filter(
+                (Evaluation.type_evaluation == "examen")
+                | (Evaluation.statut_saisie == "cloturee")
+            )
         evaluations = q.order_by(Evaluation.date_evaluation.desc()).all()
         return jsonify([_serialize_evaluation(db, e) for e in evaluations])
 

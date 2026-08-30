@@ -34,6 +34,11 @@ export default function ParentHome() {
           <h2 className="mt-2 font-semibold text-encre">Absences</h2>
           <p className="page-subtitle">Suivi des absences de vos enfants</p>
         </Link>
+        <Link to="/parent/pedagogie" className="card hover:border-or-cachet/40 transition-colors">
+          <span className="text-2xl">📚</span>
+          <h2 className="mt-2 font-semibold text-encre">Programme pédagogique</h2>
+          <p className="page-subtitle">Devoirs, compositions et cahier de texte</p>
+        </Link>
       </div>
     </div>
   );

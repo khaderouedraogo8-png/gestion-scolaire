@@ -125,7 +125,7 @@ jobs:
           docker compose logs frontend
           exit 1
 
-      - name: Reset admin for E2E
+      - name: Reset demo accounts for E2E
         run: |
           docker exec gestion-scolaire-backend-1 python -c "
           from app import create_app
@@ -135,12 +135,17 @@ jobs:
           app = create_app()
           with app.app_context():
               db = get_db()
-              u = db.query(Utilisateur).filter_by(email='admin@ecole.local').first()
-              if u:
-                  u.mot_de_passe_hash = hash_password('Admin123!')
-                  u.doit_changer_mdp = False
-                  u.tentatives_echouees = 0
-                  db.commit()
+              for email, pwd in [
+                  ('admin@ecole.local', 'Admin123!'),
+                  ('parent@demo.local', 'Parent123!'),
+              ]:
+                  u = db.query(Utilisateur).filter_by(email=email).first()
+                  if u:
+                      u.mot_de_passe_hash = hash_password(pwd)
+                      u.doit_changer_mdp = False
+                      u.tentatives_echouees = 0
+                      u.verrouille_jusqu_a = None
+              db.commit()
           "
 
       - name: Run Playwright E2E

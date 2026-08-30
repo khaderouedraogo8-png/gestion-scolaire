@@ -35,5 +35,22 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['modules'],
     },
+    {
+      name: 'pedagogie',
+      testMatch: /pedagogie\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'navigation',
+      testMatch: /navigation\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'parent-pedagogie',
+      testMatch: /parent-pedagogie\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 });

@@ -51,6 +51,7 @@ import Utilisateurs from './pages/config/Utilisateurs';
 
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ParentHome from './pages/parent/ParentHome';
+import ParentPedagogie from './pages/parent/ParentPedagogie';
 import PaiementsParent from './pages/finance/PaiementsParent';
 
 const ADMIN = ['administrateur', 'directeur'];
@@ -109,6 +110,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={['parent']}>
             <ParentHome />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'parent/pedagogie',
+        element: (
+          <ProtectedRoute roles={['parent']}>
+            <ParentPedagogie />
           </ProtectedRoute>
         ),
       },

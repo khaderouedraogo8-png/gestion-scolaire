@@ -60,8 +60,13 @@ export const useAuthStore = create((set, get) => ({
       });
       return data;
     } catch (err) {
-      const message =
-        err.response?.data?.message || 'Identifiants incorrects. Veuillez réessayer.';
+      let message = err.response?.data?.message;
+      if (!message) {
+        message =
+          err.request && !err.response
+            ? 'Serveur inaccessible. Lancez .\\scripts\\start-native.ps1 puis réessayez.'
+            : 'Identifiants incorrects. Veuillez réessayer.';
+      }
       set({ isLoading: false, error: message });
       throw err;
     }

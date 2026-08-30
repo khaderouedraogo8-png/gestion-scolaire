@@ -82,6 +82,7 @@ def _serialize_eleve_list_item(db, eleve, id_annee=None):
         result["statut"] = inscr.statut
         result["est_boursier"] = inscr.est_boursier
         result["id_classe"] = str(inscr.id_classe)
+        result["id_annee"] = str(inscr.id_annee)
         result["classe_nom"] = classe.libelle if classe else None
         if classe:
             niveau = db.query(NiveauEtude).filter(NiveauEtude.id == classe.id_niveau).first()
