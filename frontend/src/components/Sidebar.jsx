@@ -155,23 +155,17 @@ function NavItem({ item, collapsed, onNavigate }) {
     location.pathname === item.path ||
     item.children?.some((c) => location.pathname.startsWith(c.path));
 
-  const linkClass = isActive
-    ? 'border-l-2 border-or-cachet bg-white/[0.1] text-craie shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] rounded-r-lg'
-    : 'border-l-2 border-transparent text-[#E4E2D9] hover:bg-white/[0.07] hover:text-blanc rounded-r-lg';
+  const linkClass = `sidebar-nav-link ${isActive ? 'sidebar-nav-link-active' : ''}`;
 
   if (item.children) {
     return (
       <div className="space-y-1">
-        <Link
-          to={item.path}
-          onClick={onNavigate}
-          className={`flex items-center gap-3 px-3 py-3 text-[15px] font-medium transition-all duration-200 lg:py-2.5 lg:text-sm ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : '[&_svg]:text-[#D8D5CC]'}`}
-        >
+        <Link to={item.path} onClick={onNavigate} className={linkClass}>
           <NavIcon name={item.icon} />
           {!collapsed && <span className="truncate">{item.label}</span>}
         </Link>
         {!collapsed && isActive && (
-          <div className="ml-9 space-y-0.5 border-l border-white/20 pl-3">
+          <div className="ml-9 space-y-0.5 border-l border-bordure pl-3">
             {item.children.map((child) => {
               const childActive =
                 location.pathname === child.path ||
@@ -181,11 +175,7 @@ function NavItem({ item, collapsed, onNavigate }) {
                   key={child.path}
                   to={child.path}
                   onClick={onNavigate}
-                  className={`block rounded-md px-2.5 py-2 text-[13px] transition-colors lg:py-1.5 lg:text-xs ${
-                    childActive
-                      ? 'bg-white/[0.08] font-medium text-or-cachet'
-                      : 'text-[#C9C6BC] hover:text-blanc'
-                  }`}
+                  className={`sidebar-nav-child ${childActive ? 'sidebar-nav-child-active' : ''}`}
                 >
                   {child.label}
                 </Link>
@@ -198,11 +188,7 @@ function NavItem({ item, collapsed, onNavigate }) {
   }
 
   return (
-    <Link
-      to={item.path}
-      onClick={onNavigate}
-      className={`flex items-center gap-3 px-3 py-3 text-[15px] font-medium transition-all duration-200 lg:py-2.5 lg:text-sm ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : '[&_svg]:text-[#D8D5CC]'}`}
-    >
+    <Link to={item.path} onClick={onNavigate} className={linkClass}>
       <NavIcon name={item.icon} />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
@@ -216,23 +202,22 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
 
   return (
     <aside
-      className={`sidebar-premium fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:static lg:translate-x-0 ${
+      className={`sidebar-nav fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:static lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       } ${collapsed ? 'lg:w-20' : 'lg:w-64'}`}
-      style={{ boxShadow: '4px 0 32px rgba(10, 18, 32, 0.22)' }}
     >
       <div className="flex h-full flex-col">
         <div
-          className={`relative flex items-center border-b border-white/[0.07] px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
+          className={`relative flex items-center border-b border-bordure/80 px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
         >
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-or-cachet/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-or-cachet/50 to-transparent" />
           <SealMedallion size="md" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-sm font-medium tracking-tight text-craie">
+              <h1 className="font-display text-sm font-medium tracking-tight text-encre">
                 Gestion Scolaire
               </h1>
-              <p className="mt-0.5 text-[11px] capitalize tracking-wide text-craie/75">
+              <p className="mt-0.5 text-[11px] capitalize tracking-wide text-texte-secondaire">
                 {role?.replace('_', ' ')}
               </p>
             </div>
@@ -241,7 +226,7 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
             <button
               type="button"
               onClick={onCloseMobile}
-              className="rounded-input p-2 text-craie transition-colors hover:bg-white/[0.1] lg:hidden"
+              className="rounded-input p-2 text-texte-secondaire transition-colors hover:bg-craie hover:text-encre lg:hidden"
               aria-label="Fermer le menu"
             >
               <X className="h-5 w-5" strokeWidth={1.75} />
@@ -254,8 +239,8 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
           ))}
         </nav>
         {!collapsed && (
-          <div className="border-t border-white/10 px-4 py-3.5">
-            <p className="text-[10px] uppercase tracking-[0.08em] text-craie/55">
+          <div className="border-t border-bordure/80 px-4 py-3.5">
+            <p className="text-[10px] uppercase tracking-[0.08em] text-texte-secondaire">
               Sceau institutionnel
             </p>
           </div>

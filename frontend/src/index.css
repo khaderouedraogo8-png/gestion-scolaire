@@ -257,6 +257,43 @@
       linear-gradient(180deg, #16263f 0%, #0d1628 55%, #0a1220 100%);
   }
 
+  .sidebar-nav {
+    @apply border-r border-bordure/80 bg-blanc;
+    box-shadow: 4px 0 24px rgba(20, 33, 61, 0.06);
+  }
+
+  .sidebar-nav-link {
+    @apply flex items-center gap-3 rounded-r-lg border-l-2 border-transparent px-3 py-3 text-[15px] font-medium text-encre transition-all duration-200 lg:py-2.5 lg:text-sm;
+  }
+
+  .sidebar-nav-link:hover {
+    @apply bg-craie text-encre;
+  }
+
+  .sidebar-nav-link-active {
+    @apply border-or-cachet bg-or-cachet-clair text-encre;
+  }
+
+  .sidebar-nav-link-active svg {
+    @apply text-or-cachet;
+  }
+
+  .sidebar-nav-link:not(.sidebar-nav-link-active) svg {
+    @apply text-texte-secondaire;
+  }
+
+  .sidebar-nav-child {
+    @apply block rounded-md px-2.5 py-2 text-[13px] text-texte-secondaire transition-colors lg:py-1.5 lg:text-xs;
+  }
+
+  .sidebar-nav-child:hover {
+    @apply text-encre;
+  }
+
+  .sidebar-nav-child-active {
+    @apply bg-or-cachet-clair font-medium text-or-cachet;
+  }
+
   .header-premium {
     @apply border-b border-bordure/60 bg-blanc/70 backdrop-blur-xl;
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
