@@ -52,7 +52,8 @@ export default function AuthShell({ title, subtitle, children, footer }) {
         <div className="relative w-full max-w-md animate-[slide-up_0.5s_ease-out]">
           <div className="card-premium p-7 sm:p-9">
             <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-              <SealMedallion size="lg" className="mb-6 lg:hidden" />
+              <SealMedallion size="lg" className="mb-5 lg:hidden" />
+              <p className="page-eyebrow mb-2 lg:hidden">Gestion Scolaire</p>
               <h2 className="page-title !text-[1.85rem] sm:!text-3xl">{title}</h2>
               {subtitle && <p className="page-subtitle mt-2">{subtitle}</p>}
               <div className="page-title-accent mx-auto lg:mx-0" aria-hidden="true" />
