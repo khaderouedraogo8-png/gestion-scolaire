@@ -45,12 +45,12 @@ export default {
         label: '0.06em',
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(20, 33, 61, 0.04), 0 4px 16px rgba(20, 33, 61, 0.03)',
+        soft: '0 1px 2px rgba(20, 33, 61, 0.04), 0 8px 24px rgba(20, 33, 61, 0.06)',
         card: '0 1px 0 rgba(255,255,255,0.9) inset, 0 1px 2px rgba(20,33,61,0.05)',
-        glow: '0 0 0 1px rgba(184,134,46,0.15)',
+        glow: '0 0 0 1px rgba(184,134,46,0.18)',
       },
       animation: {
-        'fade-in': 'fade-in 0.4s ease-out',
+        'fade-in': 'fade-in 0.45s ease-out',
         'slide-up': 'slide-up 0.45s ease-out',
       },
       keyframes: {
@@ -59,7 +59,7 @@ export default {
           to: { opacity: '1' },
         },
         'slide-up': {
-          from: { opacity: '0', transform: 'translateY(8px)' },
+          from: { opacity: '0', transform: 'translateY(10px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
       },

@@ -155,37 +155,32 @@ function NavItem({ item, collapsed, onNavigate }) {
     location.pathname === item.path ||
     item.children?.some((c) => location.pathname.startsWith(c.path));
 
-  const linkClass = isActive
-    ? 'border-l-2 border-or-cachet bg-or-cachet-clair text-craie rounded-r-lg'
-    : 'text-craie/70 hover:bg-or-cachet-clair/40 hover:text-craie rounded-lg';
+  const linkClass = `sidebar-nav-link ${isActive ? 'sidebar-nav-link-active' : ''}`;
 
   if (item.children) {
     return (
       <div className="space-y-1">
-        <Link
-          to={item.path}
-          onClick={onNavigate}
-          className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
-        >
+        <Link to={item.path} onClick={onNavigate} className={linkClass}>
           <NavIcon name={item.icon} />
-          {!collapsed && <span>{item.label}</span>}
+          {!collapsed && <span className="truncate">{item.label}</span>}
         </Link>
         {!collapsed && isActive && (
-          <div className="ml-9 space-y-1 border-l border-craie/20 pl-3">
-            {item.children.map((child) => (
-              <Link
-                key={child.path}
-                to={child.path}
-                onClick={onNavigate}
-                className={`block rounded-md px-2 py-1.5 text-xs transition-colors ${
-                  location.pathname === child.path || location.pathname.startsWith(child.path + '/')
-                    ? 'font-medium text-or-cachet'
-                    : 'text-craie/60 hover:text-craie'
-                }`}
-              >
-                {child.label}
-              </Link>
-            ))}
+          <div className="ml-9 space-y-0.5 border-l border-bordure pl-3">
+            {item.children.map((child) => {
+              const childActive =
+                location.pathname === child.path ||
+                location.pathname.startsWith(`${child.path}/`);
+              return (
+                <Link
+                  key={child.path}
+                  to={child.path}
+                  onClick={onNavigate}
+                  className={`sidebar-nav-child ${childActive ? 'sidebar-nav-child-active' : ''}`}
+                >
+                  {child.label}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
@@ -193,13 +188,9 @@ function NavItem({ item, collapsed, onNavigate }) {
   }
 
   return (
-    <Link
-      to={item.path}
-      onClick={onNavigate}
-      className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
-    >
+    <Link to={item.path} onClick={onNavigate} className={linkClass}>
       <NavIcon name={item.icon} />
-      {!collapsed && <span>{item.label}</span>}
+      {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
 }
@@ -211,21 +202,22 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
 
   return (
     <aside
-      className={`sidebar-premium fixed inset-y-0 left-0 z-50 w-64 transform shadow-[4px_0_24px_rgba(13,22,40,0.15)] transition-transform duration-300 lg:static lg:translate-x-0 ${
+      className={`sidebar-nav fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:static lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       } ${collapsed ? 'lg:w-20' : 'lg:w-64'}`}
     >
       <div className="flex h-full flex-col">
         <div
-          className={`flex items-center border-b border-white/[0.08] px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
+          className={`relative flex items-center border-b border-bordure/80 px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
         >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-or-cachet/50 to-transparent" />
           <SealMedallion size="md" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-sm font-medium tracking-tight text-craie">
+              <h1 className="font-display text-sm font-medium tracking-tight text-encre">
                 Gestion Scolaire
               </h1>
-              <p className="text-[11px] capitalize tracking-wide text-craie/50">
+              <p className="mt-0.5 text-[11px] capitalize tracking-wide text-texte-secondaire">
                 {role?.replace('_', ' ')}
               </p>
             </div>
@@ -234,18 +226,25 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
             <button
               type="button"
               onClick={onCloseMobile}
-              className="rounded-input p-2 text-craie/70 hover:bg-encre-clair hover:text-craie lg:hidden"
+              className="rounded-input p-2 text-texte-secondaire transition-colors hover:bg-craie hover:text-encre lg:hidden"
               aria-label="Fermer le menu"
             >
               <X className="h-5 w-5" strokeWidth={1.75} />
             </button>
           )}
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4">
           {visibleItems.map((item) => (
             <NavItem key={item.path} item={item} collapsed={collapsed} onNavigate={onCloseMobile} />
           ))}
         </nav>
+        {!collapsed && (
+          <div className="border-t border-bordure/80 px-4 py-3.5">
+            <p className="text-[10px] uppercase tracking-[0.08em] text-texte-secondaire">
+              Sceau institutionnel
+            </p>
+          </div>
+        )}
       </div>
     </aside>
   );

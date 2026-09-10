@@ -46,7 +46,7 @@ export default function Layout() {
         <main
           className={`flex-1 p-5 lg:p-8 ${mobileMenuOpen ? 'overflow-hidden' : 'overflow-auto'}`}
         >
-          <div className="animate-fade-in">
+          <div className="content-shell animate-fade-in">
             <Outlet />
           </div>
         </main>
