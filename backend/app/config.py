@@ -3,11 +3,33 @@ import os
 from datetime import timedelta
 
 
+def normalize_database_url(url: str) -> str:
+    """Accepte les URL Railway/Heroku (postgres://) et force le dialecte psycopg2."""
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://") and "+psycopg2" not in url.split("://", 1)[0]:
+        url = "postgresql+psycopg2://" + url[len("postgresql://") :]
+    return url
+
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def _rate_limit_storage_uri(default: str) -> str:
+    return os.getenv("RATELIMIT_STORAGE_URI") or os.getenv("REDIS_URL") or default
+
+
 class Config:
     SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg2://gestion:gestion_dev@localhost:5432/gestion_scolaire",
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(
+        os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg2://gestion:gestion_dev@localhost:5432/gestion_scolaire",
+        )
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
@@ -26,11 +48,11 @@ class Config:
     QR_HMAC_SECRET = os.getenv("QR_HMAC_SECRET", "dev-qr-hmac-secret")
 
     # CORS
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    CORS_ORIGINS = _cors_origins()
 
-    # Rate limiting (Redis recommandé en prod multi-workers : redis://redis:6379/0)
+    # Rate limiting (Redis recommandé en prod multi-workers ; REDIS_URL accepté)
     RATELIMIT_ENABLED = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
-    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_STORAGE_URI = _rate_limit_storage_uri("memory://")
 
     # Uploads
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
@@ -66,9 +88,11 @@ class DevelopmentConfig(Config):
 class TestingConfig(Config):
     TESTING = True
     RATELIMIT_ENABLED = False
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg2://gestion:gestion_test@localhost:5432/gestion_scolaire_test",
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(
+        os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg2://gestion:gestion_test@localhost:5432/gestion_scolaire_test",
+        )
     )
     JWT_SECRET_KEY = "test-jwt-secret"
     REFRESH_SECRET_KEY = "test-refresh-secret"
@@ -77,8 +101,9 @@ class TestingConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
-    RATELIMIT_ENABLED = True
-    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "redis://redis:6379/0")
+    RATELIMIT_ENABLED = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
+    # Redis si fourni (Railway Redis / compose) ; sinon mémoire (PaaS sans Redis)
+    RATELIMIT_STORAGE_URI = _rate_limit_storage_uri("memory://")
     # Désactive la doc Swagger en production
     OPENAPI_URL_PREFIX = None
 
