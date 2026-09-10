@@ -18,9 +18,13 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    return os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg2://gestion:gestion_dev@localhost:5432/gestion_scolaire",
+    from app.config import normalize_database_url
+
+    return normalize_database_url(
+        os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg2://gestion:gestion_dev@localhost:5432/gestion_scolaire",
+        )
     )
 
 
