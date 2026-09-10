@@ -47,15 +47,15 @@ export default function Table({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
+      <div className="table-shell">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-bordure/60 bg-craie/40">
+              <tr>
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.03em] text-texte-secondaire ${
+                    className={`px-4 py-3.5 text-left text-[11px] font-medium uppercase tracking-[0.04em] text-texte-secondaire ${
                       col.align === 'right' ? 'text-right' : ''
                     }`}
                     style={{ width: col.width }}
@@ -68,10 +68,10 @@ export default function Table({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center">
+                  <td colSpan={columns.length} className="px-4 py-14 text-center">
                     <div className="inline-flex items-center gap-2 text-sm text-texte-secondaire">
                       <div className="loading-ring h-5 w-5" />
-                      Chargement...
+                      Chargement…
                     </div>
                   </td>
                 </tr>
@@ -86,14 +86,12 @@ export default function Table({
                   <tr
                     key={row[keyField]}
                     onClick={() => onRowClick?.(row)}
-                    className={`border-b border-bordure/50 last:border-b-0 transition-colors ${
-                      onRowClick ? 'cursor-pointer hover:bg-craie/60' : ''
-                    }`}
+                    className={onRowClick ? 'cursor-pointer' : ''}
                   >
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className={`whitespace-nowrap px-4 py-3 text-sm text-encre ${
+                        className={`whitespace-nowrap px-4 py-3.5 text-sm text-encre ${
                           col.align === 'right' ? 'text-right tabular-nums' : ''
                         }`}
                       >
@@ -108,7 +106,7 @@ export default function Table({
         </div>
 
         {pagination && (
-          <div className="flex flex-col items-center justify-between gap-3 border-t border-bordure px-4 py-3 sm:flex-row">
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-bordure/80 bg-craie/25 px-4 py-3.5 sm:flex-row">
             <p className="text-sm text-texte-secondaire">
               {pagination.total > 0
                 ? `${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(

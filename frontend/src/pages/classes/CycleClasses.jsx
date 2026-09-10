@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Breadcrumb from '../../components/Breadcrumb';
-import Card from '../../components/Card';
 import { configApi } from '../../services/api/config';
 import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
@@ -56,32 +55,40 @@ export default function CycleClasses() {
       />
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
+        <div className="flex flex-col items-center justify-center gap-3 py-20">
+          <div className="loading-ring" />
+          <p className="text-sm text-texte-secondaire">Chargement des classes…</p>
         </div>
       ) : classes.length === 0 ? (
-        <p className="text-sm text-texte-secondaire">Aucune classe pour ce cycle pour l'instant.</p>
+        <p className="text-sm text-texte-secondaire">Aucune classe pour ce cycle pour l&apos;instant.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {classes.map((classe) => (
-            <Link key={classe.id} to={`/classes/${cycle}/${toClassSlug(classe.libelle)}`}>
-              <Card className="transition-colors hover:border-or-cachet/40">
-                <h2 className="font-display text-lg font-medium text-encre">{classe.libelle}</h2>
-                <dl className="mt-3 space-y-1 text-sm text-texte-secondaire">
-                  <div className="flex justify-between">
-                    <dt>Effectif</dt>
-                    <dd className="tabular-nums text-encre">{classe.effectif ?? 0}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt>Absences du jour</dt>
-                    <dd className="tabular-nums text-encre">{classe.absences_jour ?? 0}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt>Non justifiées (7 j.)</dt>
-                    <dd className="tabular-nums text-brique">{classe.non_justifiees_en_attente ?? 0}</dd>
-                  </div>
-                </dl>
-              </Card>
+          {classes.map((classe, index) => (
+            <Link
+              key={classe.id}
+              to={`/classes/${cycle}/${toClassSlug(classe.libelle)}`}
+              className="cycle-card !p-5"
+              style={{ animation: `slide-up 0.4s ease-out ${(index % 6) * 50}ms both` }}
+            >
+              <h2 className="font-display text-xl font-medium tracking-tight text-encre">
+                {classe.libelle}
+              </h2>
+              <dl className="mt-4 space-y-2.5 text-sm text-texte-secondaire">
+                <div className="flex justify-between gap-3 border-b border-bordure/50 pb-2">
+                  <dt>Effectif</dt>
+                  <dd className="tabular-nums font-medium text-encre">{classe.effectif ?? 0}</dd>
+                </div>
+                <div className="flex justify-between gap-3 border-b border-bordure/50 pb-2">
+                  <dt>Absences du jour</dt>
+                  <dd className="tabular-nums font-medium text-encre">{classe.absences_jour ?? 0}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt>Non justifiées (7 j.)</dt>
+                  <dd className="tabular-nums font-medium text-brique">
+                    {classe.non_justifiees_en_attente ?? 0}
+                  </dd>
+                </div>
+              </dl>
             </Link>
           ))}
         </div>
