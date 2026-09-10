@@ -156,8 +156,8 @@ function NavItem({ item, collapsed, onNavigate }) {
     item.children?.some((c) => location.pathname.startsWith(c.path));
 
   const linkClass = isActive
-    ? 'border-l-2 border-or-cachet bg-or-cachet-clair text-craie rounded-r-lg'
-    : 'border-l-2 border-transparent text-craie/68 hover:bg-white/[0.04] hover:text-craie rounded-r-lg';
+    ? 'border-l-2 border-or-cachet bg-white/[0.1] text-craie shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] rounded-r-lg'
+    : 'border-l-2 border-transparent text-[#E4E2D9] hover:bg-white/[0.07] hover:text-blanc rounded-r-lg';
 
   if (item.children) {
     return (
@@ -165,13 +165,13 @@ function NavItem({ item, collapsed, onNavigate }) {
         <Link
           to={item.path}
           onClick={onNavigate}
-          className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
+          className={`flex items-center gap-3 px-3 py-3 text-[15px] font-medium transition-all duration-200 lg:py-2.5 lg:text-sm ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : '[&_svg]:text-[#D8D5CC]'}`}
         >
           <NavIcon name={item.icon} />
           {!collapsed && <span className="truncate">{item.label}</span>}
         </Link>
         {!collapsed && isActive && (
-          <div className="ml-9 space-y-0.5 border-l border-craie/15 pl-3">
+          <div className="ml-9 space-y-0.5 border-l border-white/20 pl-3">
             {item.children.map((child) => {
               const childActive =
                 location.pathname === child.path ||
@@ -181,10 +181,10 @@ function NavItem({ item, collapsed, onNavigate }) {
                   key={child.path}
                   to={child.path}
                   onClick={onNavigate}
-                  className={`block rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                  className={`block rounded-md px-2.5 py-2 text-[13px] transition-colors lg:py-1.5 lg:text-xs ${
                     childActive
-                      ? 'bg-or-cachet-clair/50 font-medium text-or-cachet'
-                      : 'text-craie/55 hover:text-craie'
+                      ? 'bg-white/[0.08] font-medium text-or-cachet'
+                      : 'text-[#C9C6BC] hover:text-blanc'
                   }`}
                 >
                   {child.label}
@@ -201,7 +201,7 @@ function NavItem({ item, collapsed, onNavigate }) {
     <Link
       to={item.path}
       onClick={onNavigate}
-      className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
+      className={`flex items-center gap-3 px-3 py-3 text-[15px] font-medium transition-all duration-200 lg:py-2.5 lg:text-sm ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : '[&_svg]:text-[#D8D5CC]'}`}
     >
       <NavIcon name={item.icon} />
       {!collapsed && <span className="truncate">{item.label}</span>}
@@ -232,7 +232,7 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
               <h1 className="font-display text-sm font-medium tracking-tight text-craie">
                 Gestion Scolaire
               </h1>
-              <p className="mt-0.5 text-[11px] capitalize tracking-wide text-craie/48">
+              <p className="mt-0.5 text-[11px] capitalize tracking-wide text-craie/75">
                 {role?.replace('_', ' ')}
               </p>
             </div>
@@ -241,21 +241,21 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
             <button
               type="button"
               onClick={onCloseMobile}
-              className="rounded-input p-2 text-craie/70 transition-colors hover:bg-white/[0.06] hover:text-craie lg:hidden"
+              className="rounded-input p-2 text-craie transition-colors hover:bg-white/[0.1] lg:hidden"
               aria-label="Fermer le menu"
             >
               <X className="h-5 w-5" strokeWidth={1.75} />
             </button>
           )}
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4">
           {visibleItems.map((item) => (
             <NavItem key={item.path} item={item} collapsed={collapsed} onNavigate={onCloseMobile} />
           ))}
         </nav>
         {!collapsed && (
-          <div className="border-t border-white/[0.06] px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.08em] text-craie/35">
+          <div className="border-t border-white/10 px-4 py-3.5">
+            <p className="text-[10px] uppercase tracking-[0.08em] text-craie/55">
               Sceau institutionnel
             </p>
           </div>
