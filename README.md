@@ -97,16 +97,18 @@ cd frontend && npx playwright test -c playwright.prod.config.js
 
 ---
 
-## Déploiement VPS
+## Déploiement (sans VPS) — Railway
 
-Guide complet : [deploy/DEPLOIEMENT.md](deploy/DEPLOIEMENT.md)
+Guide complet : [deploy/RAILWAY.md](deploy/RAILWAY.md)
 
-```bash
-python3 scripts/init-env-prod.py --domain ecole.votredomaine.fr
-./scripts/deploy-prod.sh ecole.votredomaine.fr
-sudo ./scripts/setup-ssl.sh ecole.votredomaine.fr admin@...
-sudo ./scripts/install-cron.sh /chemin/gestion-scolaire
-```
+1. Créer un projet Railway depuis ce repo GitHub  
+2. Ajouter PostgreSQL + lier `DATABASE_URL`  
+3. Renseigner les secrets (`deploy/env.railway.example`)  
+4. **Generate Domain** → mettre l’URL dans `CORS_ORIGINS`
+
+Alternative locale temporaire : [scripts/tunnel-public.ps1](scripts/tunnel-public.ps1) (Cloudflare Tunnel).
+
+Déploiement Docker classique (VPS optionnel) : [deploy/DEPLOIEMENT.md](deploy/DEPLOIEMENT.md)
 
 ---
 
@@ -117,7 +119,8 @@ sudo ./scripts/install-cron.sh /chemin/gestion-scolaire
 | [docs/dossier-technique-complet.md](docs/dossier-technique-complet.md) | Spécifications techniques |
 | [docs/GUIDE-UTILISATEUR.md](docs/GUIDE-UTILISATEUR.md) | Guide admin / utilisateurs |
 | [docs/INSTALL-TESTEUR.md](docs/INSTALL-TESTEUR.md) | Installation pour testeurs |
-| [deploy/DEPLOIEMENT.md](deploy/DEPLOIEMENT.md) | Déploiement production |
+| [deploy/RAILWAY.md](deploy/RAILWAY.md) | Déploiement Railway (recommandé) |
+| [deploy/DEPLOIEMENT.md](deploy/DEPLOIEMENT.md) | Déploiement Docker / VPS |
 
 ---
 
@@ -135,27 +138,13 @@ gestion-scolaire/
 
 ---
 
-## Deploiement VPS (une commande)
+## Accès public temporaire (PC local)
 
-Sur un VPS Ubuntu avec le code clone :
-
-```bash
-sudo ./scripts/install-vps.sh ecole.votredomaine.fr admin@votredomaine.fr
-```
-
-Depuis Windows (prepare l'archive + instructions SSH) :
-
-```powershell
-.\scripts\deploy-vps.ps1 -Domain ecole.votredomaine.fr -Email admin@votredomaine.fr
-```
-
-## Acces public temporaire (sans VPS)
-
-Expose localhost:8080 sur Internet via Cloudflare :
+Expose localhost:8080 via Cloudflare Tunnel (démo uniquement) :
 
 ```powershell
 .\scripts\tunnel-public.ps1
-# Copier l'URL https://xxxx.trycloudflare.com affichee
+# Copier l'URL https://xxxx.trycloudflare.com affichée
 ```
 
 ---
