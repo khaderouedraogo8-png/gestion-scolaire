@@ -368,60 +368,60 @@ SUPER_ADMIN (plateforme)
 ---
 
 
+
 ## PR #7 — Final Validation
 
 **Date :** 2026-09-14  
 **Branche :** `cursor/saas-p1-hardening-8bcc`  
-**Résumé :** Validation finale pré-merge (exécution réelle tests/lint/build + probes sécurité/API). Périmètre P0/P1 uniquement — multi-tenant non démarré.
+**Méthode :** exécution réelle locale + CI GitHub (backend/frontend/e2e/prod-build) — pas de confiance aveugle à un AUDIT antérieur.  
+**Périmètre :** P0/P1 only — multi-tenant / school_id / SUPER_ADMIN **non démarrés**.
 
-### Tests exécutés
+### Tests
 | | |
 |--|--|
-| Commande | `pytest -q` (backend) |
+| Commande | `pytest -q` |
 | Total | **63** |
 | Passed | **63** |
 | Failed | **0** |
 | Errors | **0** |
 | Skipped | **0** |
-| Duration | **3.85s** |
-| P0+P1 ciblés | **29 passed** (`test_teacher_idor`, `test_upload_reset_security`, `test_p1_errors_pagination`) |
+| Duration | **3.54s** |
+| P0+P1 ciblés | **29 passed** |
+| CI GitHub | **4/4 pass** (backend, frontend, e2e, prod-build) |
+
+### Sécurité
+| Domaine | Résultat |
+|---------|----------|
+| IDOR enseignant / ressources | **PASS** |
+| Uploads (allowlist, UUID, traversal, double-ext) | **PASS** |
+| Reset password (no DEBUG leak, prod hard-block, expiry, one-time) | **PASS** |
+| Secrets production (`validate_secrets`) | **PASS** |
+| Authorization 401/403 | **PASS** |
+| Error leakage 500 | **PASS** |
+
+### API / Frontend
+| | |
+|--|--|
+| Validation Marshmallow P1 | **PASS** |
+| Error handler envelope | **PASS** |
+| Pagination bornée + `items` | **PASS** |
+| Routes forgot/reset/users | **PASS** |
+| FE compatibility `items` | **PASS** |
+| `ruff` / eslint / `vite build` | **PASS** (0 eslint errors / 3 hook warnings) |
 
 ### Classification
 | | |
 |--|--|
 | **P0** | **0** |
 | **P1** | **0** |
-| **P2** | Admin `mot_de_passe_temporaire` dans JSON ; MIME vide soft-allow ; `notes_medicales` via `request.json` hors schéma PUT ; N+1 serialize listes (plafonné) ; élèves sans `pagination` imbriqué ; 404/409 manuels hors envelope |
-| **P3** | 3 warnings eslint hooks FE préexistants ; messages Marshmallow parfois EN |
-
-### Sécurité
-- IDOR enseignant / rôles : **PASS**
-- Uploads (ext, traversal, double ext, UUID, taille max 16MB) : **PASS**
-- Reset password (no leak DEBUG, hard-block prod, expiry, one-time, invalid) : **PASS**
-- Secrets prod (`validate_secrets`) : **PASS** (démarrage prod bloqué si secrets faibles)
-- Authorization 401 vs 403 : **PASS**
-- Error leakage (500 sans stack/SQL/chemin/secret) : **PASS**
-
-### API
-- Validation Marshmallow routes P1 : **PASS**
-- Error handler global JSON stable : **PASS**
-- Pagination bornée + `items`/`pagination` : **PASS**
-- Routes `/forgot-password`, `/reset-password`, `/api/users` alignées FE : **PASS**
-
-### Frontend
-- Compat `items` : **PASS**
-- Build `vite` : **PASS**
-- Lint eslint : **PASS** (0 erreur / 3 warnings)
-
-### Lint / Build backend-frontend
-- `ruff check app tests` : **PASS**
-- `npm run build` : **PASS**
+| **P2** | Admin `mot_de_passe_temporaire` JSON ; MIME vide soft-allow ; `notes_medicales` hors schéma PUT ; N+1 serialize (plafonné) ; eleves sans `pagination` imbriqué ; 404/409 manuels hors envelope |
+| **P3** | 3 warnings eslint hooks ; messages Marshmallow parfois EN |
 
 ### Risques restants
-- Mono-école (pas de `school_id`) — volontaire, hors PR
-- Temp password admin JSON — backlog ops (P2)
+- Mono-école (pas de `school_id`) — volontaire, hors PR  
+- Temp password admin dans JSON — backlog ops  
 
-### Verdict final
+### Verdict
 **READY TO MERGE**
 
 ---
