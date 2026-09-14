@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md', footer }) {
   useEffect(() => {
@@ -26,35 +27,29 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', f
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="modal-backdrop" onClick={onClose} aria-hidden="true" />
       <div
-        className="absolute inset-0 bg-encre/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      <div
-        className={`relative w-full ${sizeClasses[size]} rounded-card border border-bordure bg-blanc`}
+        className={`modal-panel ${sizeClasses[size]}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        <div className="flex items-center justify-between border-b border-bordure px-6 py-4">
+        <div className="flex items-center justify-between border-b border-bordure/80 px-6 py-4">
           <h2 id="modal-title" className="font-display text-lg font-medium text-encre">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-input p-1 text-texte-secondaire hover:bg-craie hover:text-encre"
+            className="rounded-input p-1.5 text-texte-secondaire transition-colors hover:bg-craie hover:text-encre"
             aria-label="Fermer"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-5 w-5" strokeWidth={1.75} />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-4">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-bordure px-6 py-4">
+          <div className="flex items-center justify-end gap-3 border-t border-bordure/80 bg-craie/30 px-6 py-4">
             {footer}
           </div>
         )}

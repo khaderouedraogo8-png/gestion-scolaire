@@ -1,9 +1,12 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar } from 'lucide-react';
 import { emploiApi } from '../../services/api/emploi';
 import { configApi } from '../../services/api/config';
 import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
 import PageHeader from '../../components/PageHeader';
+import EmptyState from '../../components/EmptyState';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 
@@ -15,6 +18,10 @@ const JOURS = [
   { value: '5', label: 'Vendredi' },
 ];
 
+const HOUR_START = 7;
+const HOUR_END = 18;
+const SLOT_MINUTES = 60;
+
 const emptyForm = {
   id_affectation: '',
   id_salle: '',
@@ -22,6 +29,18 @@ const emptyForm = {
   heure_debut: '08:00',
   heure_fin: '10:00',
 };
+
+function parseTime(t) {
+  if (!t) return 0;
+  const [h, m] = String(t).slice(0, 5).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function formatHour(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
 
 export default function EmploiTemps() {
   const toast = useToast();
@@ -35,6 +54,7 @@ export default function EmploiTemps() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [view, setView] = useState('grille');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +84,14 @@ export default function EmploiTemps() {
       setAffectations(aff.items || aff || []);
       setSalles(Array.isArray(sal) ? sal : sal.items || []);
     });
+  }, []);
+
+  const timeRows = useMemo(() => {
+    const rows = [];
+    for (let m = HOUR_START * 60; m < HOUR_END * 60; m += SLOT_MINUTES) {
+      rows.push(m);
+    }
+    return rows;
   }, []);
 
   const openCreate = () => {
@@ -119,10 +147,21 @@ export default function EmploiTemps() {
     }
   };
 
+  const creneauxForCell = (jour, slotStart) => {
+    const slotEnd = slotStart + SLOT_MINUTES;
+    return creneaux.filter((c) => {
+      if (Number(c.jour_semaine) !== Number(jour)) return false;
+      const start = parseTime(c.heure_debut);
+      const end = parseTime(c.heure_fin);
+      return start < slotEnd && end > slotStart;
+    });
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-or-cachet-clair border-t-or-cachet" />
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+        <p className="text-sm text-texte-secondaire">Chargement de l’emploi du temps…</p>
       </div>
     );
   }
@@ -147,6 +186,26 @@ export default function EmploiTemps() {
                 </option>
               ))}
             </select>
+            <div className="inline-flex rounded-input border border-bordure bg-blanc p-0.5">
+              <button
+                type="button"
+                className={`rounded-[5px] px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === 'grille' ? 'bg-or-cachet-clair text-or-cachet' : 'text-texte-secondaire'
+                }`}
+                onClick={() => setView('grille')}
+              >
+                Grille
+              </button>
+              <button
+                type="button"
+                className={`rounded-[5px] px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === 'liste' ? 'bg-or-cachet-clair text-or-cachet' : 'text-texte-secondaire'
+                }`}
+                onClick={() => setView('liste')}
+              >
+                Liste
+              </button>
+            </div>
             {isAdmin && (
               <button type="button" className="btn-primary" onClick={openCreate}>
                 + Créneau
@@ -157,8 +216,58 @@ export default function EmploiTemps() {
       />
 
       {creneaux.length === 0 ? (
-        <div className="card text-center page-subtitle">
-          Aucun créneau pour l'instant — créez des affectations puis des créneaux
+        <EmptyState
+          icon={Calendar}
+          title="Aucun créneau"
+          message="Créez d’abord des affectations enseignant–matière–classe, puis planifiez les créneaux."
+          actionLabel={isAdmin ? 'Gérer les affectations' : undefined}
+          actionHref={isAdmin ? '/emploi/affectations' : undefined}
+        />
+      ) : view === 'grille' ? (
+        <div className="edt-grid-shell">
+          <div
+            className="edt-grid"
+            style={{ gridTemplateColumns: `4.5rem repeat(${JOURS.length}, minmax(7.5rem, 1fr))` }}
+          >
+            <div className="edt-grid-corner" />
+            {JOURS.map((j) => (
+              <div key={j.value} className="edt-grid-day">
+                {j.label}
+              </div>
+            ))}
+            {timeRows.map((slot) => (
+              <div key={slot} className="contents">
+                <div className="edt-grid-time">{formatHour(slot)}</div>
+                {JOURS.map((j) => {
+                  const items = creneauxForCell(j.value, slot);
+                  return (
+                    <div key={`${j.value}-${slot}`} className="edt-grid-cell">
+                      {items.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="edt-slot"
+                          onClick={() => (isAdmin ? openEdit(c) : undefined)}
+                          title={`${c.matiere_nom || 'Matière'} — ${c.enseignant_nom || ''}`}
+                        >
+                          <span className="edt-slot-title">{c.matiere_nom || 'Matière'}</span>
+                          <span className="edt-slot-meta">
+                            {(c.heure_debut || '').slice(0, 5)}–{(c.heure_fin || '').slice(0, 5)}
+                          </span>
+                          {!classeFilter && c.classe_nom && (
+                            <span className="edt-slot-meta">{c.classe_nom}</span>
+                          )}
+                          {c.salle_libelle && (
+                            <span className="edt-slot-meta">{c.salle_libelle}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
@@ -186,11 +295,19 @@ export default function EmploiTemps() {
                   <td className="px-4 py-3 text-sm">{c.enseignant_nom || '—'}</td>
                   <td className="px-4 py-3 text-sm">{c.salle_libelle || '—'}</td>
                   {isAdmin && (
-                    <td className="px-4 py-3 text-right text-sm space-x-2">
-                      <button type="button" onClick={() => openEdit(c)} className="text-or-cachet hover:underline">
+                    <td className="space-x-2 px-4 py-3 text-right text-sm">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(c)}
+                        className="text-or-cachet hover:underline"
+                      >
                         Modifier
                       </button>
-                      <button type="button" onClick={() => handleDelete(c.id)} className="text-brique hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(c.id)}
+                        className="text-brique hover:underline"
+                      >
                         Suppr.
                       </button>
                     </td>
@@ -200,6 +317,15 @@ export default function EmploiTemps() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {creneaux.length > 0 && isAdmin && view === 'grille' && (
+        <p className="text-xs text-texte-secondaire">
+          Astuce : cliquez un créneau pour le modifier. Besoin d’affectations ?{' '}
+          <Link to="/emploi/affectations" className="font-medium text-or-cachet hover:underline">
+            Gérer les affectations
+          </Link>
+        </p>
       )}
 
       <Modal
@@ -226,7 +352,10 @@ export default function EmploiTemps() {
             type="select"
             value={form.id_salle}
             onChange={(e) => setForm({ ...form, id_salle: e.target.value })}
-            options={[{ value: '', label: '—' }, ...salles.map((s) => ({ value: String(s.id), label: s.libelle }))]}
+            options={[
+              { value: '', label: '—' },
+              ...salles.map((s) => ({ value: String(s.id), label: s.libelle })),
+            ]}
           />
           <FormField
             label="Jour"
@@ -252,6 +381,18 @@ export default function EmploiTemps() {
               required
             />
           </div>
+          {editId && (
+            <button
+              type="button"
+              className="btn-danger w-full"
+              onClick={() => {
+                setModalOpen(false);
+                handleDelete(editId);
+              }}
+            >
+              Supprimer ce créneau
+            </button>
+          )}
           <button type="submit" className="btn-primary w-full">
             Enregistrer
           </button>

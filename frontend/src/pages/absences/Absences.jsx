@@ -222,7 +222,10 @@ export default function Absences() {
           </>
         }
         emptyIcon={emptyIcons.absences}
-        emptyMessage="Aucune absence enregistrée pour l'instant sur cette période"
+        emptyTitle="Aucune absence"
+        emptyMessage="Aucune absence enregistrée pour l'instant sur cette période."
+        emptyActionLabel={canWrite ? 'Signaler une absence' : undefined}
+        onEmptyAction={canWrite ? () => setModalOpen(true) : undefined}
       />
 
       <Modal

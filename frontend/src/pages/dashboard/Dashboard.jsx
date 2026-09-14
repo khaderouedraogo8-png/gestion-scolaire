@@ -11,6 +11,10 @@ import {
   Clock,
   BarChart3,
   PieChart,
+  Search,
+  Receipt,
+  Bell,
+  FileText,
 } from 'lucide-react';
 import { dashboardApi } from '../../services/api/dashboard';
 import { configApi } from '../../services/api/config';
@@ -22,12 +26,56 @@ import EmptyState from '../../components/EmptyState';
 import AbsenceFormModal from '../../components/AbsenceFormModal';
 import { cycleLabel, toClassSlug } from '../../utils/classNavigation';
 
+const QUICK_ACTIONS = [
+  {
+    to: '/eleves/recherche',
+    icon: Search,
+    label: 'Rechercher un élève',
+    hint: 'Nom ou matricule',
+  },
+  {
+    to: '/finance/arrieres',
+    icon: AlertCircle,
+    label: 'Arriérés',
+    hint: 'Relances & soldes',
+  },
+  {
+    to: '/finance/encaissement',
+    icon: Receipt,
+    label: 'Encaissement',
+    hint: 'Saisir un paiement',
+  },
+  {
+    to: '/notifications',
+    icon: Bell,
+    label: 'Notifications',
+    hint: 'Messages parents',
+  },
+  {
+    to: '/notes/bulletins',
+    icon: FileText,
+    label: 'Bulletins',
+    hint: 'Générer & publier',
+  },
+  {
+    to: '/absences',
+    icon: ClipboardList,
+    label: 'Absences',
+    hint: 'Suivi disciplinaire',
+  },
+];
+
 function AbsencesParClasseBlock({ title, cycles, emptyMessage, emptyIcon: EmptyIcon }) {
   if (!cycles?.length) {
     return (
       <Card premium>
         <h3 className="section-title mb-4 !text-base">{title}</h3>
-        <EmptyState icon={EmptyIcon} message={emptyMessage} />
+        <EmptyState
+          icon={EmptyIcon}
+          message={emptyMessage}
+          actionLabel="Voir toutes les absences"
+          actionHref="/absences"
+        />
       </Card>
     );
   }
@@ -65,7 +113,12 @@ function BarChart({ data, labelKey, valueKey, title }) {
     return (
       <Card premium>
         <h3 className="section-title mb-4 !text-base">{title}</h3>
-        <EmptyState icon={BarChart3} message="Aucune donnée pour l'instant." />
+        <EmptyState
+          icon={BarChart3}
+          message="Aucune donnée pour l'instant."
+          actionLabel="Saisir des notes"
+          actionHref="/notes/saisie"
+        />
       </Card>
     );
   }
@@ -100,7 +153,12 @@ function DonutChart({ data, title }) {
     return (
       <Card premium>
         <h3 className="section-title mb-4 !text-base">{title}</h3>
-        <EmptyState icon={PieChart} message="Aucune donnée pour l'instant." />
+        <EmptyState
+          icon={PieChart}
+          message="Aucune donnée pour l'instant."
+          actionLabel="Voir les classes"
+          actionHref="/classes"
+        />
       </Card>
     );
   }
@@ -251,7 +309,7 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="Administration"
         title="Tableau de bord"
-        subtitle="Vue d'ensemble de votre établissement scolaire"
+        subtitle="Vue d'ensemble claire de la vie de votre établissement"
         actions={
           <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
             <Plus className="h-4 w-4" strokeWidth={2} />
@@ -259,6 +317,28 @@ export default function Dashboard() {
           </button>
         }
       />
+
+      <section>
+        <h2 className="dashboard-section-label">Accès rapides</h2>
+        <div className="quick-actions">
+          {QUICK_ACTIONS.map(({ to, icon: Icon, label, hint }, index) => (
+            <Link
+              key={to}
+              to={to}
+              className="quick-action"
+              style={{ animation: `slide-up 0.4s ease-out ${index * 40}ms both` }}
+            >
+              <span className="quick-action-icon">
+                <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-encre">{label}</span>
+                <span className="block text-[11px] text-texte-secondaire">{hint}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section>
         <h2 className="dashboard-section-label">Indicateurs clés</h2>

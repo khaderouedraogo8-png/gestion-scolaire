@@ -109,11 +109,11 @@ export default function Login() {
           autoComplete="current-password"
         />
 
-        <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5">
+        <button type="submit" disabled={isLoading} className="btn-primary w-full py-3 text-[15px]">
           {isLoading ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
-              Connexion...
+              Connexion…
             </span>
           ) : (
             'Se connecter'

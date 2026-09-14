@@ -33,6 +33,7 @@ export const pedagogieApi = {
   pdfFicheAppel: (params) => openPdf('/pedagogie/pdf/fiche-appel', params),
   pdfFicheScolarite: (params) => openPdf('/pedagogie/pdf/fiche-scolarite', params),
   pdfProgrammeTrimestriel: (params) => openPdf('/pedagogie/pdf/programme-trimestriel', params),
+  pdfEmargementComposition: (params) => openPdf('/pedagogie/pdf/emargement-composition', params),
 
   getChargeTravail: async (params) => {
     const { data } = await apiClient.get('/pedagogie/charge-travail', { params });
