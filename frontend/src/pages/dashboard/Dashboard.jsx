@@ -120,7 +120,7 @@ function DonutChart({ data, title }) {
   }
 
   const total = data.reduce((sum, d) => sum + (d.value || 0), 0);
-  const colors = ['#14213D', '#2F6E4F', '#B8862E', '#A6432E', '#1F3A5F'];
+  const colors = ['#0F766E', '#0D9488', '#14B8A6', '#5EEAD4', '#134E4A'];
 
   let cumulative = 0;
   const segments = data.map((d, i) => {
@@ -298,7 +298,7 @@ export default function Dashboard() {
 
       <section>
         <h2 className="dashboard-section-label">Indicateurs clés</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
           <StatCard
             title="Effectif total"
             value={stats?.total_eleves_inscrits ?? stats?.effectif_total ?? 0}
@@ -306,11 +306,20 @@ export default function Dashboard() {
             tone="neutral"
             icon={GraduationCap}
             delay={0}
+            featured
+            sparkVariant="bars"
           />
           <StatCard
             title="Taux de recouvrement"
             value={stats?.taux_recouvrement != null ? `${stats.taux_recouvrement}%` : '—'}
             subtitle="Paiements encaissés"
+            change={
+              stats?.taux_recouvrement != null
+                ? Number(stats.taux_recouvrement) >= 50
+                  ? 'En bonne voie'
+                  : 'À renforcer'
+                : undefined
+            }
             tone="positive"
             icon={TrendingUp}
             delay={60}
@@ -335,14 +344,21 @@ export default function Dashboard() {
                 : '—'
             }
             subtitle="Échéances scolaires"
+            change={stats?.total_du != null && Number(stats.total_du) > 0 ? 'À encaisser' : undefined}
             tone="warning"
             icon={AlertCircle}
             delay={180}
+            sparkVariant="bars"
           />
           <StatCard
             title="Absences"
             value={stats?.total_absences ?? 0}
             subtitle="Total enregistrées"
+            change={
+              stats?.total_absences != null && Number(stats.total_absences) > 0
+                ? 'À justifier'
+                : 'RAS'
+            }
             tone="negative"
             icon={ClipboardList}
             delay={240}

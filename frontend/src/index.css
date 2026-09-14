@@ -86,13 +86,13 @@
   }
 
   .card {
-    @apply rounded-card border border-bordure bg-blanc p-6 transition-all duration-base;
+    @apply rounded-card border border-bordure/80 bg-blanc p-6 transition-all duration-base;
     box-shadow: var(--shadow-card);
   }
 
   .card-interactive:hover {
-    @apply border-or-cachet/35;
-    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px -14px rgba(11, 18, 32, 0.12);
   }
 
   .card-premium {
@@ -142,36 +142,50 @@
     @apply mb-3 text-2xs font-semibold uppercase tracking-[0.08em] text-texte-secondaire;
   }
 
+  /* KPI : carte aérée, valeur dominante, pill + sparkline en bas (réf. Metric Flow) */
   .stat-card {
-    @apply relative overflow-hidden rounded-card border border-bordure bg-blanc p-5 transition-all duration-base;
+    @apply relative flex min-h-[9.5rem] flex-col overflow-hidden rounded-card border border-bordure bg-blanc p-5 transition-all duration-base;
     box-shadow: var(--shadow-card);
     animation: slide-up 0.45s ease-out both;
   }
 
   .stat-card:hover {
-    @apply border-or-cachet/30;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -14px rgba(11, 18, 32, 0.14);
+  }
+
+  .stat-card-featured {
+    @apply border-transparent bg-or-cachet text-blanc;
+    box-shadow: 0 12px 32px -10px rgba(15, 118, 110, 0.45);
+  }
+
+  .stat-card-featured .stat-card-label,
+  .stat-card-featured .stat-card-sub {
+    @apply text-blanc/75;
+  }
+
+  .stat-card-featured .stat-card-value {
+    @apply text-blanc;
   }
 
   .stat-card-icon {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-input;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full;
   }
 
   .stat-card-label {
-    @apply mt-4 text-2xs font-semibold uppercase tracking-[0.06em] text-texte-secondaire;
+    @apply text-2xs font-semibold uppercase tracking-[0.07em] text-texte-secondaire;
   }
 
   .stat-card-value {
-    @apply mt-1.5 font-display text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-encre;
+    @apply mt-3 font-display text-kpi tabular-nums text-encre;
   }
 
-  .stat-card-bar {
-    @apply mt-3 h-0.5 w-7 rounded-full;
+  .stat-card-pill {
+    @apply inline-flex items-center rounded-badge px-2 py-0.5 text-2xs font-semibold tabular-nums;
   }
 
   .stat-card-sub {
-    @apply mt-2 text-xs leading-relaxed text-texte-secondaire;
+    @apply mt-1.5 text-xs leading-relaxed text-texte-secondaire;
   }
 
   .empty-state {
@@ -302,18 +316,31 @@
   }
 
   .quick-action {
-    @apply flex items-center gap-3 rounded-card border border-bordure bg-blanc px-3.5 py-3 transition-all duration-base;
+    @apply flex items-center gap-3 rounded-card border border-bordure/80 bg-blanc px-4 py-3.5 transition-all duration-base;
     box-shadow: var(--shadow-card);
   }
 
   .quick-action:hover {
-    @apply border-or-cachet/35;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px -10px rgba(15, 23, 42, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -14px rgba(11, 18, 32, 0.14);
   }
 
   .quick-action-icon {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-input bg-or-cachet-clair text-or-cachet;
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-or-cachet-clair text-or-cachet;
+  }
+
+  /* Nav item actif : pill douce + barre gauche (réf. Wise / Metric Flow) */
+  .nav-item {
+    @apply relative flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium text-texte-secondaire transition-all duration-base hover:bg-craie hover:text-encre;
+  }
+
+  .nav-item-active {
+    @apply bg-or-cachet-clair font-semibold text-or-cachet hover:bg-or-cachet-clair hover:text-or-cachet;
+  }
+
+  .nav-item-active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-or-cachet;
   }
 
   .table-shell {
@@ -363,6 +390,24 @@
 .dark .sidebar-premium,
 .dark .header-premium {
   @apply border-white/10 bg-encre-clair text-craie;
+}
+
+.dark .stat-card-featured {
+  @apply border-transparent bg-or-cachet text-blanc;
+}
+
+.dark .nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+.dark .nav-item-active {
+  background-color: rgba(15, 118, 110, 0.18);
+  color: #2dd4bf;
+}
+
+.dark .nav-item-active::before {
+  background-color: #2dd4bf;
 }
 
 .dark .header-premium {

@@ -158,10 +158,8 @@ function NavItem({ item, collapsed, onNavigate, role }) {
     location.pathname === item.path ||
     children.some((c) => location.pathname.startsWith(c.path));
 
-  /* Active state: fond brand muted + texte pétrole — lisible sur sidebar claire */
-  const linkClass = isActive
-    ? 'bg-or-cachet-clair text-or-cachet'
-    : 'text-texte-secondaire hover:bg-craie hover:text-encre';
+  /* Actif : pill brand muted + barre gauche — lisible, premium, non criard */
+  const linkClass = `nav-item ${isActive ? 'nav-item-active' : ''}`;
 
   if (children.length) {
     return (
@@ -170,7 +168,7 @@ function NavItem({ item, collapsed, onNavigate, role }) {
           to={item.path}
           onClick={onNavigate}
           title={collapsed ? item.label : undefined}
-          className={`flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium transition-all duration-base ${linkClass} ${isActive ? 'font-semibold [&_svg]:text-or-cachet' : ''}`}
+          className={linkClass}
         >
           <NavIcon name={item.icon} />
           {!collapsed && <span className="truncate">{item.label}</span>}
@@ -182,7 +180,7 @@ function NavItem({ item, collapsed, onNavigate, role }) {
                 key={child.path}
                 to={child.path}
                 onClick={onNavigate}
-                className={`block rounded-md px-2.5 py-1.5 text-xs transition-colors duration-base ${
+                className={`block rounded-input px-2.5 py-1.5 text-xs transition-colors duration-base ${
                   location.pathname === child.path || location.pathname.startsWith(`${child.path}/`)
                     ? 'bg-or-cachet-clair font-semibold text-or-cachet'
                     : 'text-texte-secondaire hover:text-encre'
@@ -202,7 +200,7 @@ function NavItem({ item, collapsed, onNavigate, role }) {
       to={item.path}
       onClick={onNavigate}
       title={collapsed ? item.label : undefined}
-      className={`flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium transition-all duration-base ${linkClass} ${isActive ? 'font-semibold [&_svg]:text-or-cachet' : ''}`}
+      className={linkClass}
     >
       <NavIcon name={item.icon} />
       {!collapsed && <span className="truncate">{item.label}</span>}
