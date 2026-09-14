@@ -367,6 +367,56 @@ SUPER_ADMIN (plateforme)
 
 ---
 
+## PR #7 — Final Validation
+
+**Date :** 2026-09-14  
+**Rôle :** Senior Backend Engineer + Security Reviewer  
+**Branche :** `cursor/saas-p1-hardening-8bcc`  
+**Méthode :** exécution réelle tests/lint/build + probes runtime + inspection diff (pas de confiance aveugle à l’AUDIT antérieur).
+
+### Tests
+| | |
+|--|--|
+| Total | **63** |
+| Passed | **63** |
+| Failed | **0** |
+| Errors | **0** |
+| Skipped | **0** |
+| P0+P1 ciblés | **29 passed** (IDOR, upload, reset, errors, pagination) |
+
+### Sécurité
+- IDOR enseignant (élève / évaluation / notes / absences / discipline) : **OK**
+- Upload (php, traversal, double ext, UUID serveur) : **OK**
+- Reset : hash + expiry + one-time ; prod **jamais** `reset_token` (même `TESTING=True` coincé + `EXPOSE_RESET_TOKEN=1`) : **OK**
+- Pas de stack/SQL/chemin/secret dans réponses client : **OK**
+
+### API / Pagination / Frontend
+- Validation Marshmallow sur routes P1 critiques : **OK** (écart P2 : `notes_medicales` hors schéma PUT)
+- Pagination bornée (`page≥1`, `1≤per_page≤100`) + envelope `items` : **OK**
+- FE consomme `items` / forgot-reset alignés : **OK**
+
+### Lint / Build
+- `ruff` : ✅  
+- eslint : ✅ 0 erreur / 3 warnings hooks préexistants  
+- `vite build` : ✅  
+- Dépendances ajoutées : aucune  
+
+### Classification
+| | |
+|--|--|
+| **P0** | Aucun |
+| **P1** | Aucun |
+| **P2/P3** | Admin `mot_de_passe_temporaire` ; MIME vide soft-allow ; `notes_medicales` hors schéma ; N+1 serialize listes ; élèves sans `pagination` imbriqué ; 404/409 manuels hors envelope ; warnings hooks FE |
+
+### Risques restants
+- Mono-école (pas de `school_id`) — volontaire, hors PR  
+- Temp password admin dans JSON — backlog ops  
+
+### Statut
+**READY TO MERGE**
+
+---
+
 ## Synthèse exécutive
 
 **P0 sécurité** + **hardening API P1 (PR #7)** : validés sur code réel (**63/63 pytest**, probes runtime OK).  
