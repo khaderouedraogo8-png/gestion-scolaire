@@ -1,6 +1,5 @@
 """P0 — Upload sécurisé + forgot-password (pas de fuite reset_token)."""
 import io
-import os
 import uuid
 from datetime import date
 
