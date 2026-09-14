@@ -301,53 +301,76 @@ SUPER_ADMIN (plateforme)
 
 ---
 
-## Revue finale PR #7 (2026-09-14) — revalidation stricte pré-merge
+## PR #7 — Final Review
 
+**Date :** 2026-09-14  
+**Reviewer :** Senior validation (code réel + runtime, pas seulement AUDIT)  
 **Branche :** `cursor/saas-p1-hardening-8bcc`  
-**Périmètre :** hardening API P1 + interactions P0 (IDOR / upload / reset) — **sans** multi-tenant / UI / features.
+**Périmètre :** hardening API P1 + P0 (IDOR / upload / reset) — **sans** multi-tenant / SUPER_ADMIN / school_id / refonte UI.
 
-### Vérifications exécutées (code réel + runtime)
+### Tests
 
-| Contrôle | Résultat |
-|----------|----------|
-| `pytest` suite backend | ✅ **63 passed** / 0 failed (collect 63) |
-| Tests P0 IDOR + upload + reset | ✅ **14 passed** |
+| Métrique | Valeur |
+|----------|--------|
+| Total collectés | **63** |
+| Passed | **63** |
+| Failed | **0** |
+| Errors | **0** |
+| Skipped | **0** |
+| P0 IDOR + upload + reset | **14 passed** |
+| P1 errors + pagination | **15 passed** |
+
+### Lint / Build
+
+| Outil | Résultat |
+|-------|----------|
 | `ruff check app tests` | ✅ All checks passed |
-| Frontend `eslint` | ✅ 0 errors (3 warnings hooks préexistants) |
+| Frontend `eslint` | ✅ 0 errors / 3 warnings hooks (préexistants) |
 | Frontend `vite build` | ✅ OK |
 | Type checking | ⚠️ N/A (pas de mypy / tsc) |
-| Probes live 401/404/422/500 | ✅ envelope JSON ; **aucune** stack/secret client |
-| Probes pagination 8 listes | ✅ `items` (+ `pagination` sauf élèves — P2) |
-| Prod forgot + `EXPOSE_RESET_TOKEN=1` | ✅ **503**, pas de `reset_token` |
-| Prod + `TESTING=True` coincé | ✅ **503**, pas de `reset_token` (défense renforcée) |
+| Dépendances ajoutées dans la PR | ✅ Aucune |
 
-### Corrections pendant les revues
+### Probes sécurité runtime (exécutées)
 
-1. Error handler JWT + messages HTTP FR + détails 422.
-2. `GenererBulletinSchema` : `id_eleve` **ou** `id_classe`.
-3. **Forgot-password** : en `ENV=production`, **aucune** exposition token même si `TESTING=True` ou `EXPOSE_RESET_TOKEN=1`.
+- IDOR enseignant : tests automatisés + contrôles `teacher_has_*` sur élèves / évaluations / notes / absences / discipline / bulletins
+- Upload : rejet `.php`, path traversal, double extension dangereuse ; accept PDF avec nom UUID serveur
+- Reset : token hashé, expiration 24h, usage unique ; **jamais** de `reset_token` en production (`EXPOSE_RESET_TOKEN=1` et même `TESTING=True` coincé → 503)
+- Erreurs 401/404/422/500 : envelope JSON ; **aucune** stack / secret / chemin système côté client
+- Pagination : `page`/`per_page` bornés (min 1, max 100) sur users, paiements, absences, discipline, évaluations, bulletins, documents ; FE consomme `items`
 
-### Classification
+### Problèmes
 
-| Sévérité | Statut |
+| Sévérité | Détail |
 |----------|--------|
 | **P0** | Aucun |
-| **P1** | Corrigés (dont hard-block reset token en prod) |
-| **P2** | Admin `mot_de_passe_temporaire` ; MIME vide soft-allow ; `notes_medicales` hors schéma PUT ; N+1 serialize ; élèves sans bloc `pagination` ; 404/409 manuels hors envelope |
+| **P1** | Aucun ouvert (hard-block prod reset token déjà dans la branche) |
+| **P2** | Admin reset renvoie `mot_de_passe_temporaire` ; MIME vide soft-allow ; `notes_medicales` via `request.json` hors schéma PUT élève ; N+1 dans `_serialize_*` listes (atténué par `per_page≤100`) ; élèves sans bloc `pagination` imbriqué ; 404/409 manuels hors envelope globale |
 | **P3** | Warnings eslint hooks FE ; messages Marshmallow parfois EN |
+
+### Fichiers importants modifiés
+
+- `backend/app/utils/errors.py`, `pagination.py`
+- `backend/app/routes/auth.py`, `users.py`, `absences.py`, `notes.py`, `finance.py`, `documents.py`, `eleves.py`
+- `backend/app/schemas/*` (auth, notes, documents, eleve, finance)
+- `backend/tests/integration/test_teacher_idor.py`, `test_upload_reset_security.py`, `test_p1_errors_pagination.py`
+- FE : `users.js`, `ForgotPassword.jsx`, pages listes `items`
+
+### Risques restants
+
+- Mono-établissement : pas d’isolation `school_id` (volontaire, hors PR)
+- Admin temp password dans JSON (ops / logs) — backlog P2
+- N+1 serialize listes — acceptable sous plafond pagination
 
 ### Statut
 
-**PR #7 READY TO MERGE**
-
-Multi-tenant / `school_id` : **non démarré**.
+**READY TO MERGE**
 
 ---
 
 ## Synthèse exécutive
 
-**P0 sécurité** + **hardening API P1 (PR #7)** : fermés, testés (**63 pytest**), prêts à merger.  
-SaaS multi-tenant = étape **suivante** uniquement.
+**P0 sécurité** + **hardening API P1 (PR #7)** : validés sur code réel (**63/63 pytest**, probes runtime OK).  
+**Ne pas démarrer le multi-tenant** avant merge de cette PR.
 
 ---
 
