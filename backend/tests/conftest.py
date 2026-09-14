@@ -7,7 +7,9 @@ import pytest
 from app import create_app
 from app.auth.jwt_handler import hash_password
 from app.extensions import get_db
-from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, Trimestre, Utilisateur
+from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, School, Trimestre, Utilisateur
+
+DEFAULT_SCHOOL_CODE = "ECOLE-EXISTANTE"
 
 
 @pytest.fixture(scope="session")
@@ -32,7 +34,30 @@ def db(app):
 
 
 @pytest.fixture
-def admin_user(db):
+def default_school(db):
+    """École tenant par défaut (équivalent backfill migration Phase 1)."""
+    school = db.query(School).filter(School.code == DEFAULT_SCHOOL_CODE).first()
+    if not school:
+        etab = db.query(Etablissement).first()
+        school = School(
+            id=uuid.uuid4(),
+            name=(etab.nom if etab else "École existante"),
+            code=DEFAULT_SCHOOL_CODE,
+            email=etab.email if etab else None,
+            phone=etab.telephone if etab else None,
+            address=etab.adresse if etab else None,
+            city=etab.ville if etab else None,
+            country=etab.pays if etab else None,
+            logo=etab.logo_url if etab else None,
+            is_active=True,
+        )
+        db.add(school)
+        db.commit()
+    return school
+
+
+@pytest.fixture
+def admin_user(db, default_school):
     user = db.query(Utilisateur).filter(Utilisateur.email == "admin@ecole.local").first()
     if not user:
         user = Utilisateur(
@@ -44,6 +69,7 @@ def admin_user(db):
             role="administrateur",
             actif=True,
             doit_changer_mdp=True,
+            school_id=default_school.id,
         )
         db.add(user)
         db.commit()
@@ -52,6 +78,8 @@ def admin_user(db):
         user.tentatives_echouees = 0
         user.verrouille_jusqu_a = None
         user.actif = True
+        if not user.school_id:
+            user.school_id = default_school.id
         db.commit()
     return user
 

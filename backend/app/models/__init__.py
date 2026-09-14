@@ -33,6 +33,7 @@ from app.models.pedagogie import (
     ProgrammeDevoir,
     SeanceCours,
 )
+from app.models.school import School
 from app.models.utilisateur import (
     ROLES,
     RefreshToken,
@@ -71,6 +72,7 @@ __all__ = [
     "RefreshToken",
     "ReinitialisationMdp",
     "Salle",
+    "School",
     "SeanceCours",
     "Trimestre",
     "Utilisateur",

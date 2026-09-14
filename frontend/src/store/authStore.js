@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authApi } from '../services/api/auth';
+import { schoolsApi } from '../services/api/schools';
 
 let accessToken = null;
 let initializePromise = null;
@@ -12,8 +13,17 @@ export function setAccessToken(token) {
   accessToken = token;
 }
 
+async function loadCurrentSchool() {
+  try {
+    return await schoolsApi.getCurrent();
+  } catch {
+    return null;
+  }
+}
+
 export const useAuthStore = create((set, get) => ({
   user: null,
+  currentSchool: null,
   isAuthenticated: false,
   isInitializing: true,
   isLoading: false,
@@ -27,8 +37,10 @@ export const useAuthStore = create((set, get) => ({
         const data = await authApi.refresh();
         setAccessToken(data.access_token);
         const me = await authApi.me();
+        const currentSchool = await loadCurrentSchool();
         set({
           user: me,
+          currentSchool,
           isAuthenticated: true,
           isInitializing: false,
           error: null,
@@ -37,6 +49,7 @@ export const useAuthStore = create((set, get) => ({
         setAccessToken(null);
         set({
           user: null,
+          currentSchool: null,
           isAuthenticated: false,
           isInitializing: false,
           error: null,
@@ -52,8 +65,10 @@ export const useAuthStore = create((set, get) => ({
     try {
       const data = await authApi.login(email, password);
       setAccessToken(data.access_token);
+      const currentSchool = await loadCurrentSchool();
       set({
         user: data.user,
+        currentSchool,
         isAuthenticated: true,
         isLoading: false,
         error: null,
@@ -80,7 +95,7 @@ export const useAuthStore = create((set, get) => ({
       /* ignore logout errors */
     } finally {
       setAccessToken(null);
-      set({ user: null, isAuthenticated: false, error: null });
+      set({ user: null, currentSchool: null, isAuthenticated: false, error: null });
     }
   },
 
@@ -88,7 +103,8 @@ export const useAuthStore = create((set, get) => ({
     const data = await authApi.refresh();
     setAccessToken(data.access_token);
     const me = await authApi.me();
-    set({ user: me, isAuthenticated: true });
+    const currentSchool = await loadCurrentSchool();
+    set({ user: me, currentSchool, isAuthenticated: true });
     return { ...data, user: me };
   },
 

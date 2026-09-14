@@ -68,6 +68,7 @@ class UsersList(MethodView):
         db = get_db()
         if db.query(Utilisateur).filter(Utilisateur.email == data["email"]).first():
             return jsonify({"message": "Email déjà utilisé"}), 409
+        current = get_current_user()
         user = Utilisateur(
             id=uuid.uuid4(),
             nom=data["nom"],
@@ -78,6 +79,8 @@ class UsersList(MethodView):
             mot_de_passe_hash=hash_password(data["password"]),
             actif=True,
             doit_changer_mdp=True,
+            # Hérite du tenant de l'admin créateur (fondation Phase 1)
+            school_id=current.school_id if current else None,
         )
         db.add(user)
         db.commit()

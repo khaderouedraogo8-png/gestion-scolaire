@@ -21,6 +21,7 @@ class UserSchema(Schema):
     role = fields.String(required=True)
     actif = fields.Boolean(dump_only=True)
     doit_changer_mdp = fields.Boolean(dump_only=True)
+    school_id = fields.UUID(dump_only=True, allow_none=True)
 
 
 class TokenResponseSchema(Schema):

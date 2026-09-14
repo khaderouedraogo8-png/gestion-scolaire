@@ -9,6 +9,25 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
+-- 0. TENANT SaaS (Phase 1) — distinct du profil mono-école `etablissement`
+-- ============================================================================
+
+CREATE TABLE schools (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name                 VARCHAR(150) NOT NULL,
+    code                 VARCHAR(50) NOT NULL UNIQUE,
+    email                VARCHAR(150),
+    phone                VARCHAR(30),
+    address              TEXT,
+    city                 VARCHAR(80),
+    country              VARCHAR(80),
+    logo                 TEXT,
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    updated_at           TIMESTAMPTZ DEFAULT now()
+);
+
+-- ============================================================================
 -- 1. CONFIGURATION DE L'ÉTABLISSEMENT (table à une seule ligne)
 -- ============================================================================
 
@@ -65,8 +84,10 @@ CREATE TABLE utilisateur (
     derniere_connexion   TIMESTAMPTZ,
     tentatives_echouees  SMALLINT DEFAULT 0,          -- verrouillage après N échecs
     verrouille_jusqu_a   TIMESTAMPTZ,
+    school_id            UUID REFERENCES schools(id) ON DELETE SET NULL,  -- tenant SaaS (nullable Phase 1)
     created_at           TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX ix_utilisateur_school_id ON utilisateur (school_id);
 
 CREATE TABLE refresh_token (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

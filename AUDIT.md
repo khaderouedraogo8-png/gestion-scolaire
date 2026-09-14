@@ -400,8 +400,112 @@ Mono-école (pas de `school_id`) — volontaire hors PR · temp password admin J
 
 ## Synthèse exécutive
 
-**P0 sécurité** + **hardening API P1 (PR #7)** : validés sur code réel (**63/63 pytest**, probes runtime OK).  
-**Ne pas démarrer le multi-tenant** avant merge de cette PR.
+**P0 sécurité** + **hardening API P1 (PR #7)** : validés.  
+**Phase 1 multi-tenant** démarrée sur branche `cursor/saas-multitenant-foundation-8bcc` (fondation uniquement — pas d’isolation métier complète).
+
+---
+
+# Multi-Tenant Foundation — Phase 1
+
+**Date :** 2026-09-14  
+**Branche :** `cursor/saas-multitenant-foundation-8bcc`  
+**Statut :** fondation technique prête — **pas** encore un SaaS multi-tenant sécurisé.
+
+## Architecture actuelle
+
+Mono-école (shared app + 1 profil `etablissement`) avec **tenant technique** introduit :
+
+```
+JWT → Utilisateur → school_id → School
+```
+
+`Etablissement` reste le **profil mono-école** (nom, logo, devise…).  
+`School` est le **tenant SaaS** (isolation future des données).
+
+## Architecture cible
+
+Multi-tenant **shared database** :
+
+```
+SaaS
+ ├── School A → users / students / classes / notes / finances
+ ├── School B → …
+ └── School C → …
+```
+
+Phases prévues : A (cette PR) → B school_id métier → C backfill → D isolation routes → E NOT NULL.
+
+## Modèles modifiés
+
+| Modèle | Changement |
+|--------|------------|
+| `School` (nouveau) | Table `schools` (id, name, code unique, email, phone, address, city, country, logo, is_active, timestamps) |
+| `Utilisateur` | `school_id` FK nullable + index + relationship |
+
+## Modèles volontairement non modifiés (Phase 1)
+
+Pour chaque modèle métier : **Tenant scoped: oui (à terme)** / **Direct school_id: non (Phase 1)** — isolation via parent ou Phase 2.
+
+| Model | Tenant scoped | Direct school_id nécessaire | Justification |
+|-------|---------------|----------------------------|---------------|
+| Etablissement | Oui (profil école) | Phase 2 ou 1:1 School | Aujourd’hui mono-ligne ; ne pas confondre avec tenant |
+| AnneeScolaire | Oui | Oui (ou via School) | Années propres à chaque école |
+| Trimestre | Oui | Indirect | Isolé via `id_annee` une fois année scopée |
+| NiveauEtude | Oui | À analyser | Souvent catalogue école ; unique global aujourd’hui |
+| Classe | Oui | Oui (ou via année) | Classes par école |
+| Eleve | Oui | Oui | Donnée cœur tenant |
+| ParentTuteur / EleveParent | Oui | Indirect / oui | Via élève ou user.school_id |
+| Inscription | Oui | Indirect | Via élève + classe |
+| Enseignant | Oui | Oui (ou via user) | Lié à utilisateur |
+| AffectationEnseignant / Creneau / Salle | Oui | Indirect / oui | Via enseignant / classe |
+| Matiere / CoefficientMatiere | Oui | Oui | Catalogue par école |
+| Evaluation / Note / Bulletin | Oui | Oui / indirect | Notes scoppées école |
+| ProgrammeDevoir / SeanceCours | Oui | Indirect | Via classe / année |
+| FraisScolaire / Echeance / Paiement | Oui | Oui | Finance par école |
+| Absence / IncidentDisciplinaire | Oui | Oui / indirect | Via élève |
+| DocumentAdministratif | Oui | Oui | Docs par école |
+| Notification | Oui | Indirect | Via utilisateur |
+| JournalAudit | Oui (filtre) | Optionnel | Traçabilité cross-tenant plateforme à prévoir |
+| RefreshToken / ReinitialisationMdp | Non métier | Non | Liés à utilisateur ; tenant via user.school_id |
+
+## Migration
+
+1. Création table `schools` + contrainte unique `code`
+2. Colonne `utilisateur.school_id` nullable + FK `ON DELETE SET NULL` + index
+3. École par défaut `ECOLE-EXISTANTE` (nom repris de `etablissement.nom` si présent, sinon « École existante »)
+4. Backfill : tous les `utilisateur.school_id IS NULL` → école par défaut
+5. Rollback : drop FK/index/colonne puis table `schools` (données métier utilisateur conservées)
+
+Schéma de référence CI mis à jour : `database/schema_v2_mono_etablissement.sql`.
+
+## Tenant context
+
+- `app/services/tenant.py` : `get_current_school_id()`, `get_current_school()`, `require_user_school()`
+- Source de vérité : JWT → user → `school_id` (**jamais** un `school_id` client)
+- API : `GET /api/schools/current` (pas de CRUD public / pas de PATCH cross-tenant)
+- FE : `currentSchool` dans `authStore` après login / initialize / refresh
+
+## Risques — endpoints NON isolés
+
+Toutes les routes métier restent **mono-tenant de fait** (pas de filtre `school_id`) :
+
+- `/api/eleves`, `/api/notes`, `/api/pedagogie`, `/api/finance`
+- `/api/emploi-temps`, `/api/absences`, `/api/documents`
+- `/api/etablissement/*`, `/api/users`, `/api/dashboard`, `/api/notifications`, `/api/audit`
+
+La présence de `school_id` **ne constitue pas** une isolation multi-tenant.
+
+## Indexes Phase 1
+
+- `uq_schools_code` (unicité globale du code école)
+- `ix_utilisateur_school_id` (prépare `WHERE school_id = ?`)
+
+Pas de transformation aveugle des UNIQUE métier en `(school_id, …)` — Phase 2+.
+
+## Prochaine étape
+
+**Phase 2 — Tenant isolation des données métier**  
+Ajouter `school_id` (où pertinent), backfill, filtrer toutes les requêtes/routes, puis contraintes NOT NULL.
 
 ---
 

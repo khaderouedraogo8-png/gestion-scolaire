@@ -51,11 +51,13 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
     from app.routes.pedagogie import blp as pedagogie_blp
+    from app.routes.schools import blp as schools_blp
     from app.routes.users import blp as users_blp
 
     # Auth : routes plates (/api/login, /api/me, …)
     api.register_blueprint(auth_blp, url_prefix="/api")
     api.register_blueprint(users_blp, url_prefix="/api/users")
+    api.register_blueprint(schools_blp, url_prefix="/api/schools")
     # Modules : préfixe explicite pour éviter les collisions sur /api/
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
