@@ -36,6 +36,9 @@ class Config:
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
 
+    # Dev only : exposer reset_token dans la réponse forgot-password (jamais en prod)
+    EXPOSE_RESET_TOKEN = os.getenv("EXPOSE_RESET_TOKEN", "").strip().lower() in ("1", "true", "yes")
+
     # Flask-Smorest / OpenAPI
     API_TITLE = "Gestion Scolaire API"
     API_VERSION = "v1"

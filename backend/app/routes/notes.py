@@ -14,6 +14,8 @@ from app.auth.permissions import (
     get_parent_eleve_ids,
     parent_has_eleve_access,
     require_role,
+    teacher_has_class_access,
+    teacher_has_eleve_access,
     teacher_has_matiere_classe_access,
 )
 from app.extensions import get_db
@@ -285,9 +287,14 @@ class EvaluationDetail(MethodView):
     @require_role("administrateur", "directeur", "enseignant")
     def get(self, id_evaluation):
         db = get_db()
+        user = get_current_user()
         evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
         if not evaluation:
             return jsonify({"message": "Évaluation introuvable"}), 404
+        if user.role == "enseignant" and not teacher_has_matiere_classe_access(
+            user, evaluation.id_classe, evaluation.id_matiere
+        ):
+            return jsonify({"message": "Accès refusé"}), 403
         return jsonify(_serialize_evaluation(db, evaluation))
 
 
@@ -416,6 +423,10 @@ class NotesEvaluation(MethodView):
                 .all()
             )
         else:
+            if user.role == "enseignant" and not teacher_has_matiere_classe_access(
+                user, evaluation.id_classe, evaluation.id_matiere
+            ):
+                return jsonify({"message": "Accès refusé"}), 403
             inscriptions = (
                 db.query(Inscription)
                 .filter(
@@ -556,6 +567,8 @@ class GenererBulletin(MethodView):
             db = get_db()
             id_classe = uuid.UUID(str(data["id_classe"]))
             id_trimestre = uuid.UUID(str(data["id_trimestre"]))
+            if user.role == "enseignant" and not teacher_has_class_access(user, id_classe):
+                return jsonify({"message": "Accès refusé"}), 403
             inscriptions = (
                 db.query(Inscription)
                 .filter(
@@ -577,6 +590,8 @@ class GenererBulletin(MethodView):
         # Génération individuelle
         id_eleve = uuid.UUID(data["id_eleve"])
         id_trimestre = uuid.UUID(data["id_trimestre"])
+        if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
         try:
             bulletin = generer_bulletin(id_eleve, id_trimestre, user.id)
             db = get_db()
@@ -619,9 +634,12 @@ class BulletinDetail(MethodView):
     @require_role("administrateur", "directeur", "enseignant")
     def patch(self, id_bulletin):
         db = get_db()
+        user = get_current_user()
         bulletin = db.query(Bulletin).filter(Bulletin.id == id_bulletin).first()
         if not bulletin:
             return jsonify({"message": "Bulletin introuvable"}), 404
+        if user.role == "enseignant" and not teacher_has_eleve_access(user, bulletin.id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
         if bulletin.statut == "publie":
             return jsonify({"message": "Bulletin publié — lecture seule"}), 400
         appreciation = (request.json or {}).get("appreciation_generale")

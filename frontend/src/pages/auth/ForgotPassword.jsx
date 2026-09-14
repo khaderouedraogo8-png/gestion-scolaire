@@ -19,8 +19,15 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       const res = await usersApi.forgotPassword(email);
-      if (res.reset_token) setToken(res.reset_token);
-      toast.success(res.message);
+      if (res.reset_token) {
+        setToken(res.reset_token);
+        toast.success('Lien généré (mode développement).');
+      } else {
+        toast.success(
+          res.message ||
+            'Si le compte existe, un lien a été envoyé. Saisissez le jeton reçu par email.'
+        );
+      }
       setStep('reset');
     } catch {
       toast.error('Impossible d\'envoyer la demande. Vérifiez l\'email et réessayez.');

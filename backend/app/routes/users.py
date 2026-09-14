@@ -1,5 +1,6 @@
 """Gestion des utilisateurs et réinitialisation mot de passe."""
 import hashlib
+import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -137,7 +138,9 @@ class ForgotPassword(MethodView):
         payload = {"message": "Si le compte existe, un lien a été envoyé"}
         from flask import current_app
 
-        if current_app.config.get("DEBUG"):
+        # Jamais exposer le token via DEBUG seul — uniquement EXPOSE_RESET_TOKEN=1 ou tests
+        expose = os.getenv("EXPOSE_RESET_TOKEN", "").strip().lower() in ("1", "true", "yes")
+        if expose or current_app.config.get("TESTING"):
             payload["reset_token"] = token
         return jsonify(payload)
 

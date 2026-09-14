@@ -16,6 +16,7 @@ from app.auth.permissions import (
     filter_eleves_by_role,
     parent_has_eleve_access,
     require_role,
+    teacher_has_eleve_access,
 )
 from app.extensions import get_db
 from app.models import (
@@ -206,6 +207,8 @@ class EleveDetail(MethodView):
         user = get_current_user()
         if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
+        if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
 
         eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
         if not eleve:
@@ -315,6 +318,14 @@ class InscriptionStatut(MethodView):
 
 @blp.route("/<uuid:id_eleve>/upload")
 class EleveUpload(MethodView):
+    ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "webp"}
+    ALLOWED_MIME = {
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    }
+
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
     def post(self, id_eleve):
@@ -327,18 +338,38 @@ class EleveUpload(MethodView):
             return jsonify({"message": "Fichier requis"}), 400
 
         file = request.files["file"]
+        if not file or not file.filename:
+            return jsonify({"message": "Fichier invalide"}), 400
+
+        filename = secure_filename(file.filename)
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in self.ALLOWED_EXTENSIONS:
+            return jsonify({
+                "message": "Type de fichier non autorisé (PDF, JPG, PNG, WEBP uniquement)"
+            }), 400
+
+        mime = (file.mimetype or "").split(";")[0].strip().lower()
+        if mime and mime not in self.ALLOWED_MIME:
+            return jsonify({"message": "Type MIME non autorisé"}), 400
+
         doc_type = request.form.get("type", "autre")
         upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "eleves", str(id_eleve))
         os.makedirs(upload_dir, exist_ok=True)
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(upload_dir, filename)
+        # Préfixe UUID pour éviter collisions / overwrite
+        safe_name = f"{uuid.uuid4().hex[:12]}_{filename}"
+        filepath = os.path.join(upload_dir, safe_name)
         file.save(filepath)
 
         pieces = list(eleve.pieces_justificatives or [])
-        pieces.append({"type": doc_type, "url": filepath, "date_upload": date.today().isoformat()})
+        pieces.append({
+            "type": doc_type,
+            "url": filepath,
+            "filename": safe_name,
+            "date_upload": date.today().isoformat(),
+        })
         eleve.pieces_justificatives = pieces
         db.commit()
-        return jsonify({"message": "Fichier uploadé", "url": filepath}), 201
+        return jsonify({"message": "Fichier uploadé", "filename": safe_name}), 201
 
 
 @blp.route("/<uuid:id_eleve>/photo")
@@ -351,6 +382,8 @@ class ElevePhoto(MethodView):
         db = get_db()
         user = get_current_user()
         if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
+        if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
         eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
         if not eleve or not eleve.photo_url or not os.path.isfile(eleve.photo_url):

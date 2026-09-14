@@ -108,6 +108,28 @@ def parent_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
     return link is not None
 
 
+def teacher_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
+    """Vérifie qu'un enseignant est affecté à une classe où l'élève est inscrit."""
+    if user.role in ("administrateur", "directeur", "secretariat", "agent_comptable"):
+        return True
+    if user.role != "enseignant":
+        return False
+    class_ids = get_teacher_class_ids(user)
+    if not class_ids:
+        return False
+    db = get_db()
+    link = (
+        db.query(Inscription)
+        .filter(
+            Inscription.id_eleve == id_eleve,
+            Inscription.id_classe.in_(class_ids),
+            Inscription.statut.in_(("inscrit", "reinscrit")),
+        )
+        .first()
+    )
+    return link is not None
+
+
 def can_view_medical_notes(user) -> bool:
     """Seuls admin/directeur/secrétariat peuvent voir les notes médicales."""
     return user.role in ("administrateur", "directeur", "secretariat")
