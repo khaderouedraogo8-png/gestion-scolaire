@@ -367,54 +367,64 @@ SUPER_ADMIN (plateforme)
 
 ---
 
+
 ## PR #7 — Final Validation
 
-**Date :** 2026-09-14 (revalidation exécutée)  
-**Rôle :** Senior Backend Engineer + Security Reviewer  
+**Date :** 2026-09-14  
 **Branche :** `cursor/saas-p1-hardening-8bcc`  
-**Méthode :** exécution réelle pytest/ruff/eslint/vite + probes runtime + inspection diff (pas de confiance à un AUDIT antérieur).
+**Résumé :** Validation finale pré-merge (exécution réelle tests/lint/build + probes sécurité/API). Périmètre P0/P1 uniquement — multi-tenant non démarré.
 
-### Tests
+### Tests exécutés
 | | |
 |--|--|
+| Commande | `pytest -q` (backend) |
 | Total | **63** |
 | Passed | **63** |
 | Failed | **0** |
 | Errors | **0** |
 | Skipped | **0** |
-| P0+P1 ciblés | **29 passed** |
-
-### Sécurité
-- IDOR Teacher A ↛ Teacher B / élèves / évaluations / notes / absences : **OK**
-- Upload : rejet php, traversal, double extension ; UUID serveur : **OK**
-- Reset : hash + expiry + one-time ; prod **jamais** `reset_token` (EXPOSE=1 + TESTING coincé → 503) : **OK**
-- Réponses client sans stack/SQL/chemin/secret : **OK**
-
-### API / Pagination / Frontend
-- Validation Marshmallow routes P1 : **OK** (P2 : `notes_medicales` hors schéma PUT)
-- Pagination bornée (`page≥1`, `1≤per_page≤100`) + `items` : **OK**
-- FE consomme `items` ; forgot/reset alignés : **OK**
-
-### Lint / Build
-- ruff : ✅ · eslint : 0 erreur / 3 warnings hooks · vite build : ✅  
-- Dépendances ajoutées dans la PR : **aucune**
+| Duration | **3.85s** |
+| P0+P1 ciblés | **29 passed** (`test_teacher_idor`, `test_upload_reset_security`, `test_p1_errors_pagination`) |
 
 ### Classification
 | | |
 |--|--|
-| **P0** | Aucun |
-| **P1** | Aucun |
-| **P2/P3** | Admin `mot_de_passe_temporaire` ; MIME vide soft-allow ; `notes_medicales` hors schéma ; N+1 serialize listes ; élèves sans `pagination` imbriqué ; 404/409 manuels hors envelope ; warnings hooks FE |
+| **P0** | **0** |
+| **P1** | **0** |
+| **P2** | Admin `mot_de_passe_temporaire` dans JSON ; MIME vide soft-allow ; `notes_medicales` via `request.json` hors schéma PUT ; N+1 serialize listes (plafonné) ; élèves sans `pagination` imbriqué ; 404/409 manuels hors envelope |
+| **P3** | 3 warnings eslint hooks FE préexistants ; messages Marshmallow parfois EN |
+
+### Sécurité
+- IDOR enseignant / rôles : **PASS**
+- Uploads (ext, traversal, double ext, UUID, taille max 16MB) : **PASS**
+- Reset password (no leak DEBUG, hard-block prod, expiry, one-time, invalid) : **PASS**
+- Secrets prod (`validate_secrets`) : **PASS** (démarrage prod bloqué si secrets faibles)
+- Authorization 401 vs 403 : **PASS**
+- Error leakage (500 sans stack/SQL/chemin/secret) : **PASS**
+
+### API
+- Validation Marshmallow routes P1 : **PASS**
+- Error handler global JSON stable : **PASS**
+- Pagination bornée + `items`/`pagination` : **PASS**
+- Routes `/forgot-password`, `/reset-password`, `/api/users` alignées FE : **PASS**
+
+### Frontend
+- Compat `items` : **PASS**
+- Build `vite` : **PASS**
+- Lint eslint : **PASS** (0 erreur / 3 warnings)
+
+### Lint / Build backend-frontend
+- `ruff check app tests` : **PASS**
+- `npm run build` : **PASS**
 
 ### Risques restants
-- Mono-école (pas de `school_id`) — volontaire, hors PR  
-- Temp password admin dans JSON — backlog ops  
+- Mono-école (pas de `school_id`) — volontaire, hors PR
+- Temp password admin JSON — backlog ops (P2)
 
-### Statut
+### Verdict final
 **READY TO MERGE**
 
 ---
-
 
 ## Synthèse exécutive
 
