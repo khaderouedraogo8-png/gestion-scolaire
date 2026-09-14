@@ -118,13 +118,50 @@ class AdminResetPassword(MethodView):
 @blp.route("/forgot-password")
 class ForgotPassword(MethodView):
     def post(self):
+        """Demande de reset MDP.
+
+        Règles P0 :
+        - DEBUG seul ne suffit JAMAIS à exposer le token.
+        - EXPOSE_RESET_TOKEN=1 uniquement hors production (et tests).
+        - Sans SMTP configuré et sans expose → 503, pas de faux envoi.
+        """
+        from flask import current_app
+
         email = (request.json or {}).get("email", "").strip().lower()
         if not email:
             return jsonify({"message": "Email requis"}), 400
+
+        is_prod = (
+            os.getenv("FLASK_ENV", "").lower() == "production"
+            or current_app.config.get("ENV") == "production"
+        )
+        expose_flag = os.getenv("EXPOSE_RESET_TOKEN", "").strip().lower() in ("1", "true", "yes")
+        # Impossible d'exposer le token en production, même avec EXPOSE_RESET_TOKEN=1
+        expose = (expose_flag and not is_prod) or current_app.config.get("TESTING")
+
+        smtp_host = (current_app.config.get("SMTP_HOST") or os.getenv("SMTP_HOST") or "").strip()
+        smtp_enabled = os.getenv("SMTP_ENABLED", "").strip().lower() in ("1", "true", "yes")
+        # localhost seul (défaut config) ≠ SMTP production ; exiger SMTP_ENABLED ou un hôte réel
+        smtp_configured = smtp_enabled or (
+            bool(smtp_host)
+            and smtp_host.lower() not in ("", "none", "disabled", "localhost", "127.0.0.1")
+        )
+
+        if not expose and not smtp_configured:
+            current_app.logger.error(
+                "forgot-password: SMTP non configuré — service indisponible (aucun token exposé)"
+            )
+            return jsonify({
+                "message": "Service de récupération de mot de passe temporairement indisponible."
+            }), 503
+
         db = get_db()
         user = db.query(Utilisateur).filter(Utilisateur.email == email).first()
+        # Réponse générique anti-énumération
+        generic = {"message": "Si le compte existe, un lien a été envoyé"}
         if not user:
-            return jsonify({"message": "Si le compte existe, un lien a été envoyé"}), 200
+            return jsonify(generic), 200
+
         token = secrets.token_urlsafe(32)
         db.add(
             ReinitialisationMdp(
@@ -135,14 +172,35 @@ class ForgotPassword(MethodView):
             )
         )
         db.commit()
-        payload = {"message": "Si le compte existe, un lien a été envoyé"}
-        from flask import current_app
 
-        # Jamais exposer le token via DEBUG seul — uniquement EXPOSE_RESET_TOKEN=1 ou tests
-        expose = os.getenv("EXPOSE_RESET_TOKEN", "").strip().lower() in ("1", "true", "yes")
-        if expose or current_app.config.get("TESTING"):
-            payload["reset_token"] = token
-        return jsonify(payload)
+        if expose:
+            # Dev/tests uniquement — jamais en production
+            return jsonify({**generic, "reset_token": token}), 200
+
+        # Envoi email réel (sans renvoyer le token)
+        try:
+            from app.services.envoi_notification import SMTPProvider
+
+            reset_url = f"{os.getenv('APP_PUBLIC_URL', '').rstrip('/')}/reset-password?token={token}"
+            body = (
+                "Bonjour,\n\n"
+                "Une demande de réinitialisation de mot de passe a été effectuée.\n"
+                f"Lien (valide 24h) : {reset_url}\n\n"
+                "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n"
+            )
+            ok = SMTPProvider().envoyer(user.email, body, "Réinitialisation du mot de passe")
+            if not ok:
+                current_app.logger.error("forgot-password: échec envoi SMTP pour user_id=%s", user.id)
+                return jsonify({
+                    "message": "Service de récupération de mot de passe temporairement indisponible."
+                }), 503
+        except Exception:
+            current_app.logger.exception("forgot-password: erreur technique (token non exposé)")
+            return jsonify({
+                "message": "Service de récupération de mot de passe temporairement indisponible."
+            }), 503
+
+        return jsonify(generic), 200
 
 
 @blp.route("/reset-password")

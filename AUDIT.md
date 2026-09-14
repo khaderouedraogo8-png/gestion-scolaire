@@ -258,24 +258,46 @@ SUPER_ADMIN (plateforme)
 
 ---
 
-## État des correctifs P0 (2026-09-14)
+## État des correctifs P0 (mise à jour 2026-09-14 — phase implémentation)
 
-| ID | Statut | Détail |
-|----|--------|--------|
-| P0-1 | ✅ En cours / livré partiel | IDOR enseignant fermé sur détail élève, GET évaluation, grille notes, génération/patch bulletin |
-| P0-2 | ✅ | Allowlist upload PDF/JPG/PNG/WEBP + nom UUID |
-| P0-3 | ✅ | `reset_token` seulement si `EXPOSE_RESET_TOKEN=1` ou `TESTING` |
-| P0-4 | ✅ | Tests `tests/integration/test_teacher_idor.py` |
-| P0-5 | 📋 Doc | Architecture multi-tenant dans ce fichier — implémentation phase C |
+### Vérification réelle (Phase 0)
+
+| Contrôle | Résultat |
+|----------|----------|
+| Code IDOR notes/élèves (helpers `teacher_has_*`) | ✅ Présent backend |
+| Upload allowlist + UUID | ✅ Présent |
+| `reset_token` ≠ DEBUG seul | ✅ Présent |
+| `pytest` suite backend | ✅ **46 passed** |
+| `test_teacher_idor.py` + absences + upload/reset | ✅ |
+
+### Correctifs ajoutés cette itération (Phase 1–3)
+
+| ID | Statut | Fichiers | Tests |
+|----|--------|----------|-------|
+| P0-1 | ✅ Renforcé | `routes/absences.py` — list/create/update + discipline filtrés par classes enseignant ; 403 explicite si `id_eleve` hors périmètre | `test_teacher_idor.py` (+3 cas absences) |
+| P0-2 | ✅ Renforcé | `routes/eleves.py` — path traversal, doubles extensions, photo allowlist, nom 100% UUID serveur | `test_upload_reset_security.py` |
+| P0-3 | ✅ Renforcé | `routes/users.py` — pas d’expose en production même avec `EXPOSE_RESET_TOKEN` ; SMTP requis sinon **503** ; `localhost` ≠ SMTP configuré | `test_upload_reset_security.py` |
+| P0-4 | ✅ | Tests négatifs IDOR + upload + reset | 12 tests ciblés verts |
+| P0-5 | 📋 Reporté | Multi-tenant `school_id` — **pas commencé** (volontaire, après P0) | — |
+
+### Risques restants après P0
+
+- Pas encore d’isolation multi-école (`school_id`) — mono-tenant DB.
+- Emploi du temps : liste enseignants visible à tous les enseignants (annuaire école — acceptable mono).
+- Finance : rôles comptable/admin OK ; pas de filtre enseignant (déjà hors rôle).
+- Error handler JSON global / pagination / landing — **P1**, pas P0.
+
+### Prochaine étape
+
+**Phase 4–6** : error handling global, validation Marshmallow manquante, pagination listes.  
+Puis **Phase 7+** : fondation `schools` / `school_id` progressive.
 
 ---
 
 ## Synthèse exécutive
 
-L’application est déjà un **progiciel scolaire mono-école sérieux** (auth moderne, notes/bulletins/finance/PDF, audit, CI).  
-Elle **n’est pas encore** le SaaS multi-tenant commercialisable décrit (SUPER_ADMIN + isolation `school_id`).  
-
-**Prochaine étape immédiate :** fermer les trous P0 de contrôle d’accès et d’upload, puis engager la fondation multi-tenant sans casser les clients mono.
+L’application est un **progiciel scolaire mono-école sérieux**. Les **P0 sécurité accès/upload/reset sont fermés et testés** (46 tests backend verts).  
+Le **SaaS multi-tenant** (SUPER_ADMIN + `school_id`) reste la priorité architecture suivante — sans big-bang.
 
 ---
 
@@ -287,3 +309,4 @@ Elle **n’est pas encore** le SaaS multi-tenant commercialisable décrit (SUPER
 - Moyennes backend : `backend/app/services/calcul_moyennes.py`
 - Health : `GET /api/health` dans `backend/app/__init__.py`
 - Deploy VPS : `deploy/DEPLOIEMENT.md`, `docker-compose.prod.yml`
+- Tests P0 : `backend/tests/integration/test_teacher_idor.py`, `test_upload_reset_security.py`

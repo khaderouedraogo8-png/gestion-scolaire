@@ -341,12 +341,21 @@ class EleveUpload(MethodView):
         if not file or not file.filename:
             return jsonify({"message": "Fichier invalide"}), 400
 
+        if not file.filename or ".." in file.filename or file.filename.startswith("/"):
+            return jsonify({"message": "Nom de fichier invalide"}), 400
         filename = secure_filename(file.filename)
+        if not filename:
+            return jsonify({"message": "Nom de fichier invalide"}), 400
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
         if ext not in self.ALLOWED_EXTENSIONS:
             return jsonify({
                 "message": "Type de fichier non autorisé (PDF, JPG, PNG, WEBP uniquement)"
             }), 400
+        # Bloquer doubles extensions dangereuses (ex. doc.pdf.exe déjà filtré ; doc.php.pdf)
+        lowered = file.filename.lower()
+        for banned in (".php", ".py", ".js", ".html", ".htm", ".exe", ".sh", ".bat"):
+            if banned in lowered.replace(f".{ext}", ""):
+                return jsonify({"message": "Type de fichier non autorisé"}), 400
 
         mime = (file.mimetype or "").split(";")[0].strip().lower()
         if mime and mime not in self.ALLOWED_MIME:
@@ -355,8 +364,8 @@ class EleveUpload(MethodView):
         doc_type = request.form.get("type", "autre")
         upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "eleves", str(id_eleve))
         os.makedirs(upload_dir, exist_ok=True)
-        # Préfixe UUID pour éviter collisions / overwrite
-        safe_name = f"{uuid.uuid4().hex[:12]}_{filename}"
+        # Nom 100 % serveur — jamais le nom client comme chemin
+        safe_name = f"{uuid.uuid4().hex}.{ext}"
         filepath = os.path.join(upload_dir, safe_name)
         file.save(filepath)
 
@@ -390,6 +399,9 @@ class ElevePhoto(MethodView):
             return jsonify({"message": "Photo introuvable"}), 404
         return send_file(eleve.photo_url)
 
+    ALLOWED_PHOTO_EXT = {"jpg", "jpeg", "png", "webp"}
+    ALLOWED_PHOTO_MIME = {"image/jpeg", "image/png", "image/webp"}
+
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
     def post(self, id_eleve):
@@ -400,10 +412,22 @@ class ElevePhoto(MethodView):
         if "file" not in request.files:
             return jsonify({"message": "Fichier requis"}), 400
         file = request.files["file"]
+        if not file or not file.filename:
+            return jsonify({"message": "Fichier invalide"}), 400
+        filename = secure_filename(file.filename)
+        # Rejeter path traversal / noms suspects même après secure_filename
+        if not filename or ".." in file.filename or "/" in file.filename or "\\" in file.filename:
+            return jsonify({"message": "Nom de fichier invalide"}), 400
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in self.ALLOWED_PHOTO_EXT:
+            return jsonify({"message": "Photo : JPG, PNG ou WEBP uniquement"}), 400
+        mime = (file.mimetype or "").split(";")[0].strip().lower()
+        if mime and mime not in self.ALLOWED_PHOTO_MIME:
+            return jsonify({"message": "Type MIME photo non autorisé"}), 400
         upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "eleves", str(id_eleve), "photo")
         os.makedirs(upload_dir, exist_ok=True)
-        ext = os.path.splitext(secure_filename(file.filename))[1] or ".jpg"
-        filepath = os.path.join(upload_dir, f"photo{ext}")
+        safe_name = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(upload_dir, safe_name)
         file.save(filepath)
         eleve.photo_url = filepath
         db.commit()

@@ -197,3 +197,39 @@ class TestTeacherIdor:
             headers=headers,
         )
         assert res.status_code == 403
+
+    def test_teacher_cannot_list_absences_other_student(self, client, teacher_idor_setup):
+        headers = _auth(client, teacher_idor_setup["email"], teacher_idor_setup["password"])
+        res = client.get(
+            f"/api/absences/?id_eleve={teacher_idor_setup['eleve_b']}",
+            headers=headers,
+        )
+        assert res.status_code == 403
+
+    def test_teacher_cannot_create_absence_other_student(self, client, teacher_idor_setup):
+        headers = _auth(client, teacher_idor_setup["email"], teacher_idor_setup["password"])
+        res = client.post(
+            "/api/absences/",
+            headers=headers,
+            json={
+                "id_eleve": str(teacher_idor_setup["eleve_b"]),
+                "date_absence": "2025-10-10",
+                "type_absence": "absence",
+                "justifiee": False,
+            },
+        )
+        assert res.status_code == 403
+
+    def test_teacher_can_create_absence_own_student(self, client, teacher_idor_setup):
+        headers = _auth(client, teacher_idor_setup["email"], teacher_idor_setup["password"])
+        res = client.post(
+            "/api/absences/",
+            headers=headers,
+            json={
+                "id_eleve": str(teacher_idor_setup["eleve_a"]),
+                "date_absence": "2025-10-11",
+                "type_absence": "absence",
+                "justifiee": False,
+            },
+        )
+        assert res.status_code in (200, 201), res.get_json()
