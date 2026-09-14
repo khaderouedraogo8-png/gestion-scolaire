@@ -116,7 +116,7 @@ export default function StatCard({
           )}
           {subtitle && <p className="stat-card-sub truncate">{subtitle}</p>}
         </div>
-        <Sparkline tone={featured ? 'neutral' : tone} variant={sparkVariant} />
+        <Sparkline tone={tone} variant={sparkVariant} onBrand={featured} />
       </div>
     </div>
   );
