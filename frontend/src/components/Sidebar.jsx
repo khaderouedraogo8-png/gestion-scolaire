@@ -94,7 +94,7 @@ const menuItems = [
     children: [
       { label: 'Enseignants', path: '/emploi/enseignants' },
       { label: 'Emploi du temps', path: '/emploi/temps' },
-      { label: 'Affectations', path: '/emploi/affectations' },
+      { label: 'Affectations', path: '/emploi/affectations', roles: ADMIN_ROLES },
       { label: 'Salles', path: '/emploi/salles' },
     ],
   },
@@ -149,24 +149,32 @@ function NavIcon({ name }) {
   return <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden="true" />;
 }
 
-function NavItem({ item, collapsed, onNavigate }) {
+function NavItem({ item, collapsed, onNavigate, role }) {
   const location = useLocation();
+  const children = (item.children || []).filter(
+    (c) => !c.roles || (role && c.roles.includes(role))
+  );
   const isActive =
     location.pathname === item.path ||
-    item.children?.some((c) => location.pathname.startsWith(c.path));
+    children.some((c) => location.pathname.startsWith(c.path));
 
   const linkClass = `sidebar-nav-link ${isActive ? 'sidebar-nav-link-active' : ''}`;
 
-  if (item.children) {
+  if (children.length) {
     return (
       <div className="space-y-1">
-        <Link to={item.path} onClick={onNavigate} className={linkClass}>
+        <Link
+          to={item.path}
+          onClick={onNavigate}
+          className={linkClass}
+          title={collapsed ? item.label : undefined}
+        >
           <NavIcon name={item.icon} />
           {!collapsed && <span className="truncate">{item.label}</span>}
         </Link>
         {!collapsed && isActive && (
           <div className="ml-9 space-y-0.5 border-l border-bordure pl-3">
-            {item.children.map((child) => {
+            {children.map((child) => {
               const childActive =
                 location.pathname === child.path ||
                 location.pathname.startsWith(`${child.path}/`);
@@ -188,7 +196,12 @@ function NavItem({ item, collapsed, onNavigate }) {
   }
 
   return (
-    <Link to={item.path} onClick={onNavigate} className={linkClass}>
+    <Link
+      to={item.path}
+      onClick={onNavigate}
+      className={linkClass}
+      title={collapsed ? item.label : undefined}
+    >
       <NavIcon name={item.icon} />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
@@ -235,7 +248,13 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4">
           {visibleItems.map((item) => (
-            <NavItem key={item.path} item={item} collapsed={collapsed} onNavigate={onCloseMobile} />
+            <NavItem
+              key={item.path}
+              item={item}
+              collapsed={collapsed}
+              onNavigate={onCloseMobile}
+              role={role}
+            />
           ))}
         </nav>
         {!collapsed && (

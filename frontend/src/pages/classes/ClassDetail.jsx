@@ -539,24 +539,35 @@ export default function ClassDetail() {
                         <Badge variant="warning">Brouillon</Badge>
                       ),
                   },
-                  ...(canEdit
-                    ? [
-                        {
-                          key: 'actions',
-                          header: '',
-                          render: (r) =>
-                            r.statut_publication === 'brouillon' ? (
-                              <button
-                                type="button"
-                                className="text-xs text-or-cachet hover:underline"
-                                onClick={() => handlePublier(r.id)}
-                              >
-                                Publier
-                              </button>
-                            ) : null,
-                        },
-                      ]
-                    : []),
+                  {
+                    key: 'actions',
+                    header: '',
+                    render: (r) => (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-or-cachet hover:underline"
+                          onClick={() =>
+                            handleDownload(
+                              () => pedagogieApi.pdfEmargementComposition({ id_evaluation: r.id }),
+                              `emargement_${r.matiere_nom || 'composition'}.pdf`
+                            )
+                          }
+                        >
+                          Émargement
+                        </button>
+                        {canEdit && r.statut_publication === 'brouillon' && (
+                          <button
+                            type="button"
+                            className="text-xs text-or-cachet hover:underline"
+                            onClick={() => handlePublier(r.id)}
+                          >
+                            Publier
+                          </button>
+                        )}
+                      </div>
+                    ),
+                  },
                 ]}
                 data={items}
                 loading={loadingTab}

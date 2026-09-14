@@ -456,6 +456,63 @@
   .cycle-card:hover .cycle-card-arrow {
     transform: translateX(3px);
   }
+
+  .quick-actions {
+    @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6;
+  }
+
+  .quick-action {
+    @apply flex items-center gap-3 rounded-card border border-bordure/90 bg-blanc/95 px-3.5 py-3 transition-all duration-300;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 1px 2px rgba(20, 33, 61, 0.03);
+  }
+
+  .quick-action:hover {
+    @apply border-or-cachet/40;
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 10px 24px -14px rgba(20, 33, 61, 0.14);
+  }
+
+  .quick-action-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-input bg-or-cachet-clair text-or-cachet;
+  }
+
+  .edt-grid-shell {
+    @apply overflow-x-auto rounded-card border border-bordure/90 bg-blanc/95;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 1px 2px rgba(20, 33, 61, 0.03);
+  }
+
+  .edt-grid {
+    @apply grid min-w-[44rem];
+  }
+
+  .edt-grid-corner {
+    @apply sticky left-0 z-[1] border-b border-r border-bordure/70 bg-craie/80;
+  }
+
+  .edt-grid-day {
+    @apply border-b border-bordure/70 bg-gradient-to-b from-craie/80 to-craie/40 px-2 py-3 text-center text-[11px] font-medium uppercase tracking-[0.06em] text-texte-secondaire;
+  }
+
+  .edt-grid-time {
+    @apply sticky left-0 z-[1] border-b border-r border-bordure/50 bg-craie/70 px-2 py-2 text-right text-[11px] tabular-nums text-texte-secondaire;
+  }
+
+  .edt-grid-cell {
+    @apply min-h-[4.25rem] space-y-1 border-b border-r border-bordure/40 bg-blanc/60 p-1;
+  }
+
+  .edt-slot {
+    @apply block w-full rounded-[6px] border border-or-cachet/25 bg-or-cachet-clair px-2 py-1.5 text-left transition-all duration-200 hover:border-or-cachet/50 hover:bg-or-cachet/15;
+    animation: fade-in 0.35s ease-out;
+  }
+
+  .edt-slot-title {
+    @apply block truncate text-xs font-medium text-encre;
+  }
+
+  .edt-slot-meta {
+    @apply mt-0.5 block truncate text-[10px] text-texte-secondaire;
+  }
 }
 
 @keyframes slide-up {

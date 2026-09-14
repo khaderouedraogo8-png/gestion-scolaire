@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { emptyIcons } from '../../utils/emptyIcons';
 import { elevesApi } from '../../services/api/eleves';
 import { configApi } from '../../services/api/config';
@@ -31,21 +31,29 @@ function StatutBadge({ statut, estBoursier }) {
 export default function EleveList() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const isGlobalSearch = location.pathname.includes('/recherche');
   const toast = useToast();
   const { isAdmin, isSecretariat } = useAuth();
   const canWrite = isAdmin || isSecretariat;
 
+  const initialQ = searchParams.get('q') || '';
   const [eleves, setEleves] = useState([]);
   const [annees, setAnnees] = useState([]);
   const [anneeFilter, setAnneeFilter] = useState('');
   const [configReady, setConfigReady] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialQ);
   const [statut, setStatut] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const perPage = 15;
+
+  useEffect(() => {
+    const q = searchParams.get('q') || '';
+    setSearch(q);
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,9 +190,16 @@ export default function EleveList() {
         loading={loading}
         searchable
         searchPlaceholder="Rechercher par nom, matricule..."
+        defaultSearch={search}
         onSearch={(q) => {
           setSearch(q);
           setPage(1);
+          if (isGlobalSearch) {
+            const next = q.trim()
+              ? `/eleves/recherche?q=${encodeURIComponent(q.trim())}`
+              : '/eleves/recherche';
+            navigate(next, { replace: true });
+          }
         }}
         onRowClick={(row) => navigate(`/eleves/${row.id}`)}
         filters={
@@ -228,7 +243,14 @@ export default function EleveList() {
           onPageChange: setPage,
         }}
         emptyIcon={emptyIcons.eleves}
-        emptyMessage="Aucun élève trouvé pour l'instant — modifiez les filtres ou inscrivez un élève."
+        emptyTitle={search ? 'Aucun résultat' : 'Aucun élève'}
+        emptyMessage={
+          search
+            ? `Aucun élève ne correspond à « ${search} ».`
+            : "Aucun élève trouvé pour l'instant — modifiez les filtres ou inscrivez un élève."
+        }
+        emptyActionLabel={canWrite ? '+ Nouvel élève' : undefined}
+        emptyActionHref={canWrite ? '/eleves/nouveau' : undefined}
       />
     </div>
   );

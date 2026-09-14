@@ -35,6 +35,7 @@ from app.services.charge_travail import stats_charge_classe
 from app.services.generation_pedagogique import (
     JOURS,
     generer_pdf_calendrier_compositions,
+    generer_pdf_emargement_composition,
     generer_pdf_fiche_appel,
     generer_pdf_fiche_correction,
     generer_pdf_fiche_scolarite,
@@ -281,6 +282,28 @@ class PdfFicheScolarite(MethodView):
         try:
             path = generer_pdf_fiche_scolarite(uuid.UUID(id_classe), uuid.UUID(id_annee))
             return send_file(path, mimetype="application/pdf", as_attachment=False, download_name="fiche_scolarite.pdf")
+        except RuntimeError as e:
+            return jsonify({"message": str(e)}), 503
+
+
+@blp.route("/pdf/emargement-composition")
+class PdfEmargementComposition(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self):
+        id_evaluation = request.args.get("id_evaluation")
+        if not id_evaluation:
+            return jsonify({"message": "id_evaluation requis"}), 400
+        try:
+            path = generer_pdf_emargement_composition(uuid.UUID(id_evaluation))
+            return send_file(
+                path,
+                mimetype="application/pdf",
+                as_attachment=False,
+                download_name="emargement_composition.pdf",
+            )
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 404
         except RuntimeError as e:
             return jsonify({"message": str(e)}), 503
 

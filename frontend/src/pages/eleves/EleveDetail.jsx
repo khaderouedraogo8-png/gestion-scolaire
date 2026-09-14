@@ -226,7 +226,12 @@ export default function EleveDetail() {
       {tab === 'inscriptions' && (
         <div className="card-premium">
           {inscriptions.length === 0 ? (
-            <EmptyState icon={GraduationCap} message="Aucune inscription enregistrée pour l'instant." />
+            <EmptyState
+              icon={GraduationCap}
+              message="Aucune inscription enregistrée pour l'instant."
+              actionLabel={canWrite ? 'Réinscrire' : undefined}
+              actionHref={canWrite ? `/eleves/${id}/inscription` : undefined}
+            />
           ) : (
             <div className="space-y-3">
               {inscriptions.map((inscr) => (
@@ -252,7 +257,12 @@ export default function EleveDetail() {
       {tab === 'parents' && (
         <div className="card-premium">
           {parents.length === 0 ? (
-            <EmptyState icon={Users} message="Aucun parent ou tuteur enregistré pour l'instant." />
+            <EmptyState
+              icon={Users}
+              message="Aucun parent ou tuteur enregistré pour l'instant."
+              actionLabel={canWrite ? 'Modifier la fiche' : undefined}
+              actionHref={canWrite ? `/eleves/${id}/modifier` : undefined}
+            />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {parents.map((p) => (

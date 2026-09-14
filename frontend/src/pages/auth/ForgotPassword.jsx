@@ -11,19 +11,27 @@ export default function ForgotPassword() {
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
+  const [hasDevToken, setHasDevToken] = useState(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [infoMessage, setInfoMessage] = useState('');
 
   const handleRequest = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const res = await usersApi.forgotPassword(email);
-      if (res.reset_token) setToken(res.reset_token);
-      toast.success(res.message);
+      const devToken = res.reset_token || '';
+      setToken(devToken);
+      setHasDevToken(Boolean(devToken));
+      setInfoMessage(
+        res.message ||
+          'Si un compte existe pour cet email, les instructions de réinitialisation ont été envoyées.'
+      );
+      toast.success(res.message || 'Demande enregistrée');
       setStep('reset');
     } catch {
-      toast.error('Impossible d\'envoyer la demande. Vérifiez l\'email et réessayez.');
+      toast.error("Impossible d'envoyer la demande. Vérifiez l'email et réessayez.");
     } finally {
       setLoading(false);
     }
@@ -49,7 +57,9 @@ export default function ForgotPassword() {
       subtitle={
         step === 'email'
           ? 'Entrez votre email pour recevoir un lien de réinitialisation'
-          : 'Définissez votre nouveau mot de passe'
+          : hasDevToken
+            ? 'Définissez votre nouveau mot de passe'
+            : 'Consultez votre boîte mail, puis saisissez le code reçu'
       }
       footer={
         <p className="text-xs text-texte-secondaire">
@@ -59,17 +69,55 @@ export default function ForgotPassword() {
     >
       {step === 'email' ? (
         <form onSubmit={handleRequest} className="space-y-4">
-          <FormField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <FormField
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Envoi...' : 'Envoyer'}
+            {loading ? 'Envoi…' : 'Envoyer'}
           </button>
         </form>
       ) : (
         <form onSubmit={handleReset} className="space-y-4">
-          <FormField label="Token de réinitialisation" value={token} onChange={(e) => setToken(e.target.value)} required />
-          <FormField label="Nouveau mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Enregistrement...' : 'Réinitialiser'}
+          {infoMessage && (
+            <div className="rounded-input border border-bordure/80 bg-craie/60 px-4 py-3 text-sm text-encre">
+              {infoMessage}
+            </div>
+          )}
+          <FormField
+            label={hasDevToken ? 'Jeton (mode développement)' : 'Code de réinitialisation'}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            required
+            helpText={
+              hasDevToken
+                ? 'Le jeton est prérempli car le serveur est en mode debug.'
+                : 'Collez le code reçu par email (ou contactez l’administrateur).'
+            }
+          />
+          <FormField
+            label="Nouveau mot de passe"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit" disabled={loading || !token} className="btn-primary w-full">
+            {loading ? 'Enregistrement…' : 'Réinitialiser'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full text-sm"
+            onClick={() => {
+              setStep('email');
+              setPassword('');
+              setInfoMessage('');
+            }}
+          >
+            Renvoyer une demande
           </button>
         </form>
       )}

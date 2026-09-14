@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Inbox, Search } from 'lucide-react';
 import EmptyState from './EmptyState';
 
@@ -8,15 +8,24 @@ export default function Table({
   loading = false,
   emptyMessage = "Aucune donnée pour l'instant",
   emptyIcon = Inbox,
+  emptyTitle,
+  emptyActionLabel,
+  emptyActionHref,
+  onEmptyAction, // button handler when no emptyActionHref
   searchable = false,
   searchPlaceholder = 'Rechercher...',
+  defaultSearch = '',
   onSearch,
   filters = null,
   pagination = null,
   onRowClick,
   keyField = 'id',
 }) {
-  const [localSearch, setLocalSearch] = useState('');
+  const [localSearch, setLocalSearch] = useState(defaultSearch);
+
+  useEffect(() => {
+    setLocalSearch(defaultSearch);
+  }, [defaultSearch]);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -59,7 +68,14 @@ export default function Table({
         </div>
       ) : data.length === 0 ? (
         <div className="table-shell p-4">
-          <EmptyState icon={emptyIcon} message={emptyMessage} />
+          <EmptyState
+            icon={emptyIcon}
+            title={emptyTitle}
+            message={emptyMessage}
+            actionLabel={emptyActionLabel}
+            actionHref={emptyActionHref}
+            onAction={onEmptyAction}
+          />
         </div>
       ) : (
         <>
