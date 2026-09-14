@@ -18,13 +18,13 @@ from app.schemas.documents import (
     DocumentGenerateSchema,
     VerifierQRSchema,
 )
-from app.utils.pagination import paginate_query, pagination_payload, parse_pagination
 from app.services.generation_carte_qr import generer_carte_scolaire, verifier_qr_data
 from app.services.generation_documents import (
     generer_attestation_scolarite,
     generer_certificat_scolarite,
     generer_diplome,
 )
+from app.utils.pagination import paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("documents", __name__, url_prefix="/documents", description="Documents administratifs")
 

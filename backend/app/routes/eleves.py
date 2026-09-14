@@ -35,9 +35,9 @@ from app.schemas.eleve import (
     EleveSchema,
     InscriptionCreateSchema,
     InscriptionSchema,
+    InscriptionStatutSchema,
     ParentTuteurSchema,
-
-    InscriptionStatutSchema,)
+)
 from app.utils.audit_logger import log_audit
 from app.utils.chiffrement import chiffrer_notes_medicales, dechiffrer_notes_medicales
 

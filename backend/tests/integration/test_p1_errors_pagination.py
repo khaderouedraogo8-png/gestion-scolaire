@@ -1,6 +1,4 @@
 """P1 — Error handler global + pagination listes critiques."""
-import uuid
-
 
 class TestErrorHandler:
     def test_unhandled_path_404_json_envelope(self, client, auth_headers):

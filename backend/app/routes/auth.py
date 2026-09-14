@@ -1,8 +1,8 @@
-import uuid
-import hashlib
-import secrets
-import os
 """Routes authentification : login, refresh, logout, changement MDP."""
+import hashlib
+import os
+import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from flask import jsonify
@@ -23,7 +23,13 @@ from app.auth.jwt_handler import (
 )
 from app.extensions import get_db, limiter
 from app.models import ReinitialisationMdp, Utilisateur
-from app.schemas.auth import ForgotPasswordSchema, ResetPasswordSchema, ChangePasswordSchema, LoginSchema, UserSchema
+from app.schemas.auth import (
+    ChangePasswordSchema,
+    ForgotPasswordSchema,
+    LoginSchema,
+    ResetPasswordSchema,
+    UserSchema,
+)
 from app.utils.audit_logger import log_audit
 
 blp = Blueprint("auth", __name__, url_prefix="/auth", description="Authentification")

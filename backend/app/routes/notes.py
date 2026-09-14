@@ -19,7 +19,6 @@ from app.auth.permissions import (
     teacher_has_matiere_classe_access,
 )
 from app.extensions import get_db
-from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 from app.models import (
     Bulletin,
     Classe,
@@ -53,6 +52,7 @@ from app.services.generation_bulletin import (
     valider_bulletin,
 )
 from app.utils.audit_logger import log_audit
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("notes", __name__, url_prefix="/notes", description="Notes et bulletins")
 

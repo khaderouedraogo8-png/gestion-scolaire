@@ -14,7 +14,6 @@ from app.auth.permissions import (
     require_role,
 )
 from app.extensions import get_db
-from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 from app.models import (
     AnneeScolaire,
     EcheancePaiement,
@@ -35,6 +34,7 @@ from app.services.finance_arrieres import list_arrieres
 from app.services.generation_recu import generer_recu_pdf
 from app.services.relance_arrieres import relancer_arrieres
 from app.utils.audit_logger import log_audit
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("finance", __name__, url_prefix="/finance", description="Finance et comptabilité")
 

@@ -1,11 +1,8 @@
 """Gestion des utilisateurs et réinitialisation mot de passe."""
-import hashlib
-import os
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
 
-from flask import jsonify, request
+from flask import jsonify
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -15,13 +12,13 @@ from marshmallow import fields as mfields
 from app.auth.jwt_handler import get_current_user, hash_password
 from app.auth.permissions import require_role
 from app.extensions import get_db
-from app.models import ReinitialisationMdp, Utilisateur
+from app.models import Utilisateur
 from app.schemas.auth import (
     UpdateUserSchema,
     UserSchema,
 )
 from app.utils.audit_logger import log_audit
-from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
+from app.utils.pagination import paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("users", __name__, description="Utilisateurs")
 
@@ -40,8 +37,6 @@ class CreateUserSchema(Schema):
     password = mfields.String(required=True, validate=validate.Length(min=8))
 
 
-def _hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 @blp.route("")

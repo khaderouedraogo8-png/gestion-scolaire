@@ -15,10 +15,10 @@ from app.auth.permissions import (
     teacher_has_eleve_access,
 )
 from app.extensions import get_db
-from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 from app.models import Absence, AnneeScolaire, Eleve, IncidentDisciplinaire, Inscription
 from app.schemas.absences import AbsenceSchema, IncidentDisciplinaireSchema
 from app.services.envoi_notification import creer_notification
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("absences", __name__, url_prefix="/absences", description="Absences et discipline")
 
