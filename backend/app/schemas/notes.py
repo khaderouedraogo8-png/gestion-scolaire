@@ -78,3 +78,13 @@ class BulletinSchema(Schema):
     appreciation_generale = fields.String(allow_none=True)
     statut = fields.String(dump_only=True)
     pdf_url = fields.String(dump_only=True)
+
+
+class GenererBulletinSchema(Schema):
+    id_eleve = fields.UUID(required=False, allow_none=True)
+    id_classe = fields.UUID(required=False, allow_none=True)
+    id_trimestre = fields.UUID(required=True)
+
+
+class BulletinPatchSchema(Schema):
+    appreciation_generale = fields.String(allow_none=True, validate=validate.Length(max=2000))

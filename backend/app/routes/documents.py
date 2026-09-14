@@ -11,7 +11,14 @@ from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import DocumentAdministratif, Eleve
-from app.schemas.documents import DocumentAdministratifSchema
+from app.schemas.documents import (
+    CarteScolaireGenerateSchema,
+    DiplomeGenerateSchema,
+    DocumentAdministratifSchema,
+    DocumentGenerateSchema,
+    VerifierQRSchema,
+)
+from app.utils.pagination import paginate_query, pagination_payload, parse_pagination
 from app.services.generation_carte_qr import generer_carte_scolaire, verifier_qr_data
 from app.services.generation_documents import (
     generer_attestation_scolarite,
@@ -45,16 +52,27 @@ class DocumentsResource(MethodView):
             q = q.filter(DocumentAdministratif.id_eleve == uuid.UUID(id_eleve))
         if type_doc:
             q = q.filter(DocumentAdministratif.type_document == type_doc)
-        docs = q.order_by(DocumentAdministratif.date_emission.desc()).all()
-        return jsonify([_serialize_document(db, d) for d in docs])
+        page, per_page = parse_pagination()
+        items, total, pages = paginate_query(
+            q.order_by(DocumentAdministratif.date_emission.desc()), page, per_page
+        )
+        return jsonify(
+            pagination_payload(
+                [_serialize_document(db, d) for d in items],
+                page=page,
+                per_page=per_page,
+                total=total,
+                pages=pages,
+            )
+        )
 
 
 @blp.route("/carte-scolaire")
 class CarteScolaireResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
-    def post(self):
-        data = request.json or {}
+    @blp.arguments(CarteScolaireGenerateSchema)
+    def post(self, data):
         user = get_current_user()
         try:
             doc = generer_carte_scolaire(
@@ -72,8 +90,8 @@ class CarteScolaireResource(MethodView):
 class AttestationResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
-    def post(self):
-        data = request.json or {}
+    @blp.arguments(DocumentGenerateSchema)
+    def post(self, data):
         user = get_current_user()
         try:
             doc = generer_attestation_scolarite(
@@ -90,8 +108,8 @@ class AttestationResource(MethodView):
 class CertificatResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
-    def post(self):
-        data = request.json or {}
+    @blp.arguments(DocumentGenerateSchema)
+    def post(self, data):
         user = get_current_user()
         try:
             doc = generer_certificat_scolarite(
@@ -108,8 +126,8 @@ class CertificatResource(MethodView):
 class DiplomeResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
-    def post(self):
-        data = request.json or {}
+    @blp.arguments(DiplomeGenerateSchema)
+    def post(self, data):
         user = get_current_user()
         try:
             doc = generer_diplome(
@@ -137,11 +155,9 @@ class DocumentPDF(MethodView):
 
 @blp.route("/verifier-qr")
 class VerifierQR(MethodView):
-    def post(self):
-        data = request.json or {}
-        qr_data = data.get("qr_data")
-        if not qr_data:
-            return jsonify({"message": "qr_data requis"}), 400
+    @blp.arguments(VerifierQRSchema)
+    def post(self, data):
+        qr_data = data["qr_data"]
         valid, payload = verifier_qr_data(qr_data)
         if not valid:
             return jsonify({"valide": False, "message": "QR code invalide ou falsifié"}), 400

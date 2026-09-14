@@ -14,6 +14,7 @@ from app.auth.permissions import (
     require_role,
 )
 from app.extensions import get_db
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 from app.models import (
     AnneeScolaire,
     EcheancePaiement,
@@ -28,6 +29,7 @@ from app.schemas.finance import (
     FraisScolaireSchema,
     PaiementCreateSchema,
     PaiementSchema,
+    RelanceArrieresSchema,
 )
 from app.services.finance_arrieres import list_arrieres
 from app.services.generation_recu import generer_recu_pdf
@@ -127,7 +129,7 @@ class PaiementsResource(MethodView):
         if user.role == "parent":
             eleve_ids = get_parent_eleve_ids(user)
             if not eleve_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             q = q.filter(Paiement.id_eleve.in_(eleve_ids))
         if id_eleve:
             eid = uuid.UUID(id_eleve)
@@ -136,8 +138,19 @@ class PaiementsResource(MethodView):
             q = q.filter(Paiement.id_eleve == eid)
         if id_annee:
             q = q.filter(Paiement.id_annee == uuid.UUID(id_annee))
-        paiements = q.order_by(Paiement.date_paiement.desc()).all()
-        return jsonify([_serialize_paiement(db, p) for p in paiements])
+        page, per_page = parse_pagination()
+        items, total, pages = paginate_query(
+            q.order_by(Paiement.date_paiement.desc()), page, per_page
+        )
+        return jsonify(
+            pagination_payload(
+                [_serialize_paiement(db, p) for p in items],
+                page=page,
+                per_page=per_page,
+                total=total,
+                pages=pages,
+            )
+        )
 
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
@@ -230,20 +243,16 @@ class ArrieresResource(MethodView):
 class ArrieresRelancer(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
-    def post(self):
+    @blp.arguments(RelanceArrieresSchema)
+    def post(self, data):
         db = get_db()
         user = get_current_user()
-        data = request.json or {}
-        id_annee = data.get("id_annee") or request.args.get("id_annee")
-        if not id_annee:
-            return jsonify({"message": "id_annee requis"}), 400
+        id_annee = data["id_annee"]
         canal = data.get("canal", "email")
-        if canal not in ("email", "sms"):
-            return jsonify({"message": "canal invalide (email ou sms)"}), 400
         auto_envoyer = bool(data.get("auto_envoyer", True))
         result = relancer_arrieres(
             db,
-            uuid.UUID(id_annee),
+            id_annee if not isinstance(id_annee, str) else uuid.UUID(str(id_annee)),
             canal=canal,
             auto_envoyer=auto_envoyer,
         )

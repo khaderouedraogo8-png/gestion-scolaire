@@ -55,7 +55,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # Auth : routes plates (/api/login, /api/me, …)
     api.register_blueprint(auth_blp, url_prefix="/api")
-    api.register_blueprint(users_blp, url_prefix="/api")
+    api.register_blueprint(users_blp, url_prefix="/api/users")
     # Modules : préfixe explicite pour éviter les collisions sur /api/
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
@@ -68,6 +68,10 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(notifications_blp, url_prefix="/api/notifications")
     api.register_blueprint(dashboard_blp, url_prefix="/api/dashboard")
     api.register_blueprint(audit_blp, url_prefix="/api/audit")
+
+    from app.utils.errors import register_error_handlers
+
+    register_error_handlers(application)
 
     @application.cli.command("seed")
     def seed_command():

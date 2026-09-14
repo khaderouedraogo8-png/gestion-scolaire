@@ -5,7 +5,9 @@ class TestAbsences:
     def test_list_absences(self, client, auth_headers):
         response = client.get("/api/absences/", headers=auth_headers)
         assert response.status_code == 200
-        assert isinstance(response.get_json(), list)
+        body = response.get_json()
+        assert "items" in body
+        assert isinstance(body["items"], list)
 
     def test_create_absence(self, client, auth_headers, annee_classe):
         eleve_resp = client.post(
@@ -36,4 +38,6 @@ class TestAbsences:
     def test_list_discipline(self, client, auth_headers):
         response = client.get("/api/absences/discipline", headers=auth_headers)
         assert response.status_code == 200
-        assert isinstance(response.get_json(), list)
+        body = response.get_json()
+        assert "items" in body
+        assert isinstance(body["items"], list)

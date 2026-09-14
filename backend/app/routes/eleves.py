@@ -36,7 +36,8 @@ from app.schemas.eleve import (
     InscriptionCreateSchema,
     InscriptionSchema,
     ParentTuteurSchema,
-)
+
+    InscriptionStatutSchema,)
 from app.utils.audit_logger import log_audit
 from app.utils.chiffrement import chiffrer_notes_medicales, dechiffrer_notes_medicales
 
@@ -302,14 +303,13 @@ class InscriptionsEleve(MethodView):
 class InscriptionStatut(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
-    def patch(self, id_inscription):
+    @blp.arguments(InscriptionStatutSchema)
+    def patch(self, data, id_inscription):
         db = get_db()
         inscription = db.query(Inscription).filter(Inscription.id == id_inscription).first()
         if not inscription:
             return jsonify({"message": "Inscription introuvable"}), 404
-        statut = request.json.get("statut")
-        if statut not in ("inscrit", "abandon", "suspendu", "reinscrit", "diplome"):
-            return jsonify({"message": "Statut invalide"}), 400
+        statut = data["statut"]
         inscription.statut = statut
         inscription.date_statut_maj = date.today()
         db.commit()

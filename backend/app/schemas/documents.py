@@ -31,3 +31,20 @@ class NotificationCreateSchema(Schema):
     canal = fields.String(required=True, validate=validate.OneOf(["sms", "email"]))
     type_notification = fields.String(required=True)
     contenu = fields.String(required=True)
+
+
+class DocumentGenerateSchema(Schema):
+    id_eleve = fields.UUID(required=True)
+    id_annee = fields.UUID(required=True)
+
+
+class CarteScolaireGenerateSchema(DocumentGenerateSchema):
+    date_expiration = fields.Date(allow_none=True)
+
+
+class DiplomeGenerateSchema(DocumentGenerateSchema):
+    mention = fields.String(allow_none=True, validate=validate.Length(max=100))
+
+
+class VerifierQRSchema(Schema):
+    qr_data = fields.String(required=True, validate=validate.Length(min=1))

@@ -287,9 +287,24 @@ SUPER_ADMIN (plateforme)
 - Finance : rôles comptable/admin OK ; pas de filtre enseignant (déjà hors rôle).
 - Error handler JSON global / pagination / landing — **P1**, pas P0.
 
+
+## État des correctifs P1 (mise à jour — Phase 4–6)
+
+| ID | Statut | Détail |
+|----|--------|--------|
+| P1-4 Error handler | ✅ | `app/utils/errors.py` — JSON stable (`success`/`message`/`error.code`), jamais de stack trace client |
+| P1-4 Validation | ✅ | Marshmallow sur users PATCH, forgot/reset password, inscription statut, documents generate, bulletins générer/patch, relance arriérés |
+| P1-5 Pagination | ✅ | Envelope `items`+`pagination` sur paiements, absences, discipline, évaluations, bulletins, documents, users (élèves déjà paginés) |
+| P1-1 Landing | 📋 Reporté | Après hardening |
+| P1-2 Multi-tenant | 📋 Reporté | Fondation `school_id` après P1 API |
+| Tests P1 | ✅ | `tests/integration/test_p1_errors_pagination.py` |
+
 ### Prochaine étape
 
-**Phase 4–6** : error handling global, validation Marshmallow manquante, pagination listes.  
+### Prochaine étape (suite)
+
+**Phase 4–6** : ✅ faites (error handler, validation Marshmallow, pagination).
+**Phase 7+** : fondation `schools` / `school_id` progressive ; landing page.  
 Puis **Phase 7+** : fondation `schools` / `school_id` progressive.
 
 ---

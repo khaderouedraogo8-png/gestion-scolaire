@@ -19,6 +19,7 @@ from app.auth.permissions import (
     teacher_has_matiere_classe_access,
 )
 from app.extensions import get_db
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 from app.models import (
     Bulletin,
     Classe,
@@ -33,10 +34,12 @@ from app.models import (
     Trimestre,
 )
 from app.schemas.notes import (
+    BulletinPatchSchema,
     BulletinSchema,
     CoefficientMatiereSchema,
     EvaluationCreateSchema,
     EvaluationSchema,
+    GenererBulletinSchema,
     MatiereSchema,
     NoteBatchSchema,
 )
@@ -230,7 +233,7 @@ class EvaluationsResource(MethodView):
         elif user.role == "parent":
             classe_ids = get_parent_classe_ids(user)
             if not classe_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             q = q.filter(Evaluation.id_classe.in_(classe_ids))
             q = q.filter(
                 (Evaluation.type_evaluation != "examen")
@@ -240,8 +243,19 @@ class EvaluationsResource(MethodView):
                 (Evaluation.type_evaluation == "examen")
                 | (Evaluation.statut_saisie == "cloturee")
             )
-        evaluations = q.order_by(Evaluation.date_evaluation.desc()).all()
-        return jsonify([_serialize_evaluation(db, e) for e in evaluations])
+        page, per_page = parse_pagination()
+        items, total, pages = paginate_query(
+            q.order_by(Evaluation.date_evaluation.desc()), page, per_page
+        )
+        return jsonify(
+            pagination_payload(
+                [_serialize_evaluation(db, e) for e in items],
+                page=page,
+                per_page=per_page,
+                total=total,
+                pages=pages,
+            )
+        )
 
     @jwt_required()
     @require_role("administrateur", "directeur", "enseignant")
@@ -530,7 +544,7 @@ class BulletinsResource(MethodView):
         if user.role == "parent":
             eleve_ids = get_parent_eleve_ids(user)
             if not eleve_ids:
-                return jsonify({"items": [], "total": 0})
+                return jsonify(empty_pagination())
             q = q.filter(Bulletin.id_eleve.in_(eleve_ids), Bulletin.statut == "publie")
 
         if id_eleve:
@@ -545,21 +559,31 @@ class BulletinsResource(MethodView):
             if trimestres:
                 q = q.filter(Bulletin.id_trimestre.in_([t.id for t in trimestres]))
 
-        bulletins = q.order_by(Bulletin.date_generation.desc()).all()
-        items = [_serialize_bulletin(db, b) for b in bulletins]
-
         if id_classe:
-            items = [b for b in items if b.get("id_classe") == id_classe]
+            from app.models import Inscription
 
-        return jsonify({"items": items, "total": len(items)})
+            q = (
+                q.join(Inscription, Inscription.id_eleve == Bulletin.id_eleve)
+                .filter(Inscription.id_classe == uuid.UUID(id_classe))
+                .distinct()
+            )
+
+        page, per_page = parse_pagination()
+        rows, total, pages = paginate_query(
+            q.order_by(Bulletin.date_generation.desc()), page, per_page
+        )
+        items = [_serialize_bulletin(db, b) for b in rows]
+        return jsonify(
+            pagination_payload(items, page=page, per_page=per_page, total=total, pages=pages)
+        )
 
 
 @blp.route("/bulletins/generer")
 class GenererBulletin(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "enseignant")
-    def post(self):
-        data = request.json or {}
+    @blp.arguments(GenererBulletinSchema)
+    def post(self, data):
         user = get_current_user()
 
         # Génération par classe
@@ -632,7 +656,8 @@ class PublierBulletin(MethodView):
 class BulletinDetail(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "enseignant")
-    def patch(self, id_bulletin):
+    @blp.arguments(BulletinPatchSchema)
+    def patch(self, data, id_bulletin):
         db = get_db()
         user = get_current_user()
         bulletin = db.query(Bulletin).filter(Bulletin.id == id_bulletin).first()
@@ -642,7 +667,7 @@ class BulletinDetail(MethodView):
             return jsonify({"message": "Accès refusé"}), 403
         if bulletin.statut == "publie":
             return jsonify({"message": "Bulletin publié — lecture seule"}), 400
-        appreciation = (request.json or {}).get("appreciation_generale")
+        appreciation = data.get("appreciation_generale")
         if appreciation is not None:
             bulletin.appreciation_generale = appreciation
             db.commit()

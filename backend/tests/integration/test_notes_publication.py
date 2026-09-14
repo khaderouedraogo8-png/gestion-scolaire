@@ -219,5 +219,7 @@ def test_parent_sees_published_exam_before_cloture(client, db, annee_classe):
         headers=headers,
     )
     assert response.status_code == 200
-    ids = [e["id"] for e in response.get_json()]
+    data = response.get_json()
+    items = data["items"] if isinstance(data, dict) else data
+    ids = [e["id"] for e in items]
     assert str(evaluation.id) in ids

@@ -15,6 +15,7 @@ from app.auth.permissions import (
     teacher_has_eleve_access,
 )
 from app.extensions import get_db
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 from app.models import Absence, AnneeScolaire, Eleve, IncidentDisciplinaire, Inscription
 from app.schemas.absences import AbsenceSchema, IncidentDisciplinaireSchema
 from app.services.envoi_notification import creer_notification
@@ -73,18 +74,18 @@ class AbsencesResource(MethodView):
         if user.role == "parent":
             allowed_eleve_ids = get_parent_eleve_ids(user)
             if not allowed_eleve_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             q = q.filter(Absence.id_eleve.in_(allowed_eleve_ids))
         elif user.role == "enseignant":
             class_ids = get_teacher_class_ids(user)
             if not class_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             allowed_eleve_ids = []
             for cid in class_ids:
                 allowed_eleve_ids.extend(_eleve_ids_for_classe(db, cid, id_annee=None))
             allowed_eleve_ids = list(set(allowed_eleve_ids))
             if not allowed_eleve_ids and not id_eleve:
-                return jsonify([])
+                return jsonify(empty_pagination())
             if allowed_eleve_ids:
                 q = q.filter(Absence.id_eleve.in_(allowed_eleve_ids))
 
@@ -94,7 +95,7 @@ class AbsencesResource(MethodView):
                 return jsonify({"message": "Accès refusé"}), 403
             inscr_eleve_ids = _eleve_ids_for_classe(db, cid, id_annee=None)
             if not inscr_eleve_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             q = q.filter(Absence.id_eleve.in_(inscr_eleve_ids))
 
         if id_eleve:
@@ -112,8 +113,19 @@ class AbsencesResource(MethodView):
             q = q.filter(Absence.date_absence >= date_debut)
         if date_fin:
             q = q.filter(Absence.date_absence <= date_fin)
-        absences = q.order_by(Absence.date_absence.desc()).all()
-        return jsonify([_serialize_absence(db, a) for a in absences])
+        page, per_page = parse_pagination()
+        items, total, pages = paginate_query(
+            q.order_by(Absence.date_absence.desc()), page, per_page
+        )
+        return jsonify(
+            pagination_payload(
+                [_serialize_absence(db, a) for a in items],
+                page=page,
+                per_page=per_page,
+                total=total,
+                pages=pages,
+            )
+        )
 
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "enseignant")
@@ -174,13 +186,13 @@ class DisciplineResource(MethodView):
         if user.role == "enseignant":
             class_ids = get_teacher_class_ids(user)
             if not class_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
             allowed = []
             for cid in class_ids:
                 allowed.extend(_eleve_ids_for_classe(db, cid, annee.id if annee else None))
             if not allowed:
-                return jsonify([])
+                return jsonify(empty_pagination())
             q = q.filter(IncidentDisciplinaire.id_eleve.in_(set(allowed)))
 
         if id_eleve:
@@ -188,8 +200,19 @@ class DisciplineResource(MethodView):
             if user.role == "enseignant" and not teacher_has_eleve_access(user, eid):
                 return jsonify({"message": "Accès refusé"}), 403
             q = q.filter(IncidentDisciplinaire.id_eleve == eid)
-        incidents = q.order_by(IncidentDisciplinaire.date_incident.desc()).all()
-        return jsonify([_serialize_incident(db, i) for i in incidents])
+        page, per_page = parse_pagination()
+        items, total, pages = paginate_query(
+            q.order_by(IncidentDisciplinaire.date_incident.desc()), page, per_page
+        )
+        return jsonify(
+            pagination_payload(
+                [_serialize_incident(db, i) for i in items],
+                page=page,
+                per_page=per_page,
+                total=total,
+                pages=pages,
+            )
+        )
 
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "enseignant")

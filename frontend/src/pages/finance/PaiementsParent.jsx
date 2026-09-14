@@ -14,7 +14,7 @@ export default function PaiementsParent() {
     setLoading(true);
     try {
       const data = await financeApi.listPaiements();
-      setPaiements(Array.isArray(data) ? data : []);
+      setPaiements(Array.isArray(data) ? data : data.items || []);
     } catch {
       toast.error('Erreur chargement paiements');
     } finally {
