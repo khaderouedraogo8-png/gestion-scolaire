@@ -38,12 +38,22 @@ def teacher_idor_setup(db):
         est_active=True,
     )
     db.add(annee)
-    niveau = NiveauEtude(id=uuid.uuid4(), libelle="6ème", cycle="college", ordre=1)
+    niveau = NiveauEtude(id=uuid.uuid4(), libelle=f"6ème-{suffix}", cycle="premier", ordre=1)
     db.add(niveau)
     db.flush()
 
-    classe_a = Classe(id=uuid.uuid4(), id_niveau=niveau.id, libelle=f"6A-{suffix}")
-    classe_b = Classe(id=uuid.uuid4(), id_niveau=niveau.id, libelle=f"6B-{suffix}")
+    classe_a = Classe(
+        id=uuid.uuid4(),
+        id_niveau=niveau.id,
+        id_annee=annee.id,
+        libelle=f"6A-{suffix}",
+    )
+    classe_b = Classe(
+        id=uuid.uuid4(),
+        id_niveau=niveau.id,
+        id_annee=annee.id,
+        libelle=f"6B-{suffix}",
+    )
     db.add_all([classe_a, classe_b])
 
     matiere = Matiere(id=uuid.uuid4(), libelle=f"Math-{suffix}", code=f"M{suffix[:4]}")
