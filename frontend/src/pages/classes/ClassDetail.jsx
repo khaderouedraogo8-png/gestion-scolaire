@@ -548,9 +548,10 @@ export default function ClassDetail() {
                           type="button"
                           className="text-xs font-medium text-or-cachet hover:underline"
                           onClick={() =>
-                            handleDownload(
+                            openPdf(
                               () => pedagogieApi.pdfEmargementComposition({ id_evaluation: r.id }),
-                              `emargement_${r.matiere_nom || 'composition'}.pdf`
+                              `emargement_${r.matiere_nom || 'composition'}.pdf`,
+                              toast
                             )
                           }
                         >
