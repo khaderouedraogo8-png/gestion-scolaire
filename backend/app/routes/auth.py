@@ -158,8 +158,12 @@ class ForgotPassword(MethodView):
             or current_app.config.get("ENV") == "production"
         )
         expose_flag = os.getenv("EXPOSE_RESET_TOKEN", "").strip().lower() in ("1", "true", "yes")
-        # Impossible d'exposer le token en production, même avec EXPOSE_RESET_TOKEN=1
-        expose = (expose_flag and not is_prod) or current_app.config.get("TESTING")
+        # Production : JAMAIS d'exposition token (même EXPOSE_RESET_TOKEN=1 ou TESTING=True)
+        # Hors prod : EXPOSE_RESET_TOKEN=1 ou mode TESTING uniquement
+        if is_prod:
+            expose = False
+        else:
+            expose = expose_flag or bool(current_app.config.get("TESTING"))
 
         smtp_host = (current_app.config.get("SMTP_HOST") or os.getenv("SMTP_HOST") or "").strip()
         smtp_enabled = os.getenv("SMTP_ENABLED", "").strip().lower() in ("1", "true", "yes")

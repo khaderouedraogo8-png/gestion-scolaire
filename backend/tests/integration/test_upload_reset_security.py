@@ -156,6 +156,23 @@ class TestForgotPasswordSecurity:
             assert "reset_token" not in body
             assert "token" not in body
 
+    def test_no_token_in_production_even_if_testing_flag_stuck(self, client, app, monkeypatch):
+        """Défense en profondeur : ENV=production + TESTING=True ne doit jamais renvoyer le token."""
+        monkeypatch.setenv("EXPOSE_RESET_TOKEN", "1")
+        monkeypatch.setenv("FLASK_ENV", "production")
+        monkeypatch.setenv("SMTP_ENABLED", "0")
+        monkeypatch.setenv("SMTP_HOST", "localhost")
+        # Simule une mauvaise config où TESTING resterait True en prod
+        app.config["TESTING"] = True
+        app.config["ENV"] = "production"
+        with app.test_client() as c:
+            res = c.post("/api/forgot-password", json={"email": "nobody@ecole.local"})
+            app.config["ENV"] = "testing"
+            assert res.status_code == 503
+            body = res.get_json() or {}
+            assert "reset_token" not in body
+            assert "token" not in body
+
     def test_token_only_when_testing_or_expose(self, client, db):
         # Fixture app a TESTING=True → token autorisé pour faciliter les tests
         email = f"reset-{uuid.uuid4().hex[:8]}@ecole.local"
