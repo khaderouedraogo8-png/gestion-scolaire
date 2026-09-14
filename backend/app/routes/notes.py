@@ -612,8 +612,10 @@ class GenererBulletin(MethodView):
             return jsonify({"items": created, "errors": errors, "total": len(created)}), 201
 
         # Génération individuelle
-        id_eleve = uuid.UUID(data["id_eleve"])
-        id_trimestre = uuid.UUID(data["id_trimestre"])
+        if not data.get("id_eleve"):
+            return jsonify({"message": "id_eleve ou id_classe requis"}), 400
+        id_eleve = uuid.UUID(str(data["id_eleve"]))
+        id_trimestre = uuid.UUID(str(data["id_trimestre"]))
         if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
         try:

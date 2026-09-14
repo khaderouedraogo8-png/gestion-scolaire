@@ -292,27 +292,78 @@ SUPER_ADMIN (plateforme)
 
 | ID | Statut | Détail |
 |----|--------|--------|
-| P1-4 Error handler | ✅ | `app/utils/errors.py` — JSON stable (`success`/`message`/`error.code`), jamais de stack trace client |
-| P1-4 Validation | ✅ | Marshmallow sur users PATCH, forgot/reset password, inscription statut, documents generate, bulletins générer/patch, relance arriérés |
-| P1-5 Pagination | ✅ | Envelope `items`+`pagination` sur paiements, absences, discipline, évaluations, bulletins, documents, users (élèves déjà paginés) |
+| P1-4 Error handler | ✅ | `app/utils/errors.py` — JSON stable (`success`/`message`/`error.code`), jamais de stack trace client ; JWT loaders alignés ; messages HTTP FR stables |
+| P1-4 Validation | ✅ | Marshmallow sur users PATCH, forgot/reset password, inscription statut, documents generate, bulletins générer/patch (`id_eleve` **ou** `id_classe`), relance arriérés |
+| P1-5 Pagination | ✅ | Envelope `items`+`pagination` sur paiements, absences, discipline, évaluations, bulletins, documents, users (élèves : `items`+page/per_page/total) |
 | P1-1 Landing | 📋 Reporté | Après hardening |
-| P1-2 Multi-tenant | 📋 Reporté | Fondation `school_id` après P1 API |
+| P1-2 Multi-tenant | 📋 Reporté | **Pas commencé** (volontaire) |
 | Tests P1 | ✅ | `tests/integration/test_p1_errors_pagination.py` |
 
-### Prochaine étape
+---
 
-### Prochaine étape (suite)
+## Revue finale PR #7 (2026-09-14)
 
-**Phase 4–6** : ✅ faites (error handler, validation Marshmallow, pagination).
-**Phase 7+** : fondation `schools` / `school_id` progressive ; landing page.  
-Puis **Phase 7+** : fondation `schools` / `school_id` progressive.
+**Branche :** `cursor/saas-p1-hardening-8bcc`  
+**Périmètre :** hardening API P1 + interactions P0 (IDOR / upload / reset) — **sans** multi-tenant.
+
+### Vérifications exécutées
+
+| Contrôle | Résultat |
+|----------|----------|
+| `pytest` suite backend | ✅ **62 passed** |
+| Tests P0 (`test_teacher_idor` + `test_upload_reset_security`) | ✅ **13 passed** (dont prod `EXPOSE_RESET_TOKEN` bloqué) |
+| `ruff check app tests` | ✅ All checks passed |
+| Frontend `eslint` | ✅ 0 errors (3 warnings hooks préexistants) |
+| Frontend `vite build` | ✅ OK |
+| Type checking | ⚠️ N/A (pas de mypy / tsc dans le projet) |
+
+### Corrections apportées pendant la revue
+
+1. **Error handler** (`backend/app/utils/errors.py`) — messages HTTP FR stables (plus de prose Werkzeug) ; détails smorest 422 dans `error.details` ; loaders JWT → même envelope (`success`/`error.code`, plus de `{msg:…}`).
+2. **`GenererBulletinSchema`** — exige `id_eleve` **ou** `id_classe` (évite KeyError → 500) + garde route.
+3. **Tests** — 401 JWT, 404 sanitizé, 500 sans fuite ; pagination discipline/bulletins ; reset token jamais en production même avec `EXPOSE_RESET_TOKEN=1`.
+
+### Checklist objectifs revue
+
+| # | Objectif | Verdict |
+|---|----------|---------|
+| 1 | Tests annoncés passent | ✅ 62 (suite complète > 55) |
+| 2 | Tests P0 non cassés | ✅ |
+| 3 | Routes API modifiées | ✅ users `/api/users`, forgot/reset sur auth `/api/*` |
+| 4 | JSON cohérent (erreurs + listes) | ✅ envelope erreurs + `items`/`pagination` |
+| 5 | 400/401/403/404/409/422/500 | ✅ handlers ; 409 métier souvent `{message}` manuel (P2) |
+| 6 | Pas de stack/secret client | ✅ |
+| 7 | Validations Marshmallow P1 | ✅ |
+| 8 | Routes encore non validées | ⚠️ P2 : `notes_medicales` encore lu via `request.json` sur PUT élève (hors schéma) |
+| 9 | Pagination 8 listes | ✅ (élèves sans bloc `pagination` imbriqué — P2) |
+| 10 | N+1 | ⚠️ P2 : `_serialize_*` fait encore des queries par item (atténué par `per_page`≤100) |
+| 11 | FE `items` + pagination | ✅ `data.items \|\| data` sur pages critiques |
+| 12–13 | Forgot/reset + token prod | ✅ |
+| 14 | IDOR P0 actif | ✅ |
+| 15 | Uploads | ✅ allowlist + UUID |
+| 16 | Régressions | ✅ aucune bloquante |
+
+### Classification problèmes
+
+| Sévérité | Statut |
+|----------|--------|
+| **P0** | Aucun trouvé bloquant merge |
+| **P1** | Corrigés dans cette revue (JWT envelope, messages HTTP, bulletin schema) |
+| **P2** | Admin reset renvoie `mot_de_passe_temporaire` ; N+1 serialize listes ; envelope élèves sans `pagination` ; 404/409 manuels hors envelope globale |
+| **P3** | Warnings eslint hooks FE ; polish docstrings |
+
+### Statut
+
+**PR #7 READY TO MERGE**
+
+Multi-tenant / `school_id` : **non démarré** (conformément à la consigne).
 
 ---
 
 ## Synthèse exécutive
 
-L’application est un **progiciel scolaire mono-école sérieux**. Les **P0 sécurité accès/upload/reset sont fermés et testés** (46 tests backend verts).  
-Le **SaaS multi-tenant** (SUPER_ADMIN + `school_id`) reste la priorité architecture suivante — sans big-bang.
+L’application est un **progiciel scolaire mono-école sérieux**. Les **P0 sécurité** et le **hardening API P1 (PR #7)** sont **fermés, testés (62 pytest) et prêts à merger**.  
+Le **SaaS multi-tenant** (SUPER_ADMIN + `school_id`) reste la priorité architecture **suivante** — sans big-bang.
 
 ---
 
@@ -325,3 +376,6 @@ Le **SaaS multi-tenant** (SUPER_ADMIN + `school_id`) reste la priorité architec
 - Health : `GET /api/health` dans `backend/app/__init__.py`
 - Deploy VPS : `deploy/DEPLOIEMENT.md`, `docker-compose.prod.yml`
 - Tests P0 : `backend/tests/integration/test_teacher_idor.py`, `test_upload_reset_security.py`
+- Tests P1 : `backend/tests/integration/test_p1_errors_pagination.py`
+- Error handler : `backend/app/utils/errors.py`
+- Pagination : `backend/app/utils/pagination.py`

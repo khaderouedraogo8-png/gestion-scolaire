@@ -1,5 +1,5 @@
 """Schémas notes, évaluations, bulletins."""
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
 
 class MatiereSchema(Schema):
@@ -84,6 +84,14 @@ class GenererBulletinSchema(Schema):
     id_eleve = fields.UUID(required=False, allow_none=True)
     id_classe = fields.UUID(required=False, allow_none=True)
     id_trimestre = fields.UUID(required=True)
+
+    @validates_schema
+    def require_eleve_or_classe(self, data, **kwargs):
+        if not data.get("id_eleve") and not data.get("id_classe"):
+            raise ValidationError(
+                "id_eleve ou id_classe requis.",
+                field_names=["id_eleve", "id_classe"],
+            )
 
 
 class BulletinPatchSchema(Schema):
