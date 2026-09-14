@@ -369,10 +369,10 @@ SUPER_ADMIN (plateforme)
 
 ## PR #7 — Final Validation
 
-**Date :** 2026-09-14  
+**Date :** 2026-09-14 (revalidation exécutée)  
 **Rôle :** Senior Backend Engineer + Security Reviewer  
 **Branche :** `cursor/saas-p1-hardening-8bcc`  
-**Méthode :** exécution réelle tests/lint/build + probes runtime + inspection diff (pas de confiance aveugle à l’AUDIT antérieur).
+**Méthode :** exécution réelle pytest/ruff/eslint/vite + probes runtime + inspection diff (pas de confiance à un AUDIT antérieur).
 
 ### Tests
 | | |
@@ -382,24 +382,22 @@ SUPER_ADMIN (plateforme)
 | Failed | **0** |
 | Errors | **0** |
 | Skipped | **0** |
-| P0+P1 ciblés | **29 passed** (IDOR, upload, reset, errors, pagination) |
+| P0+P1 ciblés | **29 passed** |
 
 ### Sécurité
-- IDOR enseignant (élève / évaluation / notes / absences / discipline) : **OK**
-- Upload (php, traversal, double ext, UUID serveur) : **OK**
-- Reset : hash + expiry + one-time ; prod **jamais** `reset_token` (même `TESTING=True` coincé + `EXPOSE_RESET_TOKEN=1`) : **OK**
-- Pas de stack/SQL/chemin/secret dans réponses client : **OK**
+- IDOR Teacher A ↛ Teacher B / élèves / évaluations / notes / absences : **OK**
+- Upload : rejet php, traversal, double extension ; UUID serveur : **OK**
+- Reset : hash + expiry + one-time ; prod **jamais** `reset_token` (EXPOSE=1 + TESTING coincé → 503) : **OK**
+- Réponses client sans stack/SQL/chemin/secret : **OK**
 
 ### API / Pagination / Frontend
-- Validation Marshmallow sur routes P1 critiques : **OK** (écart P2 : `notes_medicales` hors schéma PUT)
-- Pagination bornée (`page≥1`, `1≤per_page≤100`) + envelope `items` : **OK**
-- FE consomme `items` / forgot-reset alignés : **OK**
+- Validation Marshmallow routes P1 : **OK** (P2 : `notes_medicales` hors schéma PUT)
+- Pagination bornée (`page≥1`, `1≤per_page≤100`) + `items` : **OK**
+- FE consomme `items` ; forgot/reset alignés : **OK**
 
 ### Lint / Build
-- `ruff` : ✅  
-- eslint : ✅ 0 erreur / 3 warnings hooks préexistants  
-- `vite build` : ✅  
-- Dépendances ajoutées : aucune  
+- ruff : ✅ · eslint : 0 erreur / 3 warnings hooks · vite build : ✅  
+- Dépendances ajoutées dans la PR : **aucune**
 
 ### Classification
 | | |
@@ -416,6 +414,7 @@ SUPER_ADMIN (plateforme)
 **READY TO MERGE**
 
 ---
+
 
 ## Synthèse exécutive
 
