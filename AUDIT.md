@@ -509,6 +509,70 @@ Ajouter `school_id` (où pertinent), backfill, filtrer toutes les requêtes/rout
 
 ---
 
+## PR #8 — Final Validation
+
+**Date audit :** 2026-09-14  
+**Branche :** `cursor/saas-multitenant-foundation-8bcc`  
+**Commit Phase 1 :** `0d5edf1`  
+**Verdict :** voir section STATUS ci-dessous (exécuté sur code + DB réelle).
+
+### Architecture
+
+shared database + tenant identifier (`schools` / `utilisateur.school_id`)
+
+### Migration (exécutée)
+
+| Étape | Résultat |
+|-------|----------|
+| `alembic downgrade -1` | PASS — drop `schools` + `utilisateur.school_id` |
+| `alembic upgrade head` | PASS — recreate + default school + backfill |
+| Préservation données métier | PASS — counts inchangés (utilisateur 546, eleve 967, classe 668, note 50, paiement 25, …) |
+| Backfill | PASS — après upgrade : `utilisateur.school_id IS NULL = 0` (546/546) |
+| FK réelle | PASS — `fk_utilisateur_school_id … ON DELETE SET NULL` ; INSERT/UPDATE UUID inexistant → IntegrityError |
+| Indexes réels | PASS — `uq_schools_code`, `ix_utilisateur_school_id` présents dans `pg_indexes` |
+
+**Comportement downgrade documenté :** le downgrade **supprime** la table `schools` et la colonne `school_id` (association tenant perdue). Les tables métier (élèves, notes, etc.) sont conservées.
+
+**ondelete SET NULL :** supprimer une école remet `utilisateur.school_id` à NULL (utilisateurs sans tenant). Acceptable en Phase 1 (nullable) — à durcir (RESTRICT) en Phase 2+.
+
+### Tenant context / API / sécurité (exécutés)
+
+| Check | Résultat |
+|-------|----------|
+| `GET /api/schools/current` sans auth | 401 |
+| User A → school A / User B → school B | PASS (IDs distincts) |
+| Query spoof `?school_id=<B>` avec token A | PASS — reste school A |
+| POST/PATCH school CRUD | 405 / 404 (pas de CRUD public) |
+| User sans school | 403 contrôlé |
+| École inactive | 403 contrôlé |
+| JWT claims | `school_id` **absent** du token (role/email seulement) — tenant relu depuis User en DB |
+| Frontend `school_id` | aucune occurrence — store `currentSchool` lecture seule via API |
+
+### Tests
+
+- Suite complète : **73 passed** (après correctif pagination flaky sur `test_parent_sees_published_exam_before_cloture` — pollution classe partagée + `per_page` défaut 25)
+- Sous-ensemble `-k school or tenant` : **10 passed**
+
+### Lint / build
+
+- Backend ruff : PASS  
+- Frontend eslint : PASS (0 erreur / 3 warnings hooks préexistants)  
+- Frontend `vite build` : PASS
+
+### Limites — modèles PAS encore isolés
+
+Eleve, Classe, AnneeScolaire, Trimestre, Matiere, Evaluation, Note, Bulletin, Paiement, FraisScolaire, Absence, IncidentDisciplinaire, DocumentAdministratif, Enseignant, Affectation, Salle, Creneau, Notification, Etablissement (profil), etc. — **PHASE 2**.
+
+### Scope PR vs `main`
+
+La branche **empile PR #7** (P0/P1) + Phase 1. Le commit Phase 1 seul (`0d5edf1`) touche 15 fichiers (scope fondation correct). Diff `main...HEAD` = 41 fichiers (contenu PR #7 inclus) — **merger PR #7 d’abord** ou accepter le stack.
+
+### Prochaine étape
+
+Phase 2 — isolation réelle des données par `school_id` sur routes/modèles métier + tests School A ≠ School B.
+
+---
+
 ## Références code (preuves)
 
 - Schéma mono : `database/schema_v2_mono_etablissement.sql`
