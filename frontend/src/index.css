@@ -2,20 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Design system Premium SaaS (Linear / Vercel / Stripe)
+  Tokens historiques remappés dans tailwind.config.js (or-cachet → pétrole).
+*/
+
 @layer base {
+  :root {
+    color-scheme: light;
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.03);
+  }
+
+  .dark {
+    color-scheme: dark;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
   body {
     @apply bg-craie font-sans text-encre antialiased;
-    background-image:
-      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(184, 134, 46, 0.07), transparent 55%),
-      radial-gradient(ellipse 50% 40% at 100% 0%, rgba(20, 33, 61, 0.04), transparent),
-      radial-gradient(ellipse 40% 30% at 0% 100%, rgba(47, 110, 79, 0.04), transparent);
+    background-image: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(15, 118, 110, 0.07),
+      transparent 55%
+    );
     background-attachment: fixed;
+  }
+
+  .dark body {
+    @apply bg-encre-profond text-craie;
+    background-image: radial-gradient(
+      ellipse 70% 45% at 50% -15%,
+      rgba(45, 212, 191, 0.08),
+      transparent 55%
+    );
   }
 
   h1,
   h2,
   h3 {
-    @apply font-display font-medium;
+    @apply font-display font-semibold tracking-tight;
   }
 
   ::selection {
@@ -24,7 +49,7 @@
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(184, 134, 46, 0.35) transparent;
+    scrollbar-color: rgba(15, 118, 110, 0.35) transparent;
   }
 
   *::-webkit-scrollbar {
@@ -33,35 +58,27 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-or-cachet/30;
-  }
-
-  *::-webkit-scrollbar-track {
-    background: transparent;
+    @apply rounded-full bg-or-cachet/35;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-input px-4 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-or-cachet/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-input px-4 py-2.5 text-sm font-semibold transition-all duration-base focus:outline-none focus:ring-2 focus:ring-or-cachet/30 focus:ring-offset-2 focus:ring-offset-craie disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply btn bg-encre text-craie hover:bg-encre-clair active:scale-[0.98];
-    box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04), 0 4px 16px rgba(20, 33, 61, 0.03);
-  }
-
-  .btn-primary:hover {
-    box-shadow: 0 0 0 1px rgba(184, 134, 46, 0.15);
+    @apply btn bg-or-cachet text-blanc hover:bg-brand-hover active:scale-[0.98];
+    box-shadow: 0 1px 2px rgba(15, 118, 110, 0.2), 0 4px 12px -4px rgba(15, 118, 110, 0.35);
   }
 
   .btn-secondary {
-    @apply btn border border-bordure bg-blanc/80 text-encre hover:border-or-cachet/30 hover:bg-blanc active:scale-[0.98];
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(20, 33, 61, 0.05);
+    @apply btn border border-bordure bg-blanc text-encre hover:border-or-cachet/40 hover:bg-craie active:scale-[0.98];
+    box-shadow: var(--shadow-card);
   }
 
   .btn-danger {
-    @apply btn border border-brique/40 bg-blanc text-brique hover:bg-brique-clair active:scale-[0.98];
+    @apply btn border border-brique/30 bg-blanc text-brique hover:bg-brique-clair active:scale-[0.98];
   }
 
   .btn-ghost {
@@ -69,11 +86,13 @@
   }
 
   .card {
-    @apply rounded-card border border-bordure bg-blanc p-6 transition-colors duration-300;
+    @apply rounded-card border border-bordure bg-blanc p-6 transition-all duration-base;
+    box-shadow: var(--shadow-card);
   }
 
   .card-interactive:hover {
-    @apply border-or-cachet/30;
+    @apply border-or-cachet/35;
+    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.1);
   }
 
   .card-premium {
@@ -82,11 +101,12 @@
 
   .card-premium::before {
     content: '';
-    @apply pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-or-cachet/50 to-transparent;
+    @apply pointer-events-none absolute inset-x-0 top-0 h-px;
+    background: linear-gradient(90deg, transparent, rgba(15, 118, 110, 0.45), transparent);
   }
 
   .input {
-    @apply w-full rounded-input border border-bordure/80 bg-blanc px-3.5 py-2.5 text-sm transition-all duration-200 placeholder:text-texte-secondaire/50 focus:border-or-cachet focus:outline-none focus:ring-2 focus:ring-or-cachet/15 disabled:bg-craie/80;
+    @apply w-full rounded-input border border-bordure bg-blanc px-3.5 py-2.5 text-sm text-encre transition-all duration-base placeholder:text-texte-secondaire/55 focus:border-or-cachet focus:outline-none focus:ring-2 focus:ring-or-cachet/20 disabled:bg-craie;
   }
 
   .label {
@@ -94,7 +114,7 @@
   }
 
   .page-title {
-    @apply font-display text-3xl font-medium tracking-tight text-encre lg:text-[2.125rem];
+    @apply font-display text-3xl font-semibold tracking-tight text-encre lg:text-[2rem] lg:leading-tight;
   }
 
   .page-subtitle {
@@ -102,16 +122,16 @@
   }
 
   .page-eyebrow {
-    @apply mb-2 text-[11px] font-medium uppercase tracking-[0.06em] text-or-cachet;
+    @apply mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-or-cachet;
   }
 
   .page-title-accent {
-    @apply mt-5 h-0.5 w-12 rounded-full bg-or-cachet;
+    @apply mt-4 h-0.5 w-10 rounded-full bg-or-cachet;
   }
 
   .page-header {
-    @apply mb-10 flex flex-wrap items-end justify-between gap-6;
-    animation: slide-up 0.45s ease-out;
+    @apply mb-8 flex flex-wrap items-end justify-between gap-5 lg:mb-10;
+    animation: slide-up 0.4s ease-out;
   }
 
   .page-header-content {
@@ -119,40 +139,43 @@
   }
 
   .dashboard-section-label {
-    @apply mb-4 text-[11px] font-medium uppercase tracking-[0.06em] text-texte-secondaire;
+    @apply mb-3 text-2xs font-semibold uppercase tracking-[0.08em] text-texte-secondaire;
   }
 
   .stat-card {
-    @apply rounded-card border border-bordure bg-blanc p-5 transition-colors duration-300;
-    animation: slide-up 0.5s ease-out both;
+    @apply relative overflow-hidden rounded-card border border-bordure bg-blanc p-5 transition-all duration-base;
+    box-shadow: var(--shadow-card);
+    animation: slide-up 0.45s ease-out both;
   }
 
   .stat-card:hover {
-    @apply border-or-cachet/35;
+    @apply border-or-cachet/30;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.12);
   }
 
-.stat-card-icon {
-    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-input;
+  .stat-card-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-input;
   }
 
   .stat-card-label {
-    @apply mt-4 text-[11px] font-medium uppercase tracking-[0.06em] text-texte-secondaire;
+    @apply mt-4 text-2xs font-semibold uppercase tracking-[0.06em] text-texte-secondaire;
   }
 
   .stat-card-value {
-    @apply mt-2 font-display text-[26px] font-medium leading-none tracking-tight tabular-nums text-encre;
+    @apply mt-1.5 font-display text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-encre;
   }
 
   .stat-card-bar {
-    @apply mt-3 h-0.5 w-6 rounded-full;
+    @apply mt-3 h-0.5 w-7 rounded-full;
   }
 
   .stat-card-sub {
-    @apply mt-2.5 text-xs leading-relaxed text-texte-secondaire;
+    @apply mt-2 text-xs leading-relaxed text-texte-secondaire;
   }
 
   .empty-state {
-    @apply flex flex-col items-center rounded-card border border-dashed border-bordure/80 bg-craie/50 px-6 py-10 text-center;
+    @apply flex flex-col items-center rounded-card border border-dashed border-bordure bg-craie/60 px-6 py-12 text-center;
   }
 
   .empty-state-icon {
@@ -160,7 +183,7 @@
   }
 
   .empty-state-title {
-    @apply mb-1 font-display text-base font-medium text-encre;
+    @apply mb-1 font-display text-base font-semibold text-encre;
   }
 
   .empty-state-message {
@@ -168,7 +191,7 @@
   }
 
   .section-title {
-    @apply mb-4 flex items-center gap-2 font-display text-lg font-medium text-encre;
+    @apply mb-4 flex items-center gap-2.5 font-display text-base font-semibold text-encre;
   }
 
   .section-title::before {
@@ -181,7 +204,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center rounded-badge px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-badge px-2 py-0.5 text-2xs font-semibold;
   }
 
   .badge-success {
@@ -208,24 +231,25 @@
     @apply min-h-dvh bg-transparent;
   }
 
+  /* Sidebar claire premium (pas navy) — contraste élevé, active brand */
   .sidebar-premium {
-    background: linear-gradient(180deg, #14213d 0%, #0d1628 100%);
+    @apply border-r border-bordure bg-blanc;
   }
 
   .header-premium {
-    @apply border-b border-bordure/50 bg-blanc/75 backdrop-blur-xl;
+    @apply border-b border-bordure/80 bg-blanc/80 backdrop-blur-xl;
   }
 
   .nav-pill {
-    @apply inline-flex rounded-badge border border-bordure/80 bg-blanc px-2.5 py-1 text-xs font-medium text-or-cachet transition-colors hover:border-or-cachet/40 hover:bg-or-cachet-clair;
+    @apply inline-flex rounded-badge border border-bordure bg-blanc px-2.5 py-1 text-xs font-medium text-or-cachet transition-all duration-base hover:border-or-cachet/40 hover:bg-or-cachet-clair;
   }
 
   .chart-bar-track {
-    @apply h-2 overflow-hidden rounded-full bg-craie/80 ring-1 ring-bordure/40;
+    @apply h-2 overflow-hidden rounded-full bg-craie ring-1 ring-bordure/50;
   }
 
   .chart-bar-fill {
-    @apply h-full rounded-full bg-gradient-to-r from-or-cachet/80 to-or-cachet transition-all duration-700 ease-out;
+    @apply h-full rounded-full bg-gradient-to-r from-or-cachet/75 to-or-cachet transition-all duration-700 ease-out;
   }
 
   .loading-ring {
@@ -241,11 +265,16 @@
   }
 
   .tab-bar-item {
-    @apply shrink-0 px-4 py-2.5 text-sm font-medium text-texte-secondaire transition-colors hover:text-encre;
+    @apply relative shrink-0 px-4 py-2.5 text-sm font-medium text-texte-secondaire transition-colors duration-base hover:text-encre;
   }
 
   .tab-bar-item-active {
-    @apply -mb-px border-b-2 border-or-cachet text-or-cachet;
+    @apply text-or-cachet;
+  }
+
+  .tab-bar-item-active::after {
+    content: '';
+    @apply absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-or-cachet;
   }
 
   .auth-alert {
@@ -253,8 +282,204 @@
   }
 
   .auth-alert-error {
-    @apply border-brique/40 bg-brique-clair text-brique;
+    @apply border-brique/30 bg-brique-clair text-brique;
   }
+
+  /* Panneau auth sombre (distinct de la sidebar app) */
+  .auth-panel {
+    @apply relative hidden w-1/2 flex-col justify-center overflow-hidden bg-encre p-12 lg:flex;
+  }
+
+  .auth-panel-glow {
+    @apply pointer-events-none absolute inset-0;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(15, 118, 110, 0.4) 0%, transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.06) 0%, transparent 40%);
+  }
+
+  .quick-actions {
+    @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6;
+  }
+
+  .quick-action {
+    @apply flex items-center gap-3 rounded-card border border-bordure bg-blanc px-3.5 py-3 transition-all duration-base;
+    box-shadow: var(--shadow-card);
+  }
+
+  .quick-action:hover {
+    @apply border-or-cachet/35;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -10px rgba(15, 23, 42, 0.12);
+  }
+
+  .quick-action-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-input bg-or-cachet-clair text-or-cachet;
+  }
+
+  .table-shell {
+    @apply overflow-hidden rounded-card border border-bordure bg-blanc;
+    box-shadow: var(--shadow-card);
+  }
+
+  .table-shell thead tr {
+    @apply border-b border-bordure bg-craie/80;
+  }
+
+  .table-shell tbody tr {
+    @apply border-b border-bordure/60 transition-colors duration-fast last:border-b-0 hover:bg-or-cachet-doux;
+  }
+}
+
+/*
+  Dark mode — hors @layer pour éviter les conflits avec les utilitaires Tailwind
+  (sélection de .border-* / .bg-* crée des dépendances circulaires dans @layer).
+*/
+.dark .btn {
+  @apply focus:ring-offset-encre-profond;
+}
+
+.dark .btn-primary {
+  @apply bg-brand-hover text-encre-profond hover:bg-or-cachet;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px -4px rgba(45, 212, 191, 0.25);
+}
+
+.dark .btn-secondary {
+  @apply border-white/10 bg-encre-clair text-craie hover:border-brand-hover/40 hover:bg-encre;
+}
+
+.dark .btn-danger {
+  @apply border-brique/40 bg-encre-clair text-rose-300 hover:bg-brique/20;
+}
+
+.dark .btn-ghost {
+  @apply text-slate-400 hover:bg-white/5 hover:text-craie;
+}
+
+.dark .card,
+.dark .card-premium,
+.dark .stat-card,
+.dark .table-shell,
+.dark .quick-action,
+.dark .sidebar-premium,
+.dark .header-premium {
+  @apply border-white/10 bg-encre-clair text-craie;
+}
+
+.dark .header-premium {
+  @apply bg-encre-clair/85;
+}
+
+.dark .input {
+  @apply border-white/10 bg-encre text-craie placeholder:text-slate-500 focus:border-brand-hover focus:ring-brand-hover/25 disabled:bg-encre-clair;
+}
+
+.dark .label,
+.dark .page-title,
+.dark .section-title,
+.dark .stat-card-value,
+.dark .empty-state-title {
+  @apply text-craie;
+}
+
+.dark .page-subtitle,
+.dark .stat-card-label,
+.dark .stat-card-sub,
+.dark .empty-state-message {
+  @apply text-slate-400;
+}
+
+.dark .empty-state {
+  @apply border-white/15 bg-encre/60;
+}
+
+.dark .empty-state-icon,
+.dark .quick-action-icon {
+  @apply bg-brand-muted text-brand-hover;
+}
+
+.dark .badge-neutral {
+  @apply bg-white/10 text-slate-300;
+}
+
+.dark .badge-info {
+  @apply bg-brand-muted text-brand-hover;
+}
+
+.dark .badge-success {
+  @apply bg-emerald-500/15 text-emerald-300;
+}
+
+.dark .badge-warning {
+  @apply bg-amber-500/15 text-amber-300;
+}
+
+.dark .badge-danger {
+  @apply bg-rose-500/15 text-rose-300;
+}
+
+.dark .table-shell thead tr {
+  @apply border-white/10 bg-encre;
+}
+
+.dark .table-shell tbody tr {
+  @apply border-white/5 hover:bg-brand-soft;
+}
+
+.dark .table-shell td {
+  @apply text-slate-200;
+}
+
+.dark .nav-pill {
+  @apply border-white/10 bg-encre text-brand-hover hover:border-brand-hover/40 hover:bg-brand-muted;
+}
+
+.dark .chart-bar-track {
+  @apply bg-encre ring-white/10;
+}
+
+.dark .tab-bar {
+  @apply border-white/10;
+}
+
+.dark .tab-bar-item:hover {
+  @apply text-craie;
+}
+
+.dark .tab-bar-item-active {
+  @apply text-brand-hover;
+}
+
+.dark .page-eyebrow {
+  @apply text-brand-hover;
+}
+
+.dark .page-title-accent {
+  @apply bg-brand-hover;
+}
+
+.dark .sidebar-premium h1 {
+  @apply text-craie;
+}
+
+.dark .sidebar-premium p {
+  color: #94a3b8;
+}
+
+.dark .sidebar-premium a:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .sidebar-premium [class*='border-'] {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .sidebar-premium a[class*='bg-or-cachet'],
+.dark .sidebar-premium [class*='bg-or-cachet-clair'] {
+  background-color: rgba(15, 118, 110, 0.18);
+}
+
+.dark .sidebar-premium [class*='text-or-cachet'] {
+  color: #2dd4bf;
 }
 
 @keyframes slide-up {
@@ -281,4 +506,8 @@
 
 .toast-enter {
   animation: slide-in 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out;
 }

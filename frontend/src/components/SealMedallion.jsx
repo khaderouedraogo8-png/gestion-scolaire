@@ -1,24 +1,19 @@
 const SIZES = {
-  sm: { outer: 'h-7 w-7', text: 'text-[10px]', border: 'border-[1.5px]' },
-  md: { outer: 'h-10 w-10', text: 'text-xs', border: 'border-[1.5px]' },
-  lg: { outer: 'h-16 w-16', text: 'text-lg', border: 'border-2' },
+  sm: { outer: 'h-7 w-7', text: 'text-[10px]' },
+  md: { outer: 'h-9 w-9', text: 'text-xs' },
+  lg: { outer: 'h-14 w-14', text: 'text-base' },
 };
 
+/** Marque compacte : pastille brand, plus de sceau doré baroque. */
 export default function SealMedallion({ size = 'md', className = '' }) {
   const s = SIZES[size] || SIZES.md;
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center rounded-full font-display font-medium text-or-cachet ${s.outer} ${s.text} ${className}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-full bg-or-cachet-clair font-display font-semibold text-or-cachet ring-1 ring-or-cachet/25 ${s.outer} ${s.text} ${className}`}
       aria-hidden="true"
     >
-      <span
-        className={`absolute inset-0 rounded-full border-or-cachet/40 ${s.border} bg-gradient-to-br from-or-cachet/10 to-transparent`}
-      />
-      <span
-        className={`absolute inset-[2px] rounded-full border-or-cachet/20 ${size === 'lg' ? 'border' : 'border-[0.5px]'}`}
-      />
-      <span className="relative z-10">GS</span>
+      <span className="relative z-10 tracking-tight">GS</span>
     </div>
   );
 }

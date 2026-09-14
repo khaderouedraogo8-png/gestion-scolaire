@@ -11,6 +11,10 @@ import {
   Clock,
   BarChart3,
   PieChart,
+  Search,
+  Receipt,
+  Bell,
+  FileText,
 } from 'lucide-react';
 import { dashboardApi } from '../../services/api/dashboard';
 import { configApi } from '../../services/api/config';
@@ -21,6 +25,16 @@ import PageHeader from '../../components/PageHeader';
 import EmptyState from '../../components/EmptyState';
 import AbsenceFormModal from '../../components/AbsenceFormModal';
 import { cycleLabel, toClassSlug } from '../../utils/classNavigation';
+
+/** Accès rapides : réduisent le friction vers les tâches quotidiennes du directeur. */
+const QUICK_ACTIONS = [
+  { to: '/eleves/recherche', icon: Search, label: 'Rechercher', hint: 'Élève / matricule' },
+  { to: '/finance/arrieres', icon: AlertCircle, label: 'Arriérés', hint: 'Soldes dus' },
+  { to: '/finance/encaissement', icon: Receipt, label: 'Encaisser', hint: 'Paiement rapide' },
+  { to: '/notifications', icon: Bell, label: 'Notifications', hint: 'Messages' },
+  { to: '/notes/bulletins', icon: FileText, label: 'Bulletins', hint: 'Publier' },
+  { to: '/absences', icon: ClipboardList, label: 'Absences', hint: 'Suivi' },
+];
 
 function AbsencesParClasseBlock({ title, cycles, emptyMessage, emptyIcon: EmptyIcon }) {
   if (!cycles?.length) {
@@ -259,6 +273,28 @@ export default function Dashboard() {
           </button>
         }
       />
+
+      <section>
+        <h2 className="dashboard-section-label">Accès rapides</h2>
+        <div className="quick-actions">
+          {QUICK_ACTIONS.map(({ to, icon: Icon, label, hint }, i) => (
+            <Link
+              key={to}
+              to={to}
+              className="quick-action"
+              style={{ animation: `slide-up 0.35s ease-out ${i * 40}ms both` }}
+            >
+              <span className="quick-action-icon">
+                <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-encre">{label}</span>
+                <span className="block text-2xs text-texte-secondaire">{hint}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section>
         <h2 className="dashboard-section-label">Indicateurs clés</h2>

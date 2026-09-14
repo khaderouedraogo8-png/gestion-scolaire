@@ -47,15 +47,16 @@ export default function Table({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
+      {/* Shell tableau : ombre soft + hover brand, pagination séparée */}
+      <div className="table-shell">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-bordure/60 bg-craie/40">
+              <tr>
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.03em] text-texte-secondaire ${
+                    className={`px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-table-header text-texte-secondaire ${
                       col.align === 'right' ? 'text-right' : ''
                     }`}
                     style={{ width: col.width }}
@@ -86,14 +87,12 @@ export default function Table({
                   <tr
                     key={row[keyField]}
                     onClick={() => onRowClick?.(row)}
-                    className={`border-b border-bordure/50 last:border-b-0 transition-colors ${
-                      onRowClick ? 'cursor-pointer hover:bg-craie/60' : ''
-                    }`}
+                    className={onRowClick ? 'cursor-pointer' : ''}
                   >
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className={`whitespace-nowrap px-4 py-3 text-sm text-encre ${
+                        className={`whitespace-nowrap px-4 py-3.5 text-sm text-encre ${
                           col.align === 'right' ? 'text-right tabular-nums' : ''
                         }`}
                       >
