@@ -369,57 +369,29 @@ SUPER_ADMIN (plateforme)
 
 
 
+
 ## PR #7 — Final Validation
 
 **Date :** 2026-09-14  
 **Branche :** `cursor/saas-p1-hardening-8bcc`  
-**Méthode :** exécution réelle locale + CI GitHub (backend/frontend/e2e/prod-build) — pas de confiance aveugle à un AUDIT antérieur.  
-**Périmètre :** P0/P1 only — multi-tenant / school_id / SUPER_ADMIN **non démarrés**.
+**Exécution :** pytest/ruff/eslint/vite + probes runtime + CI GitHub (4/4) — vérifié dans cet environnement.
 
 ### Tests
-| | |
-|--|--|
-| Commande | `pytest -q` |
-| Total | **63** |
-| Passed | **63** |
-| Failed | **0** |
-| Errors | **0** |
-| Skipped | **0** |
-| Duration | **3.54s** |
-| P0+P1 ciblés | **29 passed** |
-| CI GitHub | **4/4 pass** (backend, frontend, e2e, prod-build) |
+Total **63** · Passed **63** · Failed **0** · Errors **0** · Skipped **0** · Duration **4.03s**  
+P0+P1 ciblés : **29 passed**
 
-### Sécurité
-| Domaine | Résultat |
-|---------|----------|
-| IDOR enseignant / ressources | **PASS** |
-| Uploads (allowlist, UUID, traversal, double-ext) | **PASS** |
-| Reset password (no DEBUG leak, prod hard-block, expiry, one-time) | **PASS** |
-| Secrets production (`validate_secrets`) | **PASS** |
-| Authorization 401/403 | **PASS** |
-| Error leakage 500 | **PASS** |
-
-### API / Frontend
-| | |
-|--|--|
-| Validation Marshmallow P1 | **PASS** |
-| Error handler envelope | **PASS** |
-| Pagination bornée + `items` | **PASS** |
-| Routes forgot/reset/users | **PASS** |
-| FE compatibility `items` | **PASS** |
-| `ruff` / eslint / `vite build` | **PASS** (0 eslint errors / 3 hook warnings) |
+### Sécurité / API / FE
+IDOR **PASS** · Uploads **PASS** · Reset **PASS** · Secrets prod **PASS** · Error leak **PASS**  
+Marshmallow **PASS** · Pagination **PASS** · Routes forgot/reset/users **PASS**  
+FE items **PASS** · vite build **PASS** · eslint **PASS** (0 erreur / 3 warnings) · ruff **PASS**
 
 ### Classification
-| | |
-|--|--|
-| **P0** | **0** |
-| **P1** | **0** |
-| **P2** | Admin `mot_de_passe_temporaire` JSON ; MIME vide soft-allow ; `notes_medicales` hors schéma PUT ; N+1 serialize (plafonné) ; eleves sans `pagination` imbriqué ; 404/409 manuels hors envelope |
-| **P3** | 3 warnings eslint hooks ; messages Marshmallow parfois EN |
+**P0:** 0 · **P1:** 0  
+**P2:** admin `mot_de_passe_temporaire` ; MIME vide soft-allow ; `notes_medicales` hors schéma ; N+1 serialize (plafonné) ; eleves sans pagination imbriquée ; 404/409 manuels hors envelope  
+**P3:** 3 warnings hooks FE ; messages Marshmallow parfois EN
 
 ### Risques restants
-- Mono-école (pas de `school_id`) — volontaire, hors PR  
-- Temp password admin dans JSON — backlog ops  
+Mono-école (pas de `school_id`) — volontaire hors PR · temp password admin JSON — backlog ops
 
 ### Verdict
 **READY TO MERGE**
