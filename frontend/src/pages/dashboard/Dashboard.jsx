@@ -11,6 +11,10 @@ import {
   Clock,
   BarChart3,
   PieChart,
+  Search,
+  Receipt,
+  Bell,
+  FileText,
 } from 'lucide-react';
 import { dashboardApi } from '../../services/api/dashboard';
 import { configApi } from '../../services/api/config';
@@ -21,6 +25,16 @@ import PageHeader from '../../components/PageHeader';
 import EmptyState from '../../components/EmptyState';
 import AbsenceFormModal from '../../components/AbsenceFormModal';
 import { cycleLabel, toClassSlug } from '../../utils/classNavigation';
+
+/** Accès rapides : réduisent le friction vers les tâches quotidiennes du directeur. */
+const QUICK_ACTIONS = [
+  { to: '/eleves/recherche', icon: Search, label: 'Rechercher', hint: 'Élève / matricule' },
+  { to: '/finance/arrieres', icon: AlertCircle, label: 'Arriérés', hint: 'Soldes dus' },
+  { to: '/finance/encaissement', icon: Receipt, label: 'Encaisser', hint: 'Paiement rapide' },
+  { to: '/notifications', icon: Bell, label: 'Notifications', hint: 'Messages' },
+  { to: '/notes/bulletins', icon: FileText, label: 'Bulletins', hint: 'Publier' },
+  { to: '/absences', icon: ClipboardList, label: 'Absences', hint: 'Suivi' },
+];
 
 function AbsencesParClasseBlock({ title, cycles, emptyMessage, emptyIcon: EmptyIcon }) {
   if (!cycles?.length) {
@@ -106,7 +120,7 @@ function DonutChart({ data, title }) {
   }
 
   const total = data.reduce((sum, d) => sum + (d.value || 0), 0);
-  const colors = ['#14213D', '#2F6E4F', '#B8862E', '#A6432E', '#1F3A5F'];
+  const colors = ['#0F766E', '#0D9488', '#14B8A6', '#5EEAD4', '#134E4A'];
 
   let cumulative = 0;
   const segments = data.map((d, i) => {
@@ -261,8 +275,30 @@ export default function Dashboard() {
       />
 
       <section>
+        <h2 className="dashboard-section-label">Accès rapides</h2>
+        <div className="quick-actions">
+          {QUICK_ACTIONS.map(({ to, icon: Icon, label, hint }, i) => (
+            <Link
+              key={to}
+              to={to}
+              className="quick-action"
+              style={{ animation: `slide-up 0.35s ease-out ${i * 40}ms both` }}
+            >
+              <span className="quick-action-icon">
+                <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-encre">{label}</span>
+                <span className="block text-2xs text-texte-secondaire">{hint}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section>
         <h2 className="dashboard-section-label">Indicateurs clés</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
           <StatCard
             title="Effectif total"
             value={stats?.total_eleves_inscrits ?? stats?.effectif_total ?? 0}
@@ -270,11 +306,20 @@ export default function Dashboard() {
             tone="neutral"
             icon={GraduationCap}
             delay={0}
+            featured
+            sparkVariant="bars"
           />
           <StatCard
             title="Taux de recouvrement"
             value={stats?.taux_recouvrement != null ? `${stats.taux_recouvrement}%` : '—'}
             subtitle="Paiements encaissés"
+            change={
+              stats?.taux_recouvrement != null
+                ? Number(stats.taux_recouvrement) >= 50
+                  ? 'En bonne voie'
+                  : 'À renforcer'
+                : undefined
+            }
             tone="positive"
             icon={TrendingUp}
             delay={60}
@@ -299,14 +344,21 @@ export default function Dashboard() {
                 : '—'
             }
             subtitle="Échéances scolaires"
+            change={stats?.total_du != null && Number(stats.total_du) > 0 ? 'À encaisser' : undefined}
             tone="warning"
             icon={AlertCircle}
             delay={180}
+            sparkVariant="bars"
           />
           <StatCard
             title="Absences"
             value={stats?.total_absences ?? 0}
             subtitle="Total enregistrées"
+            change={
+              stats?.total_absences != null && Number(stats.total_absences) > 0
+                ? 'À justifier'
+                : 'RAS'
+            }
             tone="negative"
             icon={ClipboardList}
             delay={240}

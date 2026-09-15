@@ -1,57 +1,91 @@
+/**
+ * Design system v2 — Gestion Scolaire Premium (réf. Metric Flow / Wise / Zence)
+ *
+ * Choix :
+ * - Accent unique pétrole (#0F766E) : crédible éducation, pas de jaune/rose Dribbble.
+ * - Rayon 16px cards : respiration type dashboards 2025.
+ * - Surfaces élevées (blanc / anthracite) + ombre soft, pas de bordures lourdes.
+ * - Accents sémantiques uniquement (succès / alerte / danger).
+ */
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
+        brand: {
+          DEFAULT: '#0F766E',
+          hover: '#0D9488',
+          muted: 'rgba(15, 118, 110, 0.12)',
+          soft: 'rgba(15, 118, 110, 0.06)',
+          foreground: '#F0FDFA',
+        },
         encre: {
-          DEFAULT: '#14213D',
-          clair: '#1F3A5F',
-          profond: '#0D1628',
+          DEFAULT: '#0B1220',
+          clair: '#151D2E',
+          profond: '#070B14',
         },
         'or-cachet': {
-          DEFAULT: '#B8862E',
-          clair: 'rgba(184,134,46,0.12)',
-          doux: 'rgba(184,134,46,0.06)',
+          DEFAULT: '#0F766E',
+          clair: 'rgba(15, 118, 110, 0.12)',
+          doux: 'rgba(15, 118, 110, 0.06)',
         },
-        craie: '#F6F5F1',
+        craie: '#F4F6F9',
         blanc: '#FFFFFF',
-        bordure: '#E4E2D9',
-        'texte-secondaire': '#6B6D6A',
+        bordure: '#E6EAF0',
+        'texte-secondaire': '#64748B',
         feuille: {
-          DEFAULT: '#2F6E4F',
-          clair: '#E7F0EA',
+          DEFAULT: '#059669',
+          clair: '#ECFDF5',
         },
         brique: {
-          DEFAULT: '#A6432E',
-          clair: '#F5E8E4',
+          DEFAULT: '#E11D48',
+          clair: '#FFF1F2',
         },
         ambre: {
-          DEFAULT: '#B8862E',
-          clair: '#F7EEDD',
+          DEFAULT: '#D97706',
+          clair: '#FFFBEB',
         },
       },
       fontFamily: {
-        sans: ['"Public Sans"', 'system-ui', 'sans-serif'],
-        display: ['Fraunces', 'Georgia', 'serif'],
+        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.04em' }],
+        kpi: ['1.875rem', { lineHeight: '1.1', letterSpacing: '-0.03em', fontWeight: '650' }],
       },
       borderRadius: {
-        card: '8px',
-        input: '8px',
-        badge: '6px',
+        card: '16px',
+        input: '10px',
+        badge: '9999px',
+        shell: '20px',
       },
       letterSpacing: {
-        'table-header': '0.03em',
-        label: '0.06em',
+        'table-header': '0.05em',
+        label: '0.02em',
+        tight: '-0.025em',
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(20, 33, 61, 0.04), 0 4px 16px rgba(20, 33, 61, 0.03)',
-        card: '0 1px 0 rgba(255,255,255,0.9) inset, 0 1px 2px rgba(20,33,61,0.05)',
-        glow: '0 0 0 1px rgba(184,134,46,0.15)',
+        soft: '0 1px 2px rgba(11, 18, 32, 0.04), 0 12px 32px -16px rgba(11, 18, 32, 0.12)',
+        card: '0 1px 2px rgba(11, 18, 32, 0.03), 0 0 0 1px rgba(11, 18, 32, 0.04)',
+        elevated: '0 8px 28px -12px rgba(11, 18, 32, 0.14), 0 0 0 1px rgba(11, 18, 32, 0.04)',
+        glow: '0 0 0 3px rgba(15, 118, 110,.18)',
+        focus: '0 0 0 3px rgba(15, 118, 110, 0.22)',
+      },
+      spacing: {
+        section: '2.5rem',
+      },
+      transitionDuration: {
+        fast: '150ms',
+        base: '180ms',
+        slow: '250ms',
       },
       animation: {
-        'fade-in': 'fade-in 0.4s ease-out',
-        'slide-up': 'slide-up 0.45s ease-out',
+        'fade-in': 'fade-in 0.35s ease-out',
+        'slide-up': 'slide-up 0.4s ease-out',
       },
       keyframes: {
         'fade-in': {
@@ -59,7 +93,7 @@ export default {
           to: { opacity: '1' },
         },
         'slide-up': {
-          from: { opacity: '0', transform: 'translateY(8px)' },
+          from: { opacity: '0', transform: 'translateY(10px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
       },
