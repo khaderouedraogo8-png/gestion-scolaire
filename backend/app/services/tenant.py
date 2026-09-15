@@ -55,7 +55,7 @@ def require_user_school(user: Utilisateur | None) -> uuid.UUID:
     return user.school_id
 
 
-def tenant_query(model: type[T]) -> Query:
+def tenant_query[T](model: type[T]) -> Query:
     """
     Query filtrée sur le school_id du tenant courant.
 
@@ -67,7 +67,7 @@ def tenant_query(model: type[T]) -> Query:
     return db.query(model).filter(model.school_id == get_current_school_id())
 
 
-def get_or_404_tenant(model: type[T], entity_id: uuid.UUID | str) -> T:
+def get_or_404_tenant[T](model: type[T], entity_id: uuid.UUID | str) -> T:
     """Charge une entité par id + school_id tenant, sinon 404 (anti-IDOR)."""
     if isinstance(entity_id, str):
         try:

@@ -18,13 +18,6 @@ from app.models import (
     Matiere,
     Salle,
 )
-from app.services.tenant import (
-    apply_tenant_school,
-    assert_same_school,
-    get_current_school_id,
-    get_or_404_tenant,
-    tenant_query,
-)
 from app.schemas.emploi_temps import (
     AffectationEnseignantSchema,
     CreneauEmploiTempsSchema,
@@ -32,6 +25,13 @@ from app.schemas.emploi_temps import (
     SalleSchema,
 )
 from app.services.generation_pedagogique import generer_pdf_fiche_enseignant
+from app.services.tenant import (
+    apply_tenant_school,
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
+)
 
 blp = Blueprint("emploi_temps", __name__, url_prefix="/emploi-temps", description="Emploi du temps")
 
@@ -227,7 +227,7 @@ class SallesResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant")
     @blp.response(200, SalleSchema(many=True))
     def get(self):
-        db = get_db()
+        get_db()
         return tenant_query(Salle).order_by(Salle.libelle).all()
 
     @jwt_required()

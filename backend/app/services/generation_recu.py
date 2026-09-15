@@ -13,7 +13,7 @@ from app.services.tenant import get_or_404_tenant, tenant_query
 
 def generer_recu_pdf(paiement_id: uuid.UUID) -> str:
     """Génère le PDF du reçu de paiement."""
-    db = get_db()
+    get_db()
     paiement = get_or_404_tenant(Paiement, paiement_id)
     if paiement.annule:
         raise ValueError("Paiement annulé — reçu non valide")

@@ -13,11 +13,11 @@ from app.auth.jwt_handler import get_current_user, hash_password
 from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import Utilisateur
-from app.services.tenant import apply_tenant_school, get_or_404_tenant, tenant_query
 from app.schemas.auth import (
     UpdateUserSchema,
     UserSchema,
 )
+from app.services.tenant import apply_tenant_school, get_or_404_tenant, tenant_query
 from app.utils.audit_logger import log_audit
 from app.utils.pagination import paginate_query, pagination_payload, parse_pagination
 
@@ -45,7 +45,7 @@ class UsersList(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur")
     def get(self):
-        db = get_db()
+        get_db()
         page, per_page = parse_pagination(default_per_page=50)
         items, total, pages = paginate_query(
             tenant_query(Utilisateur).order_by(Utilisateur.nom, Utilisateur.prenom),

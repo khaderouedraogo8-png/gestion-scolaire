@@ -16,12 +16,6 @@ from app.models import (
     NiveauEtude,
     Trimestre,
 )
-from app.services.tenant import (
-    apply_tenant_school,
-    get_current_school_id,
-    get_or_404_tenant,
-    tenant_query,
-)
 from app.schemas.etablissement import (
     AnneeScolaireSchema,
     ClasseSchema,
@@ -30,6 +24,12 @@ from app.schemas.etablissement import (
     TrimestreSchema,
 )
 from app.schemas.pedagogie import EvenementCalendrierSchema
+from app.services.tenant import (
+    apply_tenant_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
+)
 
 blp = Blueprint("etablissement", __name__, url_prefix="/etablissement", description="Configuration établissement")
 

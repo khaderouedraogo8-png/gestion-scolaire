@@ -8,8 +8,8 @@ DEFAULT_SCHOOL_CODE = "ECOLE-EXISTANTE"
 
 
 def upgrade():
-    from alembic import op
     import sqlalchemy as sa
+    from alembic import op
     from sqlalchemy.dialects.postgresql import UUID
 
     op.create_table(

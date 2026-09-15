@@ -44,14 +44,6 @@ from app.schemas.notes import (
     NoteBatchSchema,
 )
 from app.services.calcul_moyennes import refresh_moyenne_matiere_view
-from app.services.tenant import (
-    apply_tenant_school,
-    assert_same_school,
-    get_current_school_id,
-    get_or_404_tenant,
-    reject_client_school_id,
-    tenant_query,
-)
 from app.services.calendrier_scolaire import date_est_bloquee
 from app.services.envoi_notification import creer_notification
 from app.services.generation_bulletin import (
@@ -59,6 +51,14 @@ from app.services.generation_bulletin import (
     generer_bulletin_pdf,
     publier_bulletin,
     valider_bulletin,
+)
+from app.services.tenant import (
+    apply_tenant_school,
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    reject_client_school_id,
+    tenant_query,
 )
 from app.utils.audit_logger import log_audit
 from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
@@ -752,7 +752,7 @@ class BulletinPDF(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "parent")
     def get(self, id_bulletin):
-        db = get_db()
+        get_db()
         user = get_current_user()
         bulletin = get_or_404_tenant(Bulletin, id_bulletin)
         if user.role == "parent":

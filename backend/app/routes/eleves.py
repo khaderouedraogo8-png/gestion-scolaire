@@ -413,7 +413,7 @@ class ElevePhoto(MethodView):
         "administrateur", "directeur", "secretariat", "enseignant", "agent_comptable", "parent"
     )
     def get(self, id_eleve):
-        db = get_db()
+        get_db()
         user = get_current_user()
         if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403

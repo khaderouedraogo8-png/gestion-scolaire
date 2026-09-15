@@ -24,12 +24,6 @@ from app.models import (
     ProgrammeDevoir,
     SeanceCours,
 )
-from app.services.tenant import (
-    assert_same_school,
-    get_current_school_id,
-    get_or_404_tenant,
-    tenant_query,
-)
 from app.schemas.pedagogie import (
     ProgrammeDevoirSchema,
     ProgrammeDevoirUpdateSchema,
@@ -49,6 +43,12 @@ from app.services.generation_pedagogique import (
     generer_pdf_liste_eleves,
     generer_pdf_programme_devoirs,
     generer_pdf_programme_trimestriel,
+)
+from app.services.tenant import (
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
 )
 
 blp = Blueprint("pedagogie", __name__, url_prefix="/pedagogie", description="Programme pédagogique")

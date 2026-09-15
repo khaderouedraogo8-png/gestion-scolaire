@@ -148,7 +148,7 @@ class DocumentPDF(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
     def get(self, id_document):
-        db = get_db()
+        get_db()
         doc = get_or_404_tenant(DocumentAdministratif, id_document)
         if not doc.pdf_url or not os.path.isfile(doc.pdf_url):
             return jsonify({"message": "PDF introuvable"}), 404
