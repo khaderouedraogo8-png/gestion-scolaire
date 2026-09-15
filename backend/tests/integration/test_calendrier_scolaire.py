@@ -6,10 +6,11 @@ from app.auth.jwt_handler import hash_password
 from app.models import Enseignant, EvenementCalendrier, Matiere, Trimestre, Utilisateur
 
 
-def test_evaluation_blocked_on_holiday(client, db, annee_classe):
+def test_evaluation_blocked_on_holiday(client, db, annee_classe, default_school):
     annee = annee_classe["annee"]
     classe = annee_classe["classe"]
     suffix = uuid.uuid4().hex[:8]
+    sid = default_school.id
 
     admin = Utilisateur(
         id=uuid.uuid4(),
@@ -20,12 +21,13 @@ def test_evaluation_blocked_on_holiday(client, db, annee_classe):
         role="administrateur",
         actif=True,
         doit_changer_mdp=False,
+        school_id=sid,
     )
     db.add(admin)
     db.flush()
 
     trimestre = db.query(Trimestre).filter(Trimestre.id_annee == annee.id).first()
-    matiere = Matiere(libelle=f"Hist-{suffix}", code=f"H{suffix[:4]}")
+    matiere = Matiere(libelle=f"Hist-{suffix}", code=f"H{suffix[:4]}", school_id=sid)
     db.add(matiere)
     db.flush()
 
@@ -34,6 +36,7 @@ def test_evaluation_blocked_on_holiday(client, db, annee_classe):
         nom="Prof",
         prenom="Cal",
         email=f"prof-cal-{suffix}@ecole.local",
+        school_id=sid,
     )
     db.add(enseignant)
     db.flush()

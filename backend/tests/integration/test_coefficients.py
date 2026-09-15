@@ -2,11 +2,12 @@
 
 
 class TestCoefficients:
-    def test_list_and_create_coefficient(self, client, auth_headers, db):
+    def test_list_and_create_coefficient(self, client, auth_headers, db, default_school):
         from app.models import CoefficientMatiere, Matiere, NiveauEtude
 
-        matiere = db.query(Matiere).first()
-        niveau = db.query(NiveauEtude).first()
+        sid = default_school.id
+        matiere = db.query(Matiere).filter(Matiere.school_id == sid).first()
+        niveau = db.query(NiveauEtude).filter(NiveauEtude.school_id == sid).first()
         assert matiere and niveau
 
         r = client.post(

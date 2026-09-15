@@ -12,10 +12,11 @@ from app.models import (
 )
 
 
-def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee_classe):
+def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee_classe, default_school):
     annee = annee_classe["annee"]
     classe = annee_classe["classe"]
     niveau = annee_classe["niveau"]
+    sid = default_school.id
 
     suffix = uuid.uuid4().hex[:6].upper()
     eleve = Eleve(
@@ -25,6 +26,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
         prenom="Awa",
         date_naissance=date(2012, 5, 1),
         sexe="F",
+        school_id=sid,
     )
     db.add(eleve)
     db.flush()
@@ -37,6 +39,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
             id_classe=classe.id,
             statut="inscrit",
             date_inscription=date.today(),
+            school_id=sid,
         )
     )
 
@@ -46,6 +49,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
         id_annee=annee.id,
         motif="Scolarité",
         montant_total=Decimal(100000),
+        school_id=sid,
     )
     db.add(frais)
     db.flush()
@@ -75,10 +79,11 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
     assert notifs[0].type_notification == "retard_paiement"
 
 
-def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe):
+def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe, default_school):
     annee = annee_classe["annee"]
     classe = annee_classe["classe"]
     niveau = annee_classe["niveau"]
+    sid = default_school.id
 
     suffix = uuid.uuid4().hex[:6].upper()
     eleve = Eleve(
@@ -88,6 +93,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe):
         prenom="Ibra",
         date_naissance=date(2012, 3, 1),
         sexe="M",
+        school_id=sid,
     )
     db.add(eleve)
     db.flush()
@@ -100,6 +106,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe):
             id_classe=classe.id,
             statut="inscrit",
             date_inscription=date.today(),
+            school_id=sid,
         )
     )
 
@@ -109,6 +116,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe):
         id_annee=annee.id,
         motif="Scolarité",
         montant_total=Decimal(50000),
+        school_id=sid,
     )
     db.add(frais)
     db.flush()

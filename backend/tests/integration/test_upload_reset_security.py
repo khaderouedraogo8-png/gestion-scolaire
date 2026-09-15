@@ -16,7 +16,7 @@ from app.models import (
 )
 
 
-def _admin_headers(client, db):
+def _admin_headers(client, db, default_school):
     email = f"admin-sec-{uuid.uuid4().hex[:8]}@ecole.local"
     user = Utilisateur(
         id=uuid.uuid4(),
@@ -26,6 +26,7 @@ def _admin_headers(client, db):
         mot_de_passe_hash=hash_password("Admin123!"),
         role="administrateur",
         actif=True,
+        school_id=default_school.id,
     )
     db.add(user)
     db.commit()
@@ -35,16 +36,20 @@ def _admin_headers(client, db):
 
 
 @pytest.fixture
-def eleve_for_upload(db):
+def eleve_for_upload(db, default_school):
     suffix = uuid.uuid4().hex[:8]
+    sid = default_school.id
     annee = AnneeScolaire(
         id=uuid.uuid4(),
+        school_id=sid,
         libelle=f"2025-u-{suffix}",
         date_debut=date(2025, 9, 1),
         date_fin=date(2026, 6, 30),
         est_active=True,
     )
-    niveau = NiveauEtude(id=uuid.uuid4(), libelle=f"5ème-{suffix}", cycle="premier", ordre=2)
+    niveau = NiveauEtude(
+        id=uuid.uuid4(), libelle=f"5ème-{suffix}", cycle="premier", ordre=2, school_id=sid
+    )
     db.add_all([annee, niveau])
     db.flush()
     classe = Classe(
@@ -52,6 +57,7 @@ def eleve_for_upload(db):
         id_niveau=niveau.id,
         id_annee=annee.id,
         libelle=f"5A-{suffix}",
+        school_id=sid,
     )
     eleve = Eleve(
         id=uuid.uuid4(),
@@ -60,6 +66,7 @@ def eleve_for_upload(db):
         prenom="Test",
         date_naissance=date(2013, 1, 1),
         sexe="M",
+        school_id=sid,
     )
     db.add_all([classe, eleve])
     db.flush()
@@ -70,6 +77,7 @@ def eleve_for_upload(db):
             id_classe=classe.id,
             id_annee=annee.id,
             statut="inscrit",
+            school_id=sid,
         )
     )
     db.commit()
@@ -77,8 +85,8 @@ def eleve_for_upload(db):
 
 
 class TestUploadSecurity:
-    def test_reject_php_upload(self, client, db, eleve_for_upload):
-        headers = _admin_headers(client, db)
+    def test_reject_php_upload(self, client, db, eleve_for_upload, default_school):
+        headers = _admin_headers(client, db, default_school)
         data = {
             "file": (io.BytesIO(b"<?php echo 1; ?>"), "shell.php"),
             "type": "autre",
@@ -91,8 +99,8 @@ class TestUploadSecurity:
         )
         assert res.status_code == 400
 
-    def test_reject_path_traversal_name(self, client, db, eleve_for_upload):
-        headers = _admin_headers(client, db)
+    def test_reject_path_traversal_name(self, client, db, eleve_for_upload, default_school):
+        headers = _admin_headers(client, db, default_school)
         data = {
             "file": (io.BytesIO(b"%PDF-1.4"), "../../etc/passwd.pdf"),
             "type": "autre",
@@ -105,8 +113,8 @@ class TestUploadSecurity:
         )
         assert res.status_code == 400
 
-    def test_accept_pdf_upload(self, client, db, eleve_for_upload):
-        headers = _admin_headers(client, db)
+    def test_accept_pdf_upload(self, client, db, eleve_for_upload, default_school):
+        headers = _admin_headers(client, db, default_school)
         data = {
             "file": (io.BytesIO(b"%PDF-1.4 fake"), "bulletin.pdf"),
             "type": "piece",
@@ -173,7 +181,7 @@ class TestForgotPasswordSecurity:
             assert "reset_token" not in body
             assert "token" not in body
 
-    def test_token_only_when_testing_or_expose(self, client, db):
+    def test_token_only_when_testing_or_expose(self, client, db, default_school):
         # Fixture app a TESTING=True → token autorisé pour faciliter les tests
         email = f"reset-{uuid.uuid4().hex[:8]}@ecole.local"
         db.add(
@@ -185,6 +193,7 @@ class TestForgotPasswordSecurity:
                 mot_de_passe_hash=hash_password("Reset123!"),
                 role="secretariat",
                 actif=True,
+                school_id=default_school.id,
             )
         )
         db.commit()

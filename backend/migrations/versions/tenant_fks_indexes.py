@@ -41,8 +41,8 @@ COMPOSITE_PARENTS = (
 
 
 def upgrade():
-    from alembic import op
     import sqlalchemy as sa
+    from alembic import op
 
     # --- 1:1 établissement ↔ school : lever le trigger mono-ligne global ---
     op.execute("DROP TRIGGER IF EXISTS trg_une_seule_ligne_etablissement ON etablissement")
@@ -292,7 +292,6 @@ def upgrade():
 
 def downgrade():
     from alembic import op
-    import sqlalchemy as sa
 
     # Reverse utilisateur FK to SET NULL
     op.drop_constraint("fk_utilisateur_school_id", "utilisateur", type_="foreignkey")

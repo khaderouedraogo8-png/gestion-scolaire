@@ -54,7 +54,7 @@ class DashboardStats(MethodView):
                            COUNT(*) FILTER (WHERE m.moyenne >= 10) AS reussis
                     FROM moyenne_matiere_eleve m
                     JOIN matiere mat ON mat.id = m.id_matiere
-                    WHERE m.school_id = CAST(:school_id AS UUID)
+                    WHERE mat.school_id = CAST(:school_id AS UUID)
                     GROUP BY mat.libelle
                 """),
                 {"school_id": str(school_id)},
@@ -70,7 +70,10 @@ class DashboardStats(MethodView):
                 for r in reussite_query
             ]
         except Exception:
+            db.rollback()
             taux_reussite = []
+            # Re-bind tenant context after rollback
+            school_id = get_current_school_id()
 
         tresorerie = 0
         total_du = 0

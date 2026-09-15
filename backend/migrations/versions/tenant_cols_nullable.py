@@ -31,8 +31,8 @@ TABLES = (
 
 
 def upgrade():
-    from alembic import op
     import sqlalchemy as sa
+    from alembic import op
     from sqlalchemy.dialects.postgresql import UUID
 
     for table in TABLES:

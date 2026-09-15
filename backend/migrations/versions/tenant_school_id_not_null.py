@@ -31,8 +31,8 @@ TABLES = (
 
 
 def upgrade():
-    from alembic import op
     import sqlalchemy as sa
+    from alembic import op
     from sqlalchemy.dialects.postgresql import UUID
 
     conn = op.get_bind()
@@ -54,7 +54,6 @@ def upgrade():
 
 def downgrade():
     from alembic import op
-    import sqlalchemy as sa
     from sqlalchemy.dialects.postgresql import UUID
 
     for table in reversed(TABLES):

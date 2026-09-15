@@ -1,15 +1,16 @@
 -- ============================================================================
 -- PROGICIEL INTÉGRÉ DE GESTION SCOLAIRE
 -- Schéma de base de données PostgreSQL 15+
--- Architecture MONO-ÉTABLISSEMENT
--- (pour un nouvel établissement client : cloner le repo + réinitialiser cette base)
+-- Architecture MULTI-TENANT (base PostgreSQL partagée, isolation par school_id)
+-- Référence CI / schéma cible — PR #9 true multi-tenant isolation
+-- (voir migrations Alembic tenant_* ; profil école `etablissement` 1:1 avec `schools`)
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
--- 0. TENANT SaaS (Phase 1) — distinct du profil mono-école `etablissement`
+-- 0. TENANT SaaS — racine d'isolation
 -- ============================================================================
 
 CREATE TABLE schools (
@@ -28,11 +29,12 @@ CREATE TABLE schools (
 );
 
 -- ============================================================================
--- 1. CONFIGURATION DE L'ÉTABLISSEMENT (table à une seule ligne)
+-- 1. CONFIGURATION DE L'ÉTABLISSEMENT (1 profil école par tenant)
 -- ============================================================================
 
 CREATE TABLE etablissement (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     nom                  VARCHAR(150) NOT NULL,
     sigle                VARCHAR(20),
     adresse              TEXT,
@@ -46,17 +48,21 @@ CREATE TABLE etablissement (
     devise               VARCHAR(10) DEFAULT 'XOF',
     created_at           TIMESTAMPTZ DEFAULT now(),
     updated_at           TIMESTAMPTZ DEFAULT now(),
-    CONSTRAINT une_seule_ligne CHECK (true) -- appliqué au niveau applicatif : jamais plus d'une ligne
+    CONSTRAINT uq_etablissement_school_id UNIQUE (school_id)
 );
 
 CREATE TABLE annee_scolaire (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    libelle              VARCHAR(20) NOT NULL UNIQUE,   -- ex: 2025-2026
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    libelle              VARCHAR(20) NOT NULL,   -- ex: 2025-2026
     date_debut           DATE NOT NULL,
     date_fin             DATE NOT NULL,
-    est_active           BOOLEAN DEFAULT false
+    est_active           BOOLEAN DEFAULT false,
+    CONSTRAINT uq_annee_scolaire_school_libelle UNIQUE (school_id, libelle),
+    CONSTRAINT uq_annee_scolaire_id_school UNIQUE (id, school_id)
 );
 
+-- Parent-only : isolation via annee_scolaire.school_id
 CREATE TABLE trimestre (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
@@ -84,11 +90,11 @@ CREATE TABLE utilisateur (
     derniere_connexion   TIMESTAMPTZ,
     tentatives_echouees  SMALLINT DEFAULT 0,          -- verrouillage après N échecs
     verrouille_jusqu_a   TIMESTAMPTZ,
-    school_id            UUID REFERENCES schools(id) ON DELETE SET NULL,  -- tenant SaaS (nullable Phase 1)
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     created_at           TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX ix_utilisateur_school_id ON utilisateur (school_id);
 
+-- Parent-only : isolation via utilisateur.school_id
 CREATE TABLE refresh_token (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_utilisateur       UUID NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
@@ -100,6 +106,7 @@ CREATE TABLE refresh_token (
     created_at           TIMESTAMPTZ DEFAULT now()
 );
 
+-- Parent-only : isolation via utilisateur.school_id
 CREATE TABLE reinitialisation_mdp (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_utilisateur       UUID NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
@@ -115,6 +122,7 @@ CREATE TABLE reinitialisation_mdp (
 
 CREATE TABLE parent_tuteur (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_utilisateur       UUID REFERENCES utilisateur(id) ON DELETE SET NULL,  -- si compte portail parent
     nom                  VARCHAR(100) NOT NULL,
     prenom               VARCHAR(100) NOT NULL,
@@ -127,7 +135,8 @@ CREATE TABLE parent_tuteur (
 
 CREATE TABLE eleve (
     id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    matricule                 VARCHAR(30) NOT NULL UNIQUE,
+    school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    matricule                 VARCHAR(30) NOT NULL,
     nom                       VARCHAR(100) NOT NULL,
     prenom                    VARCHAR(100) NOT NULL,
     sexe                      CHAR(1) CHECK (sexe IN ('M', 'F')),
@@ -137,9 +146,12 @@ CREATE TABLE eleve (
     photo_url                 TEXT,
     notes_medicales_chiffrees BYTEA,          -- chiffré via pgcrypto (pgp_sym_encrypt), jamais en clair
     pieces_justificatives     JSONB,          -- [{type, url, date_upload}]
-    created_at                TIMESTAMPTZ DEFAULT now()
+    created_at                TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_eleve_school_matricule UNIQUE (school_id, matricule),
+    CONSTRAINT uq_eleve_id_school UNIQUE (id, school_id)
 );
 
+-- Parent-only : isolation via eleve / parent_tuteur.school_id
 CREATE TABLE eleve_parent (
     id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
     id_parent            UUID NOT NULL REFERENCES parent_tuteur(id) ON DELETE CASCADE,
@@ -149,33 +161,49 @@ CREATE TABLE eleve_parent (
 
 CREATE TABLE niveau_etude (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    libelle              VARCHAR(50) NOT NULL UNIQUE,   -- ex: 6ème, Terminale
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    libelle              VARCHAR(50) NOT NULL,   -- ex: 6ème, Terminale
     ordre                SMALLINT,
     cycle                VARCHAR(20) NOT NULL DEFAULT 'premier'
-        CHECK (cycle IN ('premier', 'second'))
+        CHECK (cycle IN ('premier', 'second')),
+    CONSTRAINT uq_niveau_etude_school_libelle UNIQUE (school_id, libelle),
+    CONSTRAINT uq_niveau_etude_id_school UNIQUE (id, school_id)
 );
 
 CREATE TABLE classe (
     id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_niveau                 UUID NOT NULL REFERENCES niveau_etude(id) ON DELETE RESTRICT,
-    id_annee                  UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_niveau                 UUID NOT NULL,
+    id_annee                  UUID NOT NULL,
     libelle                   VARCHAR(50) NOT NULL,        -- ex: 6ème A
     id_professeur_principal   UUID,                        -- FK ajoutée après création de enseignant
     capacite_max              INTEGER DEFAULT 50,
+    CONSTRAINT uq_classe_id_school UNIQUE (id, school_id),
+    CONSTRAINT fk_classe_niveau_school FOREIGN KEY (id_niveau, school_id)
+        REFERENCES niveau_etude(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_classe_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE,
     UNIQUE (id_annee, libelle)
 );
 
 CREATE TABLE inscription (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
-    id_classe            UUID NOT NULL REFERENCES classe(id) ON DELETE RESTRICT,
-    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID NOT NULL,
+    id_classe            UUID NOT NULL,
+    id_annee             UUID NOT NULL,
     statut               VARCHAR(20) NOT NULL DEFAULT 'inscrit'
                             CHECK (statut IN ('inscrit', 'abandon', 'suspendu', 'reinscrit', 'diplome')),
     est_boursier         BOOLEAN DEFAULT false,
     taux_reduction       NUMERIC(5,2) DEFAULT 0,
     date_inscription     DATE DEFAULT CURRENT_DATE,
     date_statut_maj      DATE,
+    CONSTRAINT fk_inscription_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_inscription_classe_school FOREIGN KEY (id_classe, school_id)
+        REFERENCES classe(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_inscription_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE,
     UNIQUE (id_eleve, id_annee)
 );
 
@@ -185,6 +213,7 @@ CREATE TABLE inscription (
 
 CREATE TABLE enseignant (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_utilisateur       UUID REFERENCES utilisateur(id) ON DELETE SET NULL,
     nom                  VARCHAR(100) NOT NULL,
     prenom               VARCHAR(100) NOT NULL,
@@ -192,7 +221,8 @@ CREATE TABLE enseignant (
     type_contrat         VARCHAR(30),
     taux_horaire         NUMERIC(10,2),
     telephone            VARCHAR(30),
-    email                VARCHAR(150)
+    email                VARCHAR(150),
+    CONSTRAINT uq_enseignant_id_school UNIQUE (id, school_id)
 );
 
 ALTER TABLE classe
@@ -201,10 +231,13 @@ ALTER TABLE classe
 
 CREATE TABLE matiere (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     libelle              VARCHAR(80) NOT NULL,
-    code                 VARCHAR(20)
+    code                 VARCHAR(20),
+    CONSTRAINT uq_matiere_id_school UNIQUE (id, school_id)
 );
 
+-- Parent-only : isolation via matiere / niveau_etude.school_id
 CREATE TABLE coefficient_matiere (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_matiere           UUID NOT NULL REFERENCES matiere(id) ON DELETE CASCADE,
@@ -215,11 +248,20 @@ CREATE TABLE coefficient_matiere (
 
 CREATE TABLE affectation_enseignant (
     id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_enseignant          UUID NOT NULL REFERENCES enseignant(id) ON DELETE CASCADE,
-    id_classe              UUID NOT NULL REFERENCES classe(id) ON DELETE CASCADE,
-    id_matiere             UUID NOT NULL REFERENCES matiere(id) ON DELETE CASCADE,
-    id_annee               UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_enseignant          UUID NOT NULL,
+    id_classe              UUID NOT NULL,
+    id_matiere             UUID NOT NULL,
+    id_annee               UUID NOT NULL,
     volume_horaire_hebdo   NUMERIC(5,2),
+    CONSTRAINT fk_affectation_enseignant_school FOREIGN KEY (id_enseignant, school_id)
+        REFERENCES enseignant(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_affectation_classe_school FOREIGN KEY (id_classe, school_id)
+        REFERENCES classe(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_affectation_matiere_school FOREIGN KEY (id_matiere, school_id)
+        REFERENCES matiere(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_affectation_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE,
     UNIQUE (id_enseignant, id_classe, id_matiere, id_annee)
 );
 
@@ -229,12 +271,14 @@ CREATE TABLE affectation_enseignant (
 
 CREATE TABLE salle (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     libelle              VARCHAR(50) NOT NULL,
     capacite             INTEGER
 );
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
+-- Parent-only : isolation via affectation_enseignant / salle.school_id
 CREATE TABLE creneau_emploi_temps (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_affectation       UUID NOT NULL REFERENCES affectation_enseignant(id) ON DELETE CASCADE,
@@ -257,16 +301,18 @@ ALTER TABLE creneau_emploi_temps
         ) WITH &&
     ) WHERE (id_salle IS NOT NULL);
 
+
 -- ============================================================================
 -- 6. MODULE 2 : ÉVALUATIONS, NOTES & BULLETINS
 -- ============================================================================
 
 CREATE TABLE evaluation (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_classe            UUID NOT NULL REFERENCES classe(id) ON DELETE CASCADE,
-    id_matiere           UUID NOT NULL REFERENCES matiere(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_classe            UUID NOT NULL,
+    id_matiere           UUID NOT NULL,
     id_trimestre         UUID NOT NULL REFERENCES trimestre(id) ON DELETE CASCADE,
-    id_enseignant        UUID NOT NULL REFERENCES enseignant(id) ON DELETE RESTRICT,
+    id_enseignant        UUID NOT NULL,
     type_evaluation      VARCHAR(20) NOT NULL CHECK (type_evaluation IN ('devoir', 'examen', 'interrogation')),
     coefficient          NUMERIC(4,2) NOT NULL DEFAULT 1,
     date_evaluation      DATE NOT NULL,
@@ -274,9 +320,17 @@ CREATE TABLE evaluation (
     statut_publication   VARCHAR(20) NOT NULL DEFAULT 'brouillon'
         CHECK (statut_publication IN ('brouillon', 'publie')),
     statut_saisie        VARCHAR(20) NOT NULL DEFAULT 'en_cours'
-        CHECK (statut_saisie IN ('en_cours', 'cloturee'))
+        CHECK (statut_saisie IN ('en_cours', 'cloturee')),
+    CONSTRAINT uq_evaluation_id_school UNIQUE (id, school_id),
+    CONSTRAINT fk_evaluation_classe_school FOREIGN KEY (id_classe, school_id)
+        REFERENCES classe(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_evaluation_matiere_school FOREIGN KEY (id_matiere, school_id)
+        REFERENCES matiere(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_evaluation_enseignant_school FOREIGN KEY (id_enseignant, school_id)
+        REFERENCES enseignant(id, school_id) ON DELETE RESTRICT
 );
 
+-- Parent-only : isolation via classe / matiere.school_id
 CREATE TABLE programme_devoir (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_classe            UUID NOT NULL REFERENCES classe(id) ON DELETE CASCADE,
@@ -289,6 +343,7 @@ CREATE TABLE programme_devoir (
     UNIQUE (id_classe, id_matiere, jour_semaine, id_annee)
 );
 
+-- Parent-only : isolation via annee_scolaire.school_id
 CREATE TABLE evenement_calendrier (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
@@ -300,6 +355,7 @@ CREATE TABLE evenement_calendrier (
     bloque_programmation BOOLEAN NOT NULL DEFAULT true
 );
 
+-- Parent-only : isolation via classe / matiere / enseignant.school_id
 CREATE TABLE seance_cours (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_classe            UUID NOT NULL REFERENCES classe(id) ON DELETE CASCADE,
@@ -313,8 +369,9 @@ CREATE TABLE seance_cours (
 
 CREATE TABLE note (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_evaluation        UUID NOT NULL REFERENCES evaluation(id) ON DELETE CASCADE,
-    id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_evaluation        UUID NOT NULL,
+    id_eleve             UUID NOT NULL,
     valeur_note          NUMERIC(4,2) CHECK (valeur_note BETWEEN 0 AND 20),
     absent               BOOLEAN DEFAULT false,     -- distinct d'une note à 0/20
     appreciation         VARCHAR(255),
@@ -322,6 +379,10 @@ CREATE TABLE note (
     modifie_par          UUID REFERENCES utilisateur(id),
     saisi_le             TIMESTAMPTZ DEFAULT now(),
     modifie_le           TIMESTAMPTZ,
+    CONSTRAINT fk_note_evaluation_school FOREIGN KEY (id_evaluation, school_id)
+        REFERENCES evaluation(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_note_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE,
     UNIQUE (id_evaluation, id_eleve)
 );
 
@@ -343,7 +404,8 @@ CREATE UNIQUE INDEX idx_moyenne_unique ON moyenne_matiere_eleve(id_eleve, id_cla
 
 CREATE TABLE bulletin (
     id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve               UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
+    school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve               UUID NOT NULL,
     id_trimestre           UUID NOT NULL REFERENCES trimestre(id) ON DELETE CASCADE,
     moyenne_generale       NUMERIC(4,2),
     rang                   INTEGER,
@@ -355,6 +417,8 @@ CREATE TABLE bulletin (
     valide_par             UUID REFERENCES utilisateur(id),
     date_generation        TIMESTAMPTZ DEFAULT now(),
     pdf_url                TEXT,
+    CONSTRAINT fk_bulletin_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE,
     UNIQUE (id_eleve, id_trimestre)
 );
 
@@ -364,12 +428,18 @@ CREATE TABLE bulletin (
 
 CREATE TABLE frais_scolaire (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_niveau            UUID NOT NULL REFERENCES niveau_etude(id) ON DELETE CASCADE,
-    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_niveau            UUID NOT NULL,
+    id_annee             UUID NOT NULL,
     motif                VARCHAR(50) NOT NULL,   -- Scolarité, Cantine, Transport, Inscription
-    montant_total        NUMERIC(12,2) NOT NULL
+    montant_total        NUMERIC(12,2) NOT NULL,
+    CONSTRAINT fk_frais_niveau_school FOREIGN KEY (id_niveau, school_id)
+        REFERENCES niveau_etude(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_frais_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE
 );
 
+-- Parent-only : isolation via frais_scolaire.school_id
 CREATE TABLE echeance_paiement (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_frais             UUID NOT NULL REFERENCES frais_scolaire(id) ON DELETE CASCADE,
@@ -382,17 +452,23 @@ CREATE SEQUENCE seq_numero_recu START 1;
 
 CREATE TABLE paiement (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
-    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID NOT NULL,
+    id_annee             UUID NOT NULL,
     id_echeance          UUID REFERENCES echeance_paiement(id) ON DELETE SET NULL,
     motif                VARCHAR(50) NOT NULL,
     montant_verse        NUMERIC(12,2) NOT NULL CHECK (montant_verse > 0),
     mode_paiement        VARCHAR(30),            -- Espèces, Mobile Money, Virement
-    numero_recu          VARCHAR(30) NOT NULL UNIQUE DEFAULT ('REC-' || nextval('seq_numero_recu')),
+    numero_recu          VARCHAR(30) NOT NULL DEFAULT ('REC-' || nextval('seq_numero_recu')),
     encaisse_par         UUID REFERENCES utilisateur(id),
     annule               BOOLEAN DEFAULT false,  -- annulation traçable, jamais de DELETE sur un paiement
     motif_annulation     TEXT,
-    date_paiement        TIMESTAMPTZ DEFAULT now()
+    date_paiement        TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_paiement_school_numero_recu UNIQUE (school_id, numero_recu),
+    CONSTRAINT fk_paiement_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_paiement_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -401,24 +477,30 @@ CREATE TABLE paiement (
 
 CREATE TABLE absence (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID NOT NULL,
     id_creneau           UUID REFERENCES creneau_emploi_temps(id) ON DELETE SET NULL,  -- NULL = journée entière
     date_absence         DATE NOT NULL,
     type_absence         VARCHAR(20) CHECK (type_absence IN ('absence', 'retard')),
     justifiee            BOOLEAN DEFAULT false,
     motif                TEXT,
     signale_par          UUID REFERENCES utilisateur(id),
-    created_at           TIMESTAMPTZ DEFAULT now()
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT fk_absence_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE
 );
 
 CREATE TABLE incident_disciplinaire (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID NOT NULL,
     id_trimestre         UUID REFERENCES trimestre(id) ON DELETE SET NULL,
     type_incident        VARCHAR(30) CHECK (type_incident IN ('avertissement', 'blame', 'exclusion_temporaire')),
     description          TEXT,
     date_incident         DATE NOT NULL,
-    declare_par           UUID REFERENCES utilisateur(id)
+    declare_par           UUID REFERENCES utilisateur(id),
+    CONSTRAINT fk_incident_disciplinaire_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -427,14 +509,17 @@ CREATE TABLE incident_disciplinaire (
 
 CREATE TABLE document_administratif (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve             UUID NOT NULL REFERENCES eleve(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID NOT NULL,
     type_document        VARCHAR(30) CHECK (type_document IN
                             ('carte_scolaire', 'attestation_scolarite', 'certificat', 'diplome')),
     qr_code_data         TEXT,
     date_emission        DATE DEFAULT CURRENT_DATE,
     date_expiration      DATE,
     pdf_url              TEXT,
-    genere_par           UUID REFERENCES utilisateur(id)
+    genere_par           UUID REFERENCES utilisateur(id),
+    CONSTRAINT fk_document_administratif_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -443,7 +528,8 @@ CREATE TABLE document_administratif (
 
 CREATE TABLE notification (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_eleve             UUID REFERENCES eleve(id) ON DELETE CASCADE,
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID,
     id_parent            UUID REFERENCES parent_tuteur(id) ON DELETE CASCADE,
     canal                VARCHAR(10) CHECK (canal IN ('sms', 'email')),
     type_notification    VARCHAR(30),   -- absence, bulletin, paiement, relance
@@ -451,7 +537,9 @@ CREATE TABLE notification (
     statut               VARCHAR(20) DEFAULT 'en_attente' CHECK (statut IN ('en_attente', 'envoye', 'echec')),
     tentative_count       SMALLINT DEFAULT 0,
     envoye_le            TIMESTAMPTZ,
-    created_at            TIMESTAMPTZ DEFAULT now()
+    created_at            TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT fk_notification_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -460,6 +548,7 @@ CREATE TABLE notification (
 
 CREATE TABLE journal_audit (
     id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id                UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_utilisateur           UUID REFERENCES utilisateur(id) ON DELETE SET NULL,
     action                   VARCHAR(50) NOT NULL,  -- MODIFICATION_NOTE, VALIDATION_BULLETIN, PAIEMENT_ENCAISSE, PAIEMENT_ANNULE, CONNEXION, ECHEC_CONNEXION...
     table_cible              VARCHAR(50),
@@ -473,6 +562,29 @@ CREATE TABLE journal_audit (
 -- INDEX DE PERFORMANCE
 -- ============================================================================
 
+CREATE INDEX ix_utilisateur_school_id ON utilisateur (school_id);
+CREATE INDEX ix_etablissement_school_id ON etablissement (school_id);
+CREATE INDEX ix_annee_scolaire_school_id ON annee_scolaire (school_id);
+CREATE INDEX ix_niveau_etude_school_id ON niveau_etude (school_id);
+CREATE INDEX ix_eleve_school_id ON eleve (school_id);
+CREATE INDEX ix_parent_tuteur_school_id ON parent_tuteur (school_id);
+CREATE INDEX ix_enseignant_school_id ON enseignant (school_id);
+CREATE INDEX ix_matiere_school_id ON matiere (school_id);
+CREATE INDEX ix_salle_school_id ON salle (school_id);
+CREATE INDEX ix_frais_scolaire_school_id ON frais_scolaire (school_id);
+CREATE INDEX ix_classe_school_id ON classe (school_id);
+CREATE INDEX ix_evaluation_school_id ON evaluation (school_id);
+CREATE INDEX ix_paiement_school_id ON paiement (school_id);
+CREATE INDEX ix_absence_school_id ON absence (school_id);
+CREATE INDEX ix_incident_disciplinaire_school_id ON incident_disciplinaire (school_id);
+CREATE INDEX ix_document_administratif_school_id ON document_administratif (school_id);
+CREATE INDEX ix_notification_school_id ON notification (school_id);
+CREATE INDEX ix_journal_audit_school_id ON journal_audit (school_id);
+CREATE INDEX ix_bulletin_school_id ON bulletin (school_id);
+CREATE INDEX ix_inscription_school_id ON inscription (school_id);
+CREATE INDEX ix_note_school_id ON note (school_id);
+CREATE INDEX ix_affectation_enseignant_school_id ON affectation_enseignant (school_id);
+
 CREATE INDEX idx_inscription_classe ON inscription(id_classe);
 CREATE INDEX idx_note_eleve ON note(id_eleve);
 CREATE INDEX idx_paiement_eleve_annee ON paiement(id_eleve, id_annee);
@@ -480,22 +592,3 @@ CREATE INDEX idx_absence_eleve_date ON absence(id_eleve, date_absence);
 CREATE INDEX idx_evaluation_classe_trimestre ON evaluation(id_classe, id_trimestre);
 CREATE INDEX idx_journal_audit_utilisateur ON journal_audit(id_utilisateur, created_at);
 CREATE INDEX idx_eleve_nom_prenom ON eleve(nom, prenom);
-
--- ============================================================================
--- FONCTIONS UTILITAIRES
--- ============================================================================
-
--- Empêche plus d'une ligne dans "etablissement" (mono-établissement strict)
-CREATE OR REPLACE FUNCTION empecher_multi_etablissement()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF (SELECT COUNT(*) FROM etablissement) >= 1 THEN
-        RAISE EXCEPTION 'Ce système est mono-établissement : une seule ligne autorisée dans "etablissement".';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_une_seule_ligne_etablissement
-    BEFORE INSERT ON etablissement
-    FOR EACH ROW EXECUTE FUNCTION empecher_multi_etablissement();

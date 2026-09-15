@@ -142,7 +142,7 @@ class TestTenantContext:
     def test_require_user_school_ok(self, user_school_a, school_a):
         assert require_user_school(user_school_a) == school_a.id
 
-    def test_require_user_school_missing(self, db):
+    def test_require_user_school_missing(self):
         user = Utilisateur(
             id=uuid.uuid4(),
             nom="Sans",
@@ -153,8 +153,6 @@ class TestTenantContext:
             actif=True,
             school_id=None,
         )
-        db.add(user)
-        db.commit()
         with pytest.raises(TenantRequiredError):
             require_user_school(user)
 
@@ -182,7 +180,7 @@ class TestCurrentSchoolApi:
         assert data["code"] == school_a.code
         assert data["name"] == school_a.name
 
-    def test_get_current_school_without_school(self, client, db):
+    def test_get_current_school_without_school(self, client, db, default_school, monkeypatch):
         email = f"orphan-{uuid.uuid4().hex[:8]}@test.local"
         user = Utilisateur(
             id=uuid.uuid4(),
@@ -193,7 +191,7 @@ class TestCurrentSchoolApi:
             role="administrateur",
             actif=True,
             doit_changer_mdp=False,
-            school_id=None,
+            school_id=default_school.id,
         )
         db.add(user)
         db.commit()
@@ -201,6 +199,11 @@ class TestCurrentSchoolApi:
         login = client.post("/api/login", json={"email": email, "password": "Admin123!"})
         assert login.status_code == 200
         token = login.get_json()["access_token"]
+
+        orphan = db.query(Utilisateur).filter(Utilisateur.id == user.id).first()
+        orphan.school_id = None
+        monkeypatch.setattr("app.services.tenant.get_current_user", lambda: orphan)
+
         resp = client.get(
             "/api/schools/current",
             headers={"Authorization": f"Bearer {token}"},

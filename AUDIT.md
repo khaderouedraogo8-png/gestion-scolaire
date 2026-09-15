@@ -593,3 +593,73 @@ Aucun.
 - Tests P1 : `backend/tests/integration/test_p1_errors_pagination.py`
 - Error handler : `backend/app/utils/errors.py`
 - Pagination : `backend/app/utils/pagination.py`
+
+---
+
+# PR #9 — True Multi-Tenant Isolation
+
+**Date :** 2026-09-15  
+**Branche :** `cursor/saas-true-tenant-isolation-8bcc`  
+**Gate 1 :** APPROVED — implementation livrée  
+**Verdict :** **READY TO MERGE** (sous réserve relecture CI)
+
+## Objectif
+
+Isolation réelle **School A ≠ School B** sur les données métier (LIST / GET / CREATE / UPDATE / DELETE / EXPORT / SEARCH / AGGREGATION / PDF).
+
+## Source de vérité tenant
+
+```
+JWT → Utilisateur.school_id → School
+```
+
+- Jamais de `school_id` client (query/header/body) — spoof → 400/422 ou ignoré  
+- Pas de `school_id` dans le JWT (toujours DB user)  
+- Helpers : `tenant_query`, `get_or_404_tenant`, `assert_same_school`, `apply_tenant_school`, `reject_client_school_id`
+
+## Schéma
+
+5 migrations Alembic après `add_schools_tenant` :
+
+1. `tenant_cols_nullable` — colonnes `school_id` nullable  
+2. `tenant_backfill` — backfill par code `ECOLE-EXISTANTE` ; assert NULL=0  
+3. `tenant_fks_indexes` — FK RESTRICT, indexes, UNIQUE(id,school_id), FKs composites, drop trigger mono-établissement  
+4. `tenant_rewrite_uniques` — UNIQUE(school_id, matricule/libelle/numero_recu)  
+5. `tenant_school_id_not_null` — NOT NULL métier + utilisateur  
+
+`etablissement.school_id` UNIQUE (1:1 School ↔ profil).  
+`utilisateur.email` reste UNIQUE global.
+
+## Isolation routes / services
+
+Users, Établissement, Élèves, Notes/Bulletins, Finance, Absences, Documents, EDT, Pédagogie, Notifications, Audit, Dashboard, PDF/exports — filtrés tenant.  
+Permissions RBAC filtrées par `user.school_id`.  
+`audit_logger` exige un `school_id` résolu.
+
+## Preuves A ≠ B
+
+Fichier : `backend/tests/integration/test_true_tenant_isolation.py`
+
+- LIST élèves / matières / users / classes isolées  
+- GET élève cross-tenant → **404**  
+- DELETE matière cross-tenant → **404**  
+- Spoof `?school_id=` + `X-School-Id` → reste tenant A  
+- CREATE avec `school_id` client → 400/422 ou forcé A  
+- Même matricule autorisé sur A et B (UNIQUE tenant-local)  
+- Dashboard stats OK par tenant  
+
+## Regression
+
+- `pytest` : **84 passed**  
+- Alembic `downgrade add_schools_tenant` → `upgrade head` : PASS (données ECOLE-EXISTANTE préservées ; school_id NULL=0)  
+- Frontend `lint` : warnings only ; `build` : PASS  
+
+## Hors scope (volontaire)
+
+SUPER_ADMIN, billing, onboarding multi-école UI, Mobile Money, landing marketing.
+
+## Risques résiduels
+
+- Downgrade UNIQUE global impossible si données multi-écoles peuplées (documenté)  
+- Tables parent-only sans `school_id` : isolation via jointure parent (Trimestre, etc.) — à surveiller sur nouveaux endpoints  
+

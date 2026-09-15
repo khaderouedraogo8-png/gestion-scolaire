@@ -27,18 +27,22 @@ def _auth(client, email, password):
 
 
 @pytest.fixture
-def teacher_idor_setup(db):
+def teacher_idor_setup(db, default_school):
     """Deux classes : enseignant affecté seulement à la classe A."""
     suffix = uuid.uuid4().hex[:8]
+    sid = default_school.id
     annee = AnneeScolaire(
         id=uuid.uuid4(),
+        school_id=sid,
         libelle=f"2025-{suffix}",
         date_debut=date(2025, 9, 1),
         date_fin=date(2026, 6, 30),
         est_active=True,
     )
     db.add(annee)
-    niveau = NiveauEtude(id=uuid.uuid4(), libelle=f"6ème-{suffix}", cycle="premier", ordre=1)
+    niveau = NiveauEtude(
+        id=uuid.uuid4(), libelle=f"6ème-{suffix}", cycle="premier", ordre=1, school_id=sid
+    )
     db.add(niveau)
     db.flush()
 
@@ -47,16 +51,18 @@ def teacher_idor_setup(db):
         id_niveau=niveau.id,
         id_annee=annee.id,
         libelle=f"6A-{suffix}",
+        school_id=sid,
     )
     classe_b = Classe(
         id=uuid.uuid4(),
         id_niveau=niveau.id,
         id_annee=annee.id,
         libelle=f"6B-{suffix}",
+        school_id=sid,
     )
     db.add_all([classe_a, classe_b])
 
-    matiere = Matiere(id=uuid.uuid4(), libelle=f"Math-{suffix}", code=f"M{suffix[:4]}")
+    matiere = Matiere(id=uuid.uuid4(), libelle=f"Math-{suffix}", code=f"M{suffix[:4]}", school_id=sid)
     db.add(matiere)
 
     user = Utilisateur(
@@ -67,6 +73,7 @@ def teacher_idor_setup(db):
         mot_de_passe_hash=hash_password("Enseignant123!"),
         role="enseignant",
         actif=True,
+        school_id=sid,
     )
     db.add(user)
     db.flush()
@@ -76,6 +83,7 @@ def teacher_idor_setup(db):
         nom="Prof",
         prenom="Test",
         email=user.email,
+        school_id=sid,
     )
     db.add(enseignant)
     db.flush()
@@ -86,6 +94,7 @@ def teacher_idor_setup(db):
             id_classe=classe_a.id,
             id_matiere=matiere.id,
             id_annee=annee.id,
+            school_id=sid,
         )
     )
 
@@ -96,6 +105,7 @@ def teacher_idor_setup(db):
         prenom="ClasseA",
         date_naissance=date(2012, 1, 1),
         sexe="M",
+        school_id=sid,
     )
     eleve_b = Eleve(
         id=uuid.uuid4(),
@@ -104,6 +114,7 @@ def teacher_idor_setup(db):
         prenom="ClasseB",
         date_naissance=date(2012, 1, 1),
         sexe="F",
+        school_id=sid,
     )
     db.add_all([eleve_a, eleve_b])
     db.flush()
@@ -115,6 +126,7 @@ def teacher_idor_setup(db):
                 id_classe=classe_a.id,
                 id_annee=annee.id,
                 statut="inscrit",
+                school_id=sid,
             ),
             Inscription(
                 id=uuid.uuid4(),
@@ -122,6 +134,7 @@ def teacher_idor_setup(db):
                 id_classe=classe_b.id,
                 id_annee=annee.id,
                 statut="inscrit",
+                school_id=sid,
             ),
         ]
     )
@@ -142,6 +155,7 @@ def teacher_idor_setup(db):
         nom="Autre",
         prenom="Prof",
         email=f"autre-{suffix}@ecole.local",
+        school_id=sid,
     )
     db.add(enseignant_b)
     db.flush()
@@ -158,6 +172,7 @@ def teacher_idor_setup(db):
         coefficient=1,
         statut_publication="publie",
         statut_saisie="en_cours",
+        school_id=sid,
     )
     db.add(eval_b)
     db.commit()
