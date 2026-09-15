@@ -1102,3 +1102,21 @@ Pas de calcul FE ; calc n’appelle pas resolve ; resolve n’appelle pas calc.
 ### Hors scope (volontaire)
 Import Excel, redesign PDF, suppression MV `moyenne_matiere_eleve`, dashboard rewrite, axes Class/Period ruleset V2.
 
+
+---
+
+## PR #14 — Parcours résultats + types d’évaluation
+
+**Branche :** `cursor/notes-results-parcours-8bcc` (basée sur PR13)  
+**Objectif :** brancher le catalogue `evaluation_type` dans la création d’évaluations et exposer un parcours FE de consultation/recalcul des résultats persistés (API PR13).
+
+### Livré
+1. `EvaluationList` — types via `GET /evaluation-types` (plus hardcode devoir/interro/examen seul)
+2. Page `/notes/resultats` — filtres classe/période/élève, lecture API, recalcul backend, détail notes (missing ≠ 0)
+3. Saisie notes — toast honnête `results_stale` + lien résultats
+4. Nav sidebar « Résultats »
+5. Tests Vitest catalogue + parcours + display ; assertion API `results_stale`
+
+### Hors scope
+Import, PDF redesign, dashboard MV, historisation versions, PR15.
+

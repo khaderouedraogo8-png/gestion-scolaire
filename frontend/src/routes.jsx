@@ -19,6 +19,7 @@ import InscriptionForm from './pages/eleves/InscriptionForm';
 import EvaluationList from './pages/notes/EvaluationList';
 import SaisieNotes from './pages/notes/SaisieNotes';
 import BulletinList from './pages/notes/BulletinList';
+import ResultatsAcademiques from './pages/notes/ResultatsAcademiques';
 
 import FraisList from './pages/finance/FraisList';
 import Encaissement from './pages/finance/Encaissement';
@@ -240,6 +241,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={NOTES_WRITE}>
             <SaisieNotes />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'notes/resultats',
+        element: (
+          <ProtectedRoute roles={NOTES}>
+            <ResultatsAcademiques />
           </ProtectedRoute>
         ),
       },

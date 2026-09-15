@@ -486,6 +486,10 @@ class TestAcademicResultsPersist:
             },
         )
         assert resp.status_code == 200
+        body = resp.get_json()
+        assert body.get("results_stale") is True
+        assert body.get("id_classe") == str(a["classe_id"])
+        assert body.get("id_period") == str(a["period_id"])
         row = (
             db.query(AcademicSubjectResult)
             .filter(
