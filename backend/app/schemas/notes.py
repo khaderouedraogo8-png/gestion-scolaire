@@ -1,6 +1,11 @@
 """Schémas notes, évaluations, bulletins."""
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
+from app.models.grading import SYSTEM_EVALUATION_TYPE_CODES
+
+# Catalogue contrôlé = source de vérité des types saisissables (PR #12 Step 4)
+EVALUATION_TYPE_CHOICES = [code for code, _label in SYSTEM_EVALUATION_TYPE_CODES]
+
 
 class MatiereSchema(Schema):
     id = fields.UUID(dump_only=True)
@@ -22,7 +27,7 @@ class EvaluationSchema(Schema):
     id_trimestre = fields.UUID(required=True)
     id_enseignant = fields.UUID(required=True)
     type_evaluation = fields.String(
-        required=True, validate=validate.OneOf(["devoir", "examen", "interrogation"])
+        required=True, validate=validate.OneOf(EVALUATION_TYPE_CHOICES)
     )
     coefficient = fields.Decimal(load_default=1)
     date_evaluation = fields.Date(required=True)
@@ -37,7 +42,7 @@ class EvaluationCreateSchema(Schema):
     id_trimestre = fields.UUID(required=True)
     id_enseignant = fields.UUID(required=False, allow_none=True)
     type_evaluation = fields.String(
-        required=True, validate=validate.OneOf(["devoir", "examen", "interrogation"])
+        required=True, validate=validate.OneOf(EVALUATION_TYPE_CHOICES)
     )
     coefficient = fields.Decimal(load_default=1)
     date_evaluation = fields.Date(required=True)

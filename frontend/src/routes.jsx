@@ -44,6 +44,8 @@ import Classes from './pages/etablissement/Classes';
 import Niveaux from './pages/etablissement/Niveaux';
 import Matieres from './pages/config/Matieres';
 import Coefficients from './pages/config/Coefficients';
+import GradingRulesets from './pages/config/GradingRulesets';
+import GradingRulesetDetail from './pages/config/GradingRulesetDetail';
 import CalendrierScolaire from './pages/config/CalendrierScolaire';
 import Trimestres from './pages/config/Trimestres';
 import AuditJournal from './pages/config/AuditJournal';
@@ -454,6 +456,22 @@ export const routes = [
         element: (
           <ProtectedRoute roles={CONFIG}>
             <Coefficients />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'config/regles-notation',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <GradingRulesets />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'config/regles-notation/:id',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <GradingRulesetDetail />
           </ProtectedRoute>
         ),
       },

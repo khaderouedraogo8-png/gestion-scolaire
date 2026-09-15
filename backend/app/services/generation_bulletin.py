@@ -48,9 +48,19 @@ def _get_trimestre_or_404(db, id_trimestre):
 
 
 def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
-    """Récupère les moyennes par matière depuis la vue matérialisée."""
+    """Moyennes matière : Rules Engine (Step 4) si ruleset ACTIVE, sinon vue legacy.
+
+    Ne recalcule pas les PDF — fournit les lignes consommées par le bulletin.
+    """
+    from app.services.academic_calculation_service import (
+        RulesResolutionCache,
+        calculate_student_period_results,
+        subject_results_to_moyenne_rows,
+    )
+    from app.services.grading_rules import GradingContextError, GradingRulesConflictError
+
     school_id = get_current_school_id()
-    rows = db.execute(
+    legacy_rows = db.execute(
         text("""
             SELECT m.id_matiere, mat.libelle, m.moyenne, cm.coefficient
             FROM moyenne_matiere_eleve m
@@ -63,15 +73,72 @@ def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
         """),
         {"id_eleve": id_eleve, "id_trimestre": id_trimestre, "school_id": school_id},
     ).fetchall()
-    return [
-        {
+    legacy_by_matiere = {
+        r[0]: {
             "id_matiere": r[0],
             "libelle": r[1],
             "moyenne": float(r[2]) if r[2] is not None else None,
             "coefficient": float(r[3]) if r[3] is not None else 1,
         }
-        for r in rows
-    ]
+        for r in legacy_rows
+    }
+
+    try:
+        results, _ga, _meta = calculate_student_period_results(
+            db,
+            id_eleve=id_eleve,
+            id_classe=id_classe,
+            id_period=id_trimestre,
+            cache=RulesResolutionCache(),
+            subject_ids=list(legacy_by_matiere.keys()) or None,
+        )
+    except (GradingRulesConflictError, GradingContextError) as exc:
+        # Conflit / contexte invalide : fallback legacy pour ne pas bloquer la génération
+        # historique. Visible via resolve API + log warning (Step 6 observabilité).
+        current_app.logger.warning(
+            "bulletin_moyennes_fallback_legacy eleve=%s classe=%s periode=%s err=%s",
+            id_eleve,
+            id_classe,
+            id_trimestre,
+            exc,
+        )
+        return list(legacy_by_matiere.values())
+
+    engine_rows = subject_results_to_moyenne_rows(db, results)
+    engine_by_matiere = {r["id_matiere"]: r for r in engine_rows}
+
+    # Fusion : ruleset gagne ; matières sans ruleset → legacy (vue)
+    merged = []
+    seen = set()
+    for mid, row in legacy_by_matiere.items():
+        seen.add(mid)
+        if mid in engine_by_matiere:
+            eng = engine_by_matiere[mid]
+            merged.append(
+                {
+                    "id_matiere": mid,
+                    "libelle": row["libelle"],
+                    "moyenne": eng["moyenne"],
+                    "coefficient": eng["coefficient"],
+                    "ruleset_id": eng.get("ruleset_id"),
+                    "ruleset_version": eng.get("ruleset_version"),
+                }
+            )
+        else:
+            merged.append(row)
+    for mid, eng in engine_by_matiere.items():
+        if mid not in seen:
+            merged.append(
+                {
+                    "id_matiere": mid,
+                    "libelle": eng.get("libelle"),
+                    "moyenne": eng["moyenne"],
+                    "coefficient": eng["coefficient"],
+                    "ruleset_id": eng.get("ruleset_id"),
+                    "ruleset_version": eng.get("ruleset_version"),
+                }
+            )
+    return merged
 
 
 def _appreciation_discipline(db, id_eleve, id_trimestre) -> str | None:

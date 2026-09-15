@@ -35,6 +35,13 @@ def error_body(code: str, message: str, *, details=None) -> dict:
     return payload
 
 
+def abort_api(status: int, code: str, message: str, *, details=None) -> None:
+    """Abort HTTP avec enveloppe PR7 + code métier explicite (pas un 2e format)."""
+    from flask import abort, jsonify, make_response
+
+    abort(make_response(jsonify(error_body(code, message, details=details)), status))
+
+
 def register_error_handlers(app) -> None:
     """Enregistre les handlers globaux (après init Flask-Smorest / JWT)."""
 

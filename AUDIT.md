@@ -859,3 +859,227 @@ School
 ### Post-merge
 
 Revalidation obligatoire sur `main` après merge (pytest, ruff, vitest, eslint, Vite build, tests migration/isolation).
+
+---
+
+## PR #12 — Grading Rules Engine (étape 1 — DB + modèles)
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Décisions (ADR intégré — pas de dossier `/docs/adr` existant)**
+
+### 1. Ruleset séparé du calcul
+`grading_ruleset` / `grading_rule_component` stockent la configuration. Aucune formule hardcodée. Le moteur de résolution/calcul arrive aux steps suivants.
+
+### 2. Versioning
+Version entière portée **sur la ligne ruleset** (`code` métier + `version` ≥ 1). Unicité `(school_id, code, version)`. Historique : v1/v2/v3 coexistent. Statuts `draft` | `active` | `archived`. Une version utilisée dans une publication future restera référencable (FK immuable côté BulletinData — hors step 1). Pas de table parent séparée (cohérent avec le style Program / AcademicPeriod du repo).
+
+### 3. Scopes (V1 Gate 1)
+Axes : `school_id` + `id_annee` (obligatoires) + `id_program?` + `id_niveau?` + `id_matiere?` (NULL = wildcard).  
+Pas de Class override ni Period axis en V1 (périodes trimestre/semestre restent sur AcademicPeriod).  
+CHECK : `id_niveau` exige `id_program`. Une seule table ruleset (pas 7 tables de scope).
+
+### 4. Evaluation weight ≠ subject coefficient
+`grading_rule_component.weight` (pourcentage moyenne matière) **≠** `coefficient_matiere.coefficient` (moyenne générale). `CoefficientMatiere` non modifié.
+
+### 5. Échelle
+`scale_max` Numeric, défaut produit BF `20.00`, évolutif (10/20/100). Pas de `/20` hardcodé dans le ruleset.
+
+### 6. Arrondi
+`rounding_mode` ∈ {`half_up`, `half_even`, `down`, `up`} + `rounding_precision` (défaut 2). Calcul non implémenté step 1.
+
+### 7. Missing ≠ zero
+Inchangé sur `note` (`valeur_note` nullable, `absent`). Le futur moteur ne doit jamais auto-mapper NULL→0. Statuts d’absence enrichis reportés aux steps notes.
+
+### 8. Types d’évaluation extensibles contrôlés
+Table `evaluation_type` **par école** (FK composite tenant-safe). Seed système (devoir, interrogation, composition, examen, tp, oral, projet, exam_blanc, rattrapage). Types custom école sans migration SQL.  
+`Evaluation.type_evaluation` CHECK legacy (`devoir|examen|interrogation`) **conservé** — pas de conversion step 1.  
+**Type ≠ contexte** : colonne `evaluation_context` (`normal|examen_blanc|rattrapage|session_2`) sur le composant ; table contexte dédiée possible plus tard.
+
+### 9. Ruleset indépendant du bulletin
+Aucun HTML/CSS/PDF/template/logo/couleur dans `grading_ruleset`. Architecture cible :
+`Rules Engine → Computed Results → BulletinData → BulletinTemplateVersion → Renderer`.
+
+### 10. Future BulletinData + TemplateVersion
+Ruleset versionné référencable par un futur résultat publié. Templates multi-versions hors scope (PR14). Bindings déclaratifs whitelistés uniquement (pas d’exec Python/SQL/JS).
+
+### 11. Tenant isolation
+`school_id` NOT NULL + `UniqueConstraint(id, school_id)` + FK composites vers année/program/niveau/matière/evaluation_type/ruleset.
+
+### 12. Poids
+Convention **pourcentage** `Numeric(5,2)` : `60.00` + `40.00` = `100.00`. Somme exacte 100 validée au **service** (pas de CHECK multi-lignes). CHECK ligne : `weight > 0 AND weight <= 100`.
+
+### Hors scope step 1
+resolve_grading_rules, calcul moyennes, workflow notes, templates bulletin, PDF v2, class council, AI, billing.
+
+### Backfill
+Aucun backfill des anciennes formules. Seed catalogue `evaluation_type` système par école uniquement. Notes/évaluations/bulletins/coefficients inchangés.
+
+---
+
+## PR #12 — Step 2 — Rules Resolution Engine
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Service :** `app/services/grading_rules.py` — `resolve_grading_rules(db, ResolutionContext)`
+
+### Décisions
+
+1. **Priorité des scopes (V1 réel)** — axes ruleset = Program? × Level? × Subject? (pas Class/Period en matching)  
+   Scores : subject=100, level=10, program=1 → hiérarchie déterministe  
+   `program+level+subject (111) > … > school/year (0)`
+2. **Pas de `query.first()`** — candidats scorés ; ex-aequo → `GradingRulesConflictError`
+3. **Conflit même spécificité** — y compris ACTIVE v1 + ACTIVE v2 même scope (version ≠ priorité)
+4. **ACTIVE uniquement** — DRAFT/ARCHIVED exclus
+5. **Tenant** — validation contexte avant matching ; IDs foreign school → `GradingContextError` (`TENANT_CONTEXT_ERROR`)
+6. **Validation composants** — `validate_component_weights` (somme exacte 100.00 %) réutilisable Step 3
+7. **Coefficient ≠ weight** — le moteur n’utilise pas `CoefficientMatiere`
+8. **Indépendance bulletin** — résultat structuré (`ResolvedGradingRules` + trace), zéro HTML/PDF
+9. **Class/Period dans le contexte** — validation de cohérence académique uniquement (matching V1 inchangé)
+10. **Immuabilité** — résolution en lecture seule ; gap Step 1 (pas de trigger DB) documenté pour Step 3/4
+
+### Hors scope Step 2
+API CRUD rulesets, calcul moyennes, frontend, bulletins, cache Redis.
+
+---
+
+## PR #12 — Step 3 — Grading Rulesets API
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Routes :** `/api/grading-rulesets*` + `/api/evaluation-types`  
+**Service :** `app/services/grading_rulesets.py` (consomme `resolve_grading_rules` Step 2)
+
+### Endpoints
+| Méthode | Endpoint | Rôle |
+|---------|----------|------|
+| GET | `/api/evaluation-types` | catalogue tenant |
+| GET | `/api/grading-rulesets` | liste paginée (sans composants) |
+| POST | `/api/grading-rulesets` | crée DRAFT (+ composants optionnels) |
+| GET | `/api/grading-rulesets/<id>` | détail + composants |
+| PATCH | `/api/grading-rulesets/<id>` | update DRAFT uniquement |
+| POST | `/api/grading-rulesets/<id>/components` | ajout composant (DRAFT) |
+| PATCH/DELETE | `…/components/<cid>` | update/delete (DRAFT) |
+| POST | `/api/grading-rulesets/<id>/activate` | DRAFT→ACTIVE (+ archive même code) |
+| POST | `/api/grading-rulesets/<id>/archive` | DRAFT\|ACTIVE→ARCHIVED |
+| POST | `/api/grading-rulesets/resolve` | résolution via moteur Step 2 (`diagnostic`) |
+
+### Décisions
+1. **school_id / status / version / created_by** — serveur uniquement ; spoof → 400
+2. **Axes Class/Period** — refusés à la création (V1 modèle) ; OK en resolve (validation contexte)
+3. **Somme poids 100 %** — exigée à l’activation (DRAFT peut être partiel)
+4. **Activation** — `SELECT … FOR UPDATE` ; auto-archive ACTIVE même `code` ; conflit si autre ACTIVE même scope
+5. **Erreurs** — enveloppe PR7 + `abort_api` codes métier (`NO_RULESET`, `RULESET_CONFLICT`, …)
+6. **RBAC** — lecture admin/directeur/secrétariat/enseignant/comptable ; écriture admin/directeur
+7. **Indépendance** — zéro notes / moyennes / bulletin / frontend
+
+### Hors scope Step 3
+Calcul moyennes, frontend configuration, bulletins, Excel, AI.
+
+---
+
+## PR #12 — Step 4 — Academic Calculation Engine
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Services :**
+- `app/services/academic_calculation.py` — moteur pur (Decimal, arrondi ruleset)
+- `app/services/academic_calculation_service.py` — orchestration DB + `resolve_grading_rules` + cache
+
+### Décisions
+1. **Flux** — ResolutionContext → Step 2 → `ResolvedGradingRules` → `calculate_subject_result` → moyenne matière → `calculate_general_average`
+2. **Agrégation** — moyenne arithmétique des notes par `evaluation_type_code`, puis × poids % du composant (jamais hardcodé)
+3. **missing ≠ 0** — `absent` / `None` exclus ; `0` explicite compte ; composante **requise** manquante → moyenne matière `None`
+4. **Optionnelles manquantes** — omises + renormalisation sur poids présents
+5. **Coefficient matière** — appliqué **après** la moyenne matière (`weighted_score`)
+6. **Arrondi** — un seul arrondi final (mode/précision du ruleset) ; pas de double rounding composante
+7. **scale_max** — porté par le résultat ; notes interprétées dans l'échelle du ruleset (pas de `/20` hardcodé)
+8. **Bulletin** — `_get_moyennes_eleve` utilise le moteur si ruleset ACTIVE, sinon vue matérialisée legacy
+9. **Types Evaluation** — CHECK élargi aux codes catalogue (`composition`, `tp`, …) — migration `grading_calc_pr12_step4`
+10. **Mentions / rangs** — inchangés (hors Rules Engine) ; toujours dans `calcul_moyennes.py`
+11. **Traçabilité** — `SubjectResult` porte `ruleset_id` + `version` ; **gap** : table `bulletin` ne persiste pas encore ces IDs
+12. **MV `moyenne_matiere_eleve`** — reste formule plate legacy (dashboard) ; peut diverger du moteur rules — risque non bloquant
+
+### Hors scope Step 4
+Frontend, BulletinTemplate, PDF layout, class council, mentions configurables, persistance historique ruleset sur bulletin.
+
+---
+
+## PR #12 — Step 5 — Frontend configuration des Rulesets
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Frontend :**
+- Routes `/config/regles-notation` + `/config/regles-notation/:id` (rôles CONFIG = admin/directeur/super_admin)
+- Pages `GradingRulesets.jsx`, `GradingRulesetDetail.jsx`
+- Client `services/api/grading.js` → APIs Step 3 uniquement
+- Libellés `utils/gradingLabels.js` (statuts / arrondi / politiques moteur lecture seule)
+
+### Décisions
+1. **Source de vérité** — backend Step 3 ; aucun calcul de moyenne côté JS
+2. **missing-grade policy** — pas de champ API ; panneau informatif aligné sur le moteur Step 4 (required → incomplete ; optional → renormalise ; 0 explicite ≠ missing)
+3. **Versioning** — immutabilité ACTIVE/ARCHIVED ; « Nouvelle version » = POST create même `code` (version auto serveur)
+4. **Historique** — liste filtrée par `code` via GET paginé (pas d’endpoint history dédié)
+5. **Poids ≠ coefficients** — copy UI explicite ; page Coefficients inchangée
+6. **Axes V1** — année / programme / niveau / matière ; classe & période non stockées (mention UI)
+7. **RBAC UI** — masque actions write si hors admin/directeur/super_admin ; backend reste autorité
+8. **Erreurs** — `apiErrorMessage` 403/404/409/… ; confirmation activate/archive/delete composante
+9. **Tests** — `gradingRulesets.test.jsx` (liste, permissions, 60/40, 30/20/50, poids invalides, scale/rounding, 403, 409, activation, missing≠0)
+
+### Hors scope Step 5
+Calculation Engine FE, bulletins, PDF, Excel, AI, class council, promotion, absences, multi-tenant nouveau.
+
+---
+
+## PR #12 — Step 6 — Validation exhaustive / QA / intégration
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Nature :** validation + corrections ciblées (pas de nouvelle feature métier).
+
+### Corrections Step 6
+1. **Tests renormalisation optionnelle** — couverture manquante pour `is_required=False` (30/20/50 TP manquant → 12.75 ; missing ≠ zero explicite ; required manquant reste BLOCK).
+2. **Helper `build_minimal_resolved_rules`** — accepte `(code, type, weight, is_required)`.
+3. **Observabilité bulletin** — log `warning` si fallback legacy sur `GradingRulesConflictError` / `GradingContextError` (comportement legacy conservé).
+
+### Résultats tests (Step 6)
+- Backend grading suites : **108 passed** (unit calc + specificity + foundation + resolution + API + integration calc)
+- Frontend Vitest : **35 passed** (dont 17 grading)
+- Ruff (modules grading) : OK
+- ESLint : 0 errors (3 warnings préexistants hors scope)
+- Vite build : OK
+
+### Policies missing réellement supportées (V1)
+| Policy conceptuelle | Support API configurable ? | Comportement moteur |
+|---------------------|----------------------------|---------------------|
+| BLOCK / REQUIRE_ALL (required missing) | Non (via `is_required=true`) | moyenne matière `None`, `incomplete=True` |
+| EXCLUDE + PARTIAL_NORMALIZATION (optional missing) | Non (via `is_required=false`) | omit + renormalise poids présents |
+| ZERO (missing→0) | **Non supporté** | jamais auto-map NULL→0 |
+| EXCLUDE sans renormalisation | **Non** | N/A |
+
+### Verdict
+**VALIDATION COMPLETE — PR12 READY FOR STEP 7 WITH NON-BLOCKING RISKS**
+
+Risques non bloquants documentés : pas de `missing_grade_policy` API ; axes classe/période absents V1 ; fallback bulletin legacy sur conflit (maintenant loggé) ; pas d’endpoint history dédié ; `evaluation_context` non utilisé au calcul ; MV dashboard legacy peut diverger.
+
+---
+
+## PR #12 — Step 7 — Final Audit / Cleanup / Merge Readiness
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Nature :** audit final + corrections résiduelles uniquement (pas de feature).
+
+### Corrections Step 7
+1. **Parent publication gate** — aligner filtres parent liste/notes sur `_PUBLICATION_GATED_EVAL_TYPES` (`examen|composition|exam_blanc`) après élargissement Step 4 (évite fuite composition non publiée).
+2. **Regression** — `test_parent_cannot_see_unpublished_composition_notes`.
+3. **Flake PR11** — `test_cannot_deactivate_general` : `per_page=100` (pagination).
+
+### Preuves finales
+- Backend `pytest` : **237 passed**
+- Frontend Vitest : **35 passed**
+- Ruff modules PR12 : OK
+- ESLint : 0 errors
+- Vite build : OK
+- Déterminisme calc : 5× même input → même Decimal
+
+### Architecture confirmée
+Frontend config → API → Rulesets service → Resolution → Calculation (pur) → résultats.  
+Pas de calcul FE ; calc n’appelle pas resolve ; resolve n’appelle pas calc.
+
+### Verdict
+**PR12 FINAL AUDIT COMPLETE — READY TO MERGE WITH NON-BLOCKING RISKS**
+

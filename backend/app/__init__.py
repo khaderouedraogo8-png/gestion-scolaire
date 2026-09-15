@@ -48,6 +48,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.emploi_temps import blp as emploi_temps_blp
     from app.routes.etablissement import blp as etablissement_blp
     from app.routes.finance import blp as finance_blp
+    from app.routes.grading import blp as grading_blp
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
     from app.routes.pedagogie import blp as pedagogie_blp
@@ -72,6 +73,7 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(notifications_blp, url_prefix="/api/notifications")
     api.register_blueprint(dashboard_blp, url_prefix="/api/dashboard")
     api.register_blueprint(audit_blp, url_prefix="/api/audit")
+    api.register_blueprint(grading_blp, url_prefix="/api")
 
     from app.utils.errors import register_error_handlers
 
