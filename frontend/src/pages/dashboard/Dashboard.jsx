@@ -251,7 +251,7 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="Administration"
         title="Tableau de bord"
-        subtitle="Vue d'ensemble de votre établissement scolaire"
+        subtitle="Vue d'ensemble claire de la vie de votre établissement"
         actions={
           <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
             <Plus className="h-4 w-4" strokeWidth={2} />

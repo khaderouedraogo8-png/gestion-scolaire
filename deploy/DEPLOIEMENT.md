@@ -1,5 +1,9 @@
 # Guide de déploiement production — Gestion Scolaire
 
+> **Sans VPS (recommandé)** : voir [RAILWAY.md](./RAILWAY.md) — hébergement managé Railway (HTTPS inclus).
+
+Ce document décrit le déploiement **Docker Compose** (PC local ou serveur).
+
 ## Architecture prod
 
 ```
@@ -16,7 +20,7 @@ Stack : `docker compose -f docker-compose.prod.yml` (projet Docker **`gestion-pr
 
 ---
 
-## Prérequis serveur (VPS)
+## Prérequis (Docker local ou serveur)
 
 - Ubuntu 22.04+ ou Debian 12+
 - Docker Engine + Docker Compose v2

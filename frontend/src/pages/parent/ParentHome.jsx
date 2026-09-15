@@ -1,5 +1,6 @@
 ﻿import { Link } from 'react-router-dom';
 import {
+  ArrowRight,
   BookOpen,
   ClipboardList,
   FileText,
@@ -50,23 +51,28 @@ export default function ParentHome() {
       <PageHeader
         eyebrow="Espace parent"
         title={`Bonjour, ${user?.prenom || 'parent'}`}
-        subtitle="Consultez les informations de vos enfants"
+        subtitle="Consultez les informations de vos enfants en un seul endroit"
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {CARDS.map(({ to, icon: Icon, title, subtitle }) => (
+        {CARDS.map(({ to, icon: Icon, title, subtitle }, index) => (
           <Link
             key={to}
             to={to}
-            className="card-premium group flex flex-col gap-3 transition-colors hover:border-or-cachet/35"
+            className="cycle-card group"
+            style={{ animation: `slide-up 0.4s ease-out ${index * 60}ms both` }}
           >
             <div className="stat-card-icon bg-or-cachet-clair text-or-cachet">
               <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
             </div>
-            <div>
-              <h2 className="font-display text-base font-medium text-encre">{title}</h2>
-              <p className="mt-1 text-sm text-texte-secondaire">{subtitle}</p>
+            <div className="mt-4">
+              <h2 className="font-display text-lg font-medium text-encre">{title}</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-texte-secondaire">{subtitle}</p>
             </div>
+            <span className="cycle-card-arrow">
+              Accéder
+              <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
+            </span>
           </Link>
         ))}
       </div>

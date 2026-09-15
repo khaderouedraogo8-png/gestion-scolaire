@@ -24,6 +24,9 @@ export default function Table({
     onSearch?.(value);
   };
 
+  const primaryCol = columns[0];
+  const secondaryCols = columns.slice(1);
+
   return (
     <div className="space-y-4">
       {(searchable || filters) && (
@@ -47,77 +50,140 @@ export default function Table({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-card border border-bordure bg-blanc">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-bordure/60 bg-craie/40">
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.03em] text-texte-secondaire ${
-                      col.align === 'right' ? 'text-right' : ''
-                    }`}
-                    style={{ width: col.width }}
-                  >
-                    {col.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-texte-secondaire">
-                      <div className="loading-ring h-5 w-5" />
-                      Chargement...
-                    </div>
-                  </td>
-                </tr>
-              ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="p-4">
-                    <EmptyState icon={emptyIcon} message={emptyMessage} />
-                  </td>
-                </tr>
-              ) : (
-                data.map((row) => (
-                  <tr
-                    key={row[keyField]}
-                    onClick={() => onRowClick?.(row)}
-                    className={`border-b border-bordure/50 last:border-b-0 transition-colors ${
-                      onRowClick ? 'cursor-pointer hover:bg-craie/60' : ''
-                    }`}
-                  >
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        className={`whitespace-nowrap px-4 py-3 text-sm text-encre ${
-                          col.align === 'right' ? 'text-right tabular-nums' : ''
-                        }`}
+      {loading ? (
+        <div className="flex justify-center py-14">
+          <div className="inline-flex items-center gap-2 text-sm text-texte-secondaire">
+            <div className="loading-ring h-5 w-5" />
+            Chargement…
+          </div>
+        </div>
+      ) : data.length === 0 ? (
+        <div className="table-shell p-4">
+          <EmptyState icon={emptyIcon} message={emptyMessage} />
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards — lisibles sans scroll horizontal */}
+          <div className="mobile-data-list">
+            {data.map((row) => {
+              const content = (
+                <>
+                  <p className="mobile-data-card-title">
+                    {primaryCol?.render ? primaryCol.render(row) : row[primaryCol?.key]}
+                  </p>
+                  {secondaryCols.map((col) => (
+                    <div key={col.key} className="mobile-data-row">
+                      <span className="mobile-data-label">{col.header}</span>
+                      <span
+                        className={`mobile-data-value ${col.align === 'right' ? 'tabular-nums' : ''}`}
                       >
                         {col.render ? col.render(row) : row[col.key]}
-                      </td>
+                      </span>
+                    </div>
+                  ))}
+                </>
+              );
+
+              if (onRowClick) {
+                return (
+                  <button
+                    key={row[keyField]}
+                    type="button"
+                    onClick={() => onRowClick(row)}
+                    className="mobile-data-card w-full cursor-pointer text-left transition-colors hover:border-or-cachet/40"
+                  >
+                    {content}
+                  </button>
+                );
+              }
+
+              return (
+                <div key={row[keyField]} className="mobile-data-card">
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="table-shell hidden md:block">
+            <div className="table-scroll">
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    {columns.map((col) => (
+                      <th
+                        key={col.key}
+                        className={`px-4 py-3.5 text-left text-[11px] font-medium uppercase tracking-[0.04em] text-texte-secondaire ${
+                          col.align === 'right' ? 'text-right' : ''
+                        }`}
+                        style={{ width: col.width }}
+                      >
+                        {col.header}
+                      </th>
                     ))}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {data.map((row) => (
+                    <tr
+                      key={row[keyField]}
+                      onClick={() => onRowClick?.(row)}
+                      className={onRowClick ? 'cursor-pointer' : ''}
+                    >
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className={`whitespace-nowrap px-4 py-3.5 text-sm text-encre ${
+                            col.align === 'right' ? 'text-right tabular-nums' : ''
+                          }`}
+                        >
+                          {col.render ? col.render(row) : row[col.key]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {pagination && (
-          <div className="flex flex-col items-center justify-between gap-3 border-t border-bordure px-4 py-3 sm:flex-row">
-            <p className="text-sm text-texte-secondaire">
-              {pagination.total > 0
-                ? `${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(
-                    pagination.page * pagination.perPage,
-                    pagination.total
-                  )} sur ${pagination.total}`
-                : '0 résultat'}
-            </p>
-            <div className="flex items-center gap-2">
+            {pagination && (
+              <div className="flex flex-col items-center justify-between gap-3 border-t border-bordure/80 bg-craie/25 px-4 py-3.5 sm:flex-row">
+                <p className="text-sm text-texte-secondaire">
+                  {pagination.total > 0
+                    ? `${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(
+                        pagination.page * pagination.perPage,
+                        pagination.total
+                      )} sur ${pagination.total}`
+                    : '0 résultat'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={pagination.page <= 1}
+                    onClick={() => pagination.onPageChange(pagination.page - 1)}
+                    className="btn-secondary px-3 py-1.5 text-xs"
+                  >
+                    Précédent
+                  </button>
+                  <span className="text-sm text-texte-secondaire">
+                    Page {pagination.page} / {pagination.totalPages || 1}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={pagination.page >= (pagination.totalPages || 1)}
+                    onClick={() => pagination.onPageChange(pagination.page + 1)}
+                    className="btn-secondary px-3 py-1.5 text-xs"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {pagination && (
+            <div className="flex items-center justify-between gap-3 md:hidden">
               <button
                 type="button"
                 disabled={pagination.page <= 1}
@@ -138,9 +204,9 @@ export default function Table({
                 Suivant
               </button>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function Header({
 
   return (
     <header className="header-premium sticky top-0 z-30 flex h-[4.25rem] items-center justify-between px-4 lg:px-8">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={onMenuClick}
@@ -52,8 +52,14 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="hidden items-center gap-3 rounded-card border border-bordure/60 bg-blanc/70 px-3 py-1.5 sm:flex">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-or-cachet/25 bg-or-cachet-clair text-sm font-medium text-or-cachet">
+        <div className="hidden items-center gap-3 rounded-card border border-bordure/70 bg-blanc/80 px-3 py-1.5 shadow-card sm:flex">
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-or-cachet/30 text-sm font-medium text-or-cachet"
+            style={{
+              background:
+                'radial-gradient(circle at 30% 25%, rgba(184,134,46,0.22), rgba(184,134,46,0.08))',
+            }}
+          >
             {initials}
           </div>
           <div className="text-left">
@@ -65,7 +71,13 @@ export default function Header({
             </p>
           </div>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-or-cachet/25 bg-or-cachet-clair text-sm font-medium text-or-cachet sm:hidden">
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-or-cachet/30 text-sm font-medium text-or-cachet sm:hidden"
+          style={{
+            background:
+              'radial-gradient(circle at 30% 25%, rgba(184,134,46,0.22), rgba(184,134,46,0.08))',
+          }}
+        >
           {initials}
         </div>
         <button
