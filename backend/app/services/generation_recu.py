@@ -8,19 +8,18 @@ from flask import current_app, render_template
 from app.extensions import get_db
 from app.models import Eleve, Etablissement, Paiement
 from app.services.pdf_render import html_to_pdf
+from app.services.tenant import get_or_404_tenant, tenant_query
 
 
 def generer_recu_pdf(paiement_id: uuid.UUID) -> str:
     """Génère le PDF du reçu de paiement."""
     db = get_db()
-    paiement = db.query(Paiement).filter(Paiement.id == paiement_id).first()
-    if not paiement:
-        raise ValueError("Paiement introuvable")
+    paiement = get_or_404_tenant(Paiement, paiement_id)
     if paiement.annule:
         raise ValueError("Paiement annulé — reçu non valide")
 
-    eleve = db.query(Eleve).filter(Eleve.id == paiement.id_eleve).first()
-    etablissement = db.query(Etablissement).first()
+    eleve = tenant_query(Eleve).filter(Eleve.id == paiement.id_eleve).first()
+    etablissement = tenant_query(Etablissement).first()
 
     html = render_template(
         "recu.html",

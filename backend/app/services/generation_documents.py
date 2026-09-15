@@ -16,6 +16,7 @@ from app.models import (
     NiveauEtude,
 )
 from app.services.pdf_render import html_to_pdf
+from app.services.tenant import apply_tenant_school, assert_same_school, get_or_404_tenant, tenant_query
 
 
 def _generer_pdf_document(
@@ -27,24 +28,20 @@ def _generer_pdf_document(
     titre: str,
 ) -> DocumentAdministratif:
     db = get_db()
-    eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-    if not eleve:
-        raise ValueError("Élève introuvable")
-
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
-    if not annee:
-        raise ValueError("Année scolaire introuvable")
+    eleve = get_or_404_tenant(Eleve, id_eleve)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
+    assert_same_school(eleve, annee)
 
     inscription = (
-        db.query(Inscription)
+        tenant_query(Inscription)
         .filter(Inscription.id_eleve == id_eleve, Inscription.id_annee == id_annee)
         .first()
     )
     if not inscription:
         raise ValueError("Élève non inscrit pour cette année")
 
-    classe = db.query(Classe).filter(Classe.id == inscription.id_classe).first()
-    etablissement = db.query(Etablissement).first()
+    classe = tenant_query(Classe).filter(Classe.id == inscription.id_classe).first()
+    etablissement = tenant_query(Etablissement).first()
 
     html = render_template(
         template_name,
@@ -70,6 +67,7 @@ def _generer_pdf_document(
         pdf_url=filepath,
         genere_par=id_utilisateur,
     )
+    apply_tenant_school(doc)
     db.add(doc)
     db.commit()
     return doc
@@ -109,29 +107,25 @@ def generer_diplome(
 ) -> DocumentAdministratif:
     """Génère un diplôme de fin d'études."""
     db = get_db()
-    eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-    if not eleve:
-        raise ValueError("Élève introuvable")
-
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
-    if not annee:
-        raise ValueError("Année scolaire introuvable")
+    eleve = get_or_404_tenant(Eleve, id_eleve)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
+    assert_same_school(eleve, annee)
 
     inscription = (
-        db.query(Inscription)
+        tenant_query(Inscription)
         .filter(Inscription.id_eleve == id_eleve, Inscription.id_annee == id_annee)
         .first()
     )
     if not inscription:
         raise ValueError("Élève non inscrit pour cette année")
 
-    classe = db.query(Classe).filter(Classe.id == inscription.id_classe).first()
+    classe = tenant_query(Classe).filter(Classe.id == inscription.id_classe).first()
     niveau = (
-        db.query(NiveauEtude).filter(NiveauEtude.id == classe.id_niveau).first()
+        tenant_query(NiveauEtude).filter(NiveauEtude.id == classe.id_niveau).first()
         if classe
         else None
     )
-    etablissement = db.query(Etablissement).first()
+    etablissement = tenant_query(Etablissement).first()
 
     from flask import render_template
 
@@ -160,6 +154,7 @@ def generer_diplome(
         pdf_url=filepath,
         genere_par=id_utilisateur,
     )
+    apply_tenant_school(doc)
     db.add(doc)
     db.commit()
     return doc

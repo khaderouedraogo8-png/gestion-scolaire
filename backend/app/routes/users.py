@@ -13,6 +13,7 @@ from app.auth.jwt_handler import get_current_user, hash_password
 from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import Utilisateur
+from app.services.tenant import apply_tenant_school, get_or_404_tenant, tenant_query
 from app.schemas.auth import (
     UpdateUserSchema,
     UserSchema,
@@ -47,7 +48,7 @@ class UsersList(MethodView):
         db = get_db()
         page, per_page = parse_pagination(default_per_page=50)
         items, total, pages = paginate_query(
-            db.query(Utilisateur).order_by(Utilisateur.nom, Utilisateur.prenom),
+            tenant_query(Utilisateur).order_by(Utilisateur.nom, Utilisateur.prenom),
             page,
             per_page,
         )
@@ -68,19 +69,18 @@ class UsersList(MethodView):
         db = get_db()
         if db.query(Utilisateur).filter(Utilisateur.email == data["email"]).first():
             return jsonify({"message": "Email déjà utilisé"}), 409
-        current = get_current_user()
-        user = Utilisateur(
-            id=uuid.uuid4(),
-            nom=data["nom"],
-            prenom=data["prenom"],
-            email=data["email"],
-            telephone=data.get("telephone"),
-            role=data["role"],
-            mot_de_passe_hash=hash_password(data["password"]),
-            actif=True,
-            doit_changer_mdp=True,
-            # Hérite du tenant de l'admin créateur (fondation Phase 1)
-            school_id=current.school_id if current else None,
+        user = apply_tenant_school(
+            Utilisateur(
+                id=uuid.uuid4(),
+                nom=data["nom"],
+                prenom=data["prenom"],
+                email=data["email"],
+                telephone=data.get("telephone"),
+                role=data["role"],
+                mot_de_passe_hash=hash_password(data["password"]),
+                actif=True,
+                doit_changer_mdp=True,
+            )
         )
         db.add(user)
         db.commit()
@@ -95,9 +95,7 @@ class UserDetail(MethodView):
     @blp.arguments(UpdateUserSchema)
     def patch(self, data, id_user):
         db = get_db()
-        user = db.query(Utilisateur).filter(Utilisateur.id == id_user).first()
-        if not user:
-            return jsonify({"message": "Utilisateur introuvable"}), 404
+        user = get_or_404_tenant(Utilisateur, id_user)
         if "actif" in data:
             user.actif = bool(data["actif"])
         if "role" in data:
@@ -115,9 +113,7 @@ class AdminResetPassword(MethodView):
     @require_role("administrateur", "directeur")
     def post(self, id_user):
         db = get_db()
-        user = db.query(Utilisateur).filter(Utilisateur.id == id_user).first()
-        if not user:
-            return jsonify({"message": "Utilisateur introuvable"}), 404
+        user = get_or_404_tenant(Utilisateur, id_user)
         temp = secrets.token_urlsafe(12)
         user.mot_de_passe_hash = hash_password(temp)
         user.doit_changer_mdp = True

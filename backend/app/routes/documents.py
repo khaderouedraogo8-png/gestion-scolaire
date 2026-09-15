@@ -24,6 +24,7 @@ from app.services.generation_documents import (
     generer_certificat_scolarite,
     generer_diplome,
 )
+from app.services.tenant import get_or_404_tenant, tenant_query
 from app.utils.pagination import paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("documents", __name__, url_prefix="/documents", description="Documents administratifs")
@@ -31,7 +32,7 @@ blp = Blueprint("documents", __name__, url_prefix="/documents", description="Doc
 
 def _serialize_document(db, doc):
     data = DocumentAdministratifSchema().dump(doc)
-    eleve = db.query(Eleve).filter(Eleve.id == doc.id_eleve).first()
+    eleve = tenant_query(Eleve).filter(Eleve.id == doc.id_eleve).first()
     if eleve:
         data["prenom"] = eleve.prenom
         data["nom"] = eleve.nom
@@ -45,10 +46,11 @@ class DocumentsResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat")
     def get(self):
         db = get_db()
-        q = db.query(DocumentAdministratif)
+        q = tenant_query(DocumentAdministratif)
         id_eleve = request.args.get("id_eleve")
         type_doc = request.args.get("type_document")
         if id_eleve:
+            get_or_404_tenant(Eleve, id_eleve)
             q = q.filter(DocumentAdministratif.id_eleve == uuid.UUID(id_eleve))
         if type_doc:
             q = q.filter(DocumentAdministratif.type_document == type_doc)
@@ -147,8 +149,8 @@ class DocumentPDF(MethodView):
     @require_role("administrateur", "directeur", "secretariat")
     def get(self, id_document):
         db = get_db()
-        doc = db.query(DocumentAdministratif).filter(DocumentAdministratif.id == id_document).first()
-        if not doc or not doc.pdf_url or not os.path.isfile(doc.pdf_url):
+        doc = get_or_404_tenant(DocumentAdministratif, id_document)
+        if not doc.pdf_url or not os.path.isfile(doc.pdf_url):
             return jsonify({"message": "PDF introuvable"}), 404
         return send_file(doc.pdf_url, mimetype="application/pdf", as_attachment=True)
 

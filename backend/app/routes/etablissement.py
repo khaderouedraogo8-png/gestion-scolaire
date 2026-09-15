@@ -1,7 +1,7 @@
 """Routes établissement, année scolaire, trimestre, niveau, classe."""
 import uuid
 
-from flask import jsonify, request
+from flask import abort, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -16,6 +16,12 @@ from app.models import (
     NiveauEtude,
     Trimestre,
 )
+from app.services.tenant import (
+    apply_tenant_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
+)
 from app.schemas.etablissement import (
     AnneeScolaireSchema,
     ClasseSchema,
@@ -28,14 +34,43 @@ from app.schemas.pedagogie import EvenementCalendrierSchema
 blp = Blueprint("etablissement", __name__, url_prefix="/etablissement", description="Configuration établissement")
 
 
+def _trimestres_tenant_query(db):
+    return (
+        db.query(Trimestre)
+        .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
+        .filter(AnneeScolaire.school_id == get_current_school_id())
+    )
+
+
+def _get_trimestre_or_404(db, id_trimestre):
+    trim = _trimestres_tenant_query(db).filter(Trimestre.id == id_trimestre).first()
+    if trim is None:
+        abort(404)
+    return trim
+
+
+def _evenements_tenant_query(db):
+    return (
+        db.query(EvenementCalendrier)
+        .join(AnneeScolaire, EvenementCalendrier.id_annee == AnneeScolaire.id)
+        .filter(AnneeScolaire.school_id == get_current_school_id())
+    )
+
+
+def _get_evenement_or_404(db, id_evenement):
+    event = _evenements_tenant_query(db).filter(EvenementCalendrier.id == id_evenement).first()
+    if event is None:
+        abort(404)
+    return event
+
+
 @blp.route("/")
 class EtablissementResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
     @blp.response(200, EtablissementSchema)
     def get(self):
-        db = get_db()
-        etab = db.query(Etablissement).first()
+        etab = tenant_query(Etablissement).first()
         if not etab:
             return jsonify({"message": "Établissement non configuré"}), 404
         return etab
@@ -46,10 +81,9 @@ class EtablissementResource(MethodView):
     @blp.response(201, EtablissementSchema)
     def post(self, data):
         db = get_db()
-        existing = db.query(Etablissement).first()
-        if existing:
-            return jsonify({"message": "Établissement déjà configuré (mono-établissement)"}), 409
-        etab = Etablissement(id=uuid.uuid4(), **data)
+        if tenant_query(Etablissement).first():
+            return jsonify({"message": "Établissement déjà configuré pour cette école"}), 409
+        etab = apply_tenant_school(Etablissement(id=uuid.uuid4(), **data))
         db.add(etab)
         db.commit()
         return etab, 201
@@ -60,7 +94,7 @@ class EtablissementResource(MethodView):
     @blp.response(200, EtablissementSchema)
     def put(self, data):
         db = get_db()
-        etab = db.query(Etablissement).first()
+        etab = tenant_query(Etablissement).first()
         if not etab:
             return jsonify({"message": "Établissement non configuré"}), 404
         for key, value in data.items():
@@ -77,8 +111,7 @@ class AnneesResource(MethodView):
     )
     @blp.response(200, AnneeScolaireSchema(many=True))
     def get(self):
-        db = get_db()
-        return db.query(AnneeScolaire).order_by(AnneeScolaire.date_debut.desc()).all()
+        return tenant_query(AnneeScolaire).order_by(AnneeScolaire.date_debut.desc()).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -87,8 +120,8 @@ class AnneesResource(MethodView):
     def post(self, data):
         db = get_db()
         if data.get("est_active"):
-            db.query(AnneeScolaire).update({"est_active": False})
-        annee = AnneeScolaire(id=uuid.uuid4(), **data)
+            tenant_query(AnneeScolaire).update({"est_active": False})
+        annee = apply_tenant_school(AnneeScolaire(id=uuid.uuid4(), **data))
         db.add(annee)
         db.commit()
         return annee, 201
@@ -102,11 +135,9 @@ class AnneeDetail(MethodView):
     @blp.response(200, AnneeScolaireSchema)
     def put(self, data, id_annee):
         db = get_db()
-        annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
-        if not annee:
-            return jsonify({"message": "Année introuvable"}), 404
+        annee = get_or_404_tenant(AnneeScolaire, id_annee)
         if data.get("est_active"):
-            db.query(AnneeScolaire).update({"est_active": False})
+            tenant_query(AnneeScolaire).update({"est_active": False})
         for key, value in data.items():
             setattr(annee, key, value)
         db.commit()
@@ -121,8 +152,9 @@ class TrimestresResource(MethodView):
     def get(self):
         db = get_db()
         id_annee = request.args.get("id_annee")
-        q = db.query(Trimestre)
+        q = _trimestres_tenant_query(db)
         if id_annee:
+            get_or_404_tenant(AnneeScolaire, id_annee)
             q = q.filter(Trimestre.id_annee == uuid.UUID(id_annee))
         return q.order_by(Trimestre.numero).all()
 
@@ -132,6 +164,7 @@ class TrimestresResource(MethodView):
     @blp.response(201, TrimestreSchema)
     def post(self, data):
         db = get_db()
+        get_or_404_tenant(AnneeScolaire, data["id_annee"])
         trim = Trimestre(id=uuid.uuid4(), **data)
         db.add(trim)
         db.commit()
@@ -146,9 +179,9 @@ class TrimestreDetail(MethodView):
     @blp.response(200, TrimestreSchema)
     def put(self, data, id_trimestre):
         db = get_db()
-        trim = db.query(Trimestre).filter(Trimestre.id == id_trimestre).first()
-        if not trim:
-            return jsonify({"message": "Trimestre introuvable"}), 404
+        trim = _get_trimestre_or_404(db, id_trimestre)
+        if "id_annee" in data:
+            get_or_404_tenant(AnneeScolaire, data["id_annee"])
         for key, value in data.items():
             setattr(trim, key, value)
         db.commit()
@@ -158,9 +191,7 @@ class TrimestreDetail(MethodView):
     @require_role("administrateur", "directeur")
     def delete(self, id_trimestre):
         db = get_db()
-        trim = db.query(Trimestre).filter(Trimestre.id == id_trimestre).first()
-        if not trim:
-            return jsonify({"message": "Trimestre introuvable"}), 404
+        trim = _get_trimestre_or_404(db, id_trimestre)
         db.delete(trim)
         db.commit()
         return jsonify({"message": "Trimestre supprimé"})
@@ -172,8 +203,7 @@ class NiveauxResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
     @blp.response(200, NiveauEtudeSchema(many=True))
     def get(self):
-        db = get_db()
-        return db.query(NiveauEtude).order_by(NiveauEtude.ordre).all()
+        return tenant_query(NiveauEtude).order_by(NiveauEtude.ordre).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -181,7 +211,7 @@ class NiveauxResource(MethodView):
     @blp.response(201, NiveauEtudeSchema)
     def post(self, data):
         db = get_db()
-        niveau = NiveauEtude(id=uuid.uuid4(), **data)
+        niveau = apply_tenant_school(NiveauEtude(id=uuid.uuid4(), **data))
         db.add(niveau)
         db.commit()
         return niveau, 201
@@ -204,7 +234,12 @@ class ClassesResource(MethodView):
         cycle = request.args.get("cycle")
         enriched = request.args.get("enriched", "").lower() in ("1", "true", "yes")
 
-        annee_uuid = uuid.UUID(id_annee) if id_annee else None
+        if id_annee:
+            get_or_404_tenant(AnneeScolaire, id_annee)
+            annee_uuid = uuid.UUID(id_annee)
+        else:
+            active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+            annee_uuid = active.id if active else None
         class_ids = None
         if user.role == "enseignant":
             class_ids = get_teacher_class_ids(user)
@@ -219,9 +254,9 @@ class ClassesResource(MethodView):
                 )
             )
 
-        q = db.query(Classe)
-        if id_annee:
-            q = q.filter(Classe.id_annee == uuid.UUID(id_annee))
+        q = tenant_query(Classe)
+        if annee_uuid:
+            q = q.filter(Classe.id_annee == annee_uuid)
         if class_ids is not None:
             if not class_ids:
                 return jsonify([])
@@ -234,7 +269,9 @@ class ClassesResource(MethodView):
     @blp.response(201, ClasseSchema)
     def post(self, data):
         db = get_db()
-        classe = Classe(id=uuid.uuid4(), **data)
+        get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        get_or_404_tenant(NiveauEtude, data["id_niveau"])
+        classe = apply_tenant_school(Classe(id=uuid.uuid4(), **data))
         db.add(classe)
         db.commit()
         return classe, 201
@@ -248,9 +285,11 @@ class ClasseDetail(MethodView):
     @blp.response(200, ClasseSchema)
     def put(self, data, id_classe):
         db = get_db()
-        classe = db.query(Classe).filter(Classe.id == id_classe).first()
-        if not classe:
-            return jsonify({"message": "Classe introuvable"}), 404
+        classe = get_or_404_tenant(Classe, id_classe)
+        if "id_annee" in data:
+            get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        if "id_niveau" in data:
+            get_or_404_tenant(NiveauEtude, data["id_niveau"])
         for key, value in data.items():
             setattr(classe, key, value)
         db.commit()
@@ -266,8 +305,9 @@ class CalendrierResource(MethodView):
         id_annee = request.args.get("id_annee")
         if not id_annee:
             return jsonify({"message": "id_annee requis"}), 400
+        get_or_404_tenant(AnneeScolaire, id_annee)
         rows = (
-            db.query(EvenementCalendrier)
+            _evenements_tenant_query(db)
             .filter(EvenementCalendrier.id_annee == uuid.UUID(id_annee))
             .order_by(EvenementCalendrier.date_debut)
             .all()
@@ -281,6 +321,7 @@ class CalendrierResource(MethodView):
         db = get_db()
         if data["date_fin"] < data["date_debut"]:
             return jsonify({"message": "La date de fin doit être après la date de début"}), 400
+        get_or_404_tenant(AnneeScolaire, data["id_annee"])
         event = EvenementCalendrier(id=uuid.uuid4(), **data)
         db.add(event)
         db.commit()
@@ -294,11 +335,11 @@ class CalendrierDetail(MethodView):
     @blp.arguments(EvenementCalendrierSchema)
     def put(self, data, id_evenement):
         db = get_db()
-        event = db.query(EvenementCalendrier).filter(EvenementCalendrier.id == id_evenement).first()
-        if not event:
-            return jsonify({"message": "Événement introuvable"}), 404
+        event = _get_evenement_or_404(db, id_evenement)
         if data["date_fin"] < data["date_debut"]:
             return jsonify({"message": "La date de fin doit être après la date de début"}), 400
+        if "id_annee" in data:
+            get_or_404_tenant(AnneeScolaire, data["id_annee"])
         for key, value in data.items():
             setattr(event, key, value)
         db.commit()
@@ -308,9 +349,7 @@ class CalendrierDetail(MethodView):
     @require_role("administrateur", "directeur")
     def delete(self, id_evenement):
         db = get_db()
-        event = db.query(EvenementCalendrier).filter(EvenementCalendrier.id == id_evenement).first()
-        if not event:
-            return jsonify({"message": "Événement introuvable"}), 404
+        event = _get_evenement_or_404(db, id_evenement)
         db.delete(event)
         db.commit()
         return jsonify({"message": "Événement supprimé"})

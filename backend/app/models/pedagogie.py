@@ -9,11 +9,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Numeric,
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -24,13 +26,22 @@ from app.extensions import Base
 
 class Matiere(Base):
     __tablename__ = "matiere"
+    __table_args__ = (UniqueConstraint("id", "school_id", name="uq_matiere_id_school"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     libelle: Mapped[str] = mapped_column(String(80), nullable=False)
     code: Mapped[str | None] = mapped_column(String(20))
 
 
 class CoefficientMatiere(Base):
+    """Parent-only : isolation via Matiere / NiveauEtude.school_id."""
+
     __tablename__ = "coefficient_matiere"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -41,12 +52,39 @@ class CoefficientMatiere(Base):
 
 class Evaluation(Base):
     __tablename__ = "evaluation"
+    __table_args__ = (
+        UniqueConstraint("id", "school_id", name="uq_evaluation_id_school"),
+        ForeignKeyConstraint(
+            ["id_classe", "school_id"],
+            ["classe.id", "classe.school_id"],
+            ondelete="CASCADE",
+            name="fk_evaluation_classe_school",
+        ),
+        ForeignKeyConstraint(
+            ["id_matiere", "school_id"],
+            ["matiere.id", "matiere.school_id"],
+            ondelete="CASCADE",
+            name="fk_evaluation_matiere_school",
+        ),
+        ForeignKeyConstraint(
+            ["id_enseignant", "school_id"],
+            ["enseignant.id", "enseignant.school_id"],
+            ondelete="RESTRICT",
+            name="fk_evaluation_enseignant_school",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id_classe: Mapped[uuid.UUID] = mapped_column(ForeignKey("classe.id", ondelete="CASCADE"), nullable=False)
-    id_matiere: Mapped[uuid.UUID] = mapped_column(ForeignKey("matiere.id", ondelete="CASCADE"), nullable=False)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    id_classe: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    id_matiere: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     id_trimestre: Mapped[uuid.UUID] = mapped_column(ForeignKey("trimestre.id", ondelete="CASCADE"), nullable=False)
-    id_enseignant: Mapped[uuid.UUID] = mapped_column(ForeignKey("enseignant.id", ondelete="RESTRICT"), nullable=False)
+    id_enseignant: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     type_evaluation: Mapped[str] = mapped_column(String(20), nullable=False)
     coefficient: Mapped[float] = mapped_column(Numeric(4, 2), default=1, nullable=False)
     date_evaluation: Mapped[date] = mapped_column(Date, nullable=False)
@@ -56,6 +94,8 @@ class Evaluation(Base):
 
 
 class ProgrammeDevoir(Base):
+    """Parent-only : isolation via Classe / Matiere.school_id."""
+
     __tablename__ = "programme_devoir"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -68,6 +108,8 @@ class ProgrammeDevoir(Base):
 
 
 class SeanceCours(Base):
+    """Parent-only : isolation via Classe / Matiere / Enseignant.school_id."""
+
     __tablename__ = "seance_cours"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -81,10 +123,30 @@ class SeanceCours(Base):
 
 class Note(Base):
     __tablename__ = "note"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["id_evaluation", "school_id"],
+            ["evaluation.id", "evaluation.school_id"],
+            ondelete="CASCADE",
+            name="fk_note_evaluation_school",
+        ),
+        ForeignKeyConstraint(
+            ["id_eleve", "school_id"],
+            ["eleve.id", "eleve.school_id"],
+            ondelete="CASCADE",
+            name="fk_note_eleve_school",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id_evaluation: Mapped[uuid.UUID] = mapped_column(ForeignKey("evaluation.id", ondelete="CASCADE"), nullable=False)
-    id_eleve: Mapped[uuid.UUID] = mapped_column(ForeignKey("eleve.id", ondelete="CASCADE"), nullable=False)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    id_evaluation: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     valeur_note: Mapped[float | None] = mapped_column(Numeric(4, 2))
     absent: Mapped[bool] = mapped_column(Boolean, default=False)
     appreciation: Mapped[str | None] = mapped_column(String(255))
@@ -96,9 +158,23 @@ class Note(Base):
 
 class Bulletin(Base):
     __tablename__ = "bulletin"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["id_eleve", "school_id"],
+            ["eleve.id", "eleve.school_id"],
+            ondelete="CASCADE",
+            name="fk_bulletin_eleve_school",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id_eleve: Mapped[uuid.UUID] = mapped_column(ForeignKey("eleve.id", ondelete="CASCADE"), nullable=False)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     id_trimestre: Mapped[uuid.UUID] = mapped_column(ForeignKey("trimestre.id", ondelete="CASCADE"), nullable=False)
     moyenne_generale: Mapped[float | None] = mapped_column(Numeric(4, 2))
     rang: Mapped[int | None] = mapped_column(Integer)

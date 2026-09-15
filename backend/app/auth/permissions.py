@@ -40,11 +40,14 @@ def require_role(*roles):
 
 
 def get_enseignant_for_user(user) -> Enseignant | None:
-    """Retourne l'entité enseignant liée à l'utilisateur."""
+    """Retourne l'entité enseignant liée à l'utilisateur (même école)."""
     if not user:
         return None
     db = get_db()
-    return db.query(Enseignant).filter(Enseignant.id_utilisateur == user.id).first()
+    q = db.query(Enseignant).filter(Enseignant.id_utilisateur == user.id)
+    if user.school_id:
+        q = q.filter(Enseignant.school_id == user.school_id)
+    return q.first()
 
 
 def teacher_has_class_access(user, id_classe: uuid.UUID) -> bool:
@@ -60,6 +63,7 @@ def teacher_has_class_access(user, id_classe: uuid.UUID) -> bool:
     affectation = (
         db.query(AffectationEnseignant)
         .filter(
+            AffectationEnseignant.school_id == enseignant.school_id,
             AffectationEnseignant.id_enseignant == enseignant.id,
             AffectationEnseignant.id_classe == id_classe,
         )
@@ -81,6 +85,7 @@ def teacher_has_matiere_classe_access(user, id_classe: uuid.UUID, id_matiere: uu
     affectation = (
         db.query(AffectationEnseignant)
         .filter(
+            AffectationEnseignant.school_id == enseignant.school_id,
             AffectationEnseignant.id_enseignant == enseignant.id,
             AffectationEnseignant.id_classe == id_classe,
             AffectationEnseignant.id_matiere == id_matiere,
@@ -97,7 +102,10 @@ def parent_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
     if user.role != "parent":
         return False
     db = get_db()
-    parent = db.query(ParentTuteur).filter(ParentTuteur.id_utilisateur == user.id).first()
+    q = db.query(ParentTuteur).filter(ParentTuteur.id_utilisateur == user.id)
+    if user.school_id:
+        q = q.filter(ParentTuteur.school_id == user.school_id)
+    parent = q.first()
     if not parent:
         return False
     link = (
@@ -105,7 +113,11 @@ def parent_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
         .filter(EleveParent.id_parent == parent.id, EleveParent.id_eleve == id_eleve)
         .first()
     )
-    return link is not None
+    if not link:
+        return False
+    # Anti cross-tenant : l'élève doit être de la même école
+    eleve = db.query(Eleve).filter(Eleve.id == id_eleve, Eleve.school_id == parent.school_id).first()
+    return eleve is not None
 
 
 def teacher_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
@@ -118,16 +130,14 @@ def teacher_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
     if not class_ids:
         return False
     db = get_db()
-    link = (
-        db.query(Inscription)
-        .filter(
-            Inscription.id_eleve == id_eleve,
-            Inscription.id_classe.in_(class_ids),
-            Inscription.statut.in_(("inscrit", "reinscrit")),
-        )
-        .first()
+    q = db.query(Inscription).filter(
+        Inscription.id_eleve == id_eleve,
+        Inscription.id_classe.in_(class_ids),
+        Inscription.statut.in_(("inscrit", "reinscrit")),
     )
-    return link is not None
+    if user.school_id:
+        q = q.filter(Inscription.school_id == user.school_id)
+    return q.first() is not None
 
 
 def can_view_medical_notes(user) -> bool:
@@ -145,7 +155,10 @@ def get_teacher_class_ids(user) -> list[uuid.UUID]:
     db = get_db()
     affectations = (
         db.query(AffectationEnseignant.id_classe)
-        .filter(AffectationEnseignant.id_enseignant == enseignant.id)
+        .filter(
+            AffectationEnseignant.id_enseignant == enseignant.id,
+            AffectationEnseignant.school_id == enseignant.school_id,
+        )
         .distinct()
         .all()
     )
@@ -155,11 +168,23 @@ def get_teacher_class_ids(user) -> list[uuid.UUID]:
 def get_parent_eleve_ids(user) -> list[uuid.UUID]:
     """Retourne les IDs élèves accessibles au parent."""
     db = get_db()
-    parent = db.query(ParentTuteur).filter(ParentTuteur.id_utilisateur == user.id).first()
+    q = db.query(ParentTuteur).filter(ParentTuteur.id_utilisateur == user.id)
+    if user.school_id:
+        q = q.filter(ParentTuteur.school_id == user.school_id)
+    parent = q.first()
     if not parent:
         return []
     links = db.query(EleveParent.id_eleve).filter(EleveParent.id_parent == parent.id).all()
-    return [l[0] for l in links]
+    eleve_ids = [l[0] for l in links]
+    if not eleve_ids or not parent.school_id:
+        return eleve_ids
+    # Restreindre aux élèves de la même école
+    rows = (
+        db.query(Eleve.id)
+        .filter(Eleve.id.in_(eleve_ids), Eleve.school_id == parent.school_id)
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 def get_parent_classe_ids(user, id_annee: uuid.UUID | None = None) -> list[uuid.UUID]:
@@ -172,10 +197,11 @@ def get_parent_classe_ids(user, id_annee: uuid.UUID | None = None) -> list[uuid.
         Inscription.id_eleve.in_(eleve_ids),
         Inscription.statut.in_(("inscrit", "reinscrit")),
     )
+    if user.school_id:
+        q = q.filter(Inscription.school_id == user.school_id)
     if id_annee:
         q = q.filter(Inscription.id_annee == id_annee)
     return list({row[0] for row in q.distinct().all()})
-
 
 def parent_has_classe_access(user, id_classe: uuid.UUID, id_annee: uuid.UUID | None = None) -> bool:
     """Vérifie qu'un parent a un enfant inscrit dans la classe."""

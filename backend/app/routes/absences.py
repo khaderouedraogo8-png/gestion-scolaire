@@ -15,9 +15,15 @@ from app.auth.permissions import (
     teacher_has_eleve_access,
 )
 from app.extensions import get_db
-from app.models import Absence, AnneeScolaire, Eleve, IncidentDisciplinaire, Inscription
+from app.models import Absence, AnneeScolaire, Classe, Eleve, IncidentDisciplinaire, Inscription
 from app.schemas.absences import AbsenceSchema, IncidentDisciplinaireSchema
 from app.services.envoi_notification import creer_notification
+from app.services.tenant import (
+    apply_tenant_school,
+    get_or_404_tenant,
+    reject_client_school_id,
+    tenant_query,
+)
 from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("absences", __name__, url_prefix="/absences", description="Absences et discipline")
@@ -25,7 +31,7 @@ blp = Blueprint("absences", __name__, url_prefix="/absences", description="Absen
 
 def _serialize_absence(db, absence):
     data = AbsenceSchema().dump(absence)
-    eleve = db.query(Eleve).filter(Eleve.id == absence.id_eleve).first()
+    eleve = tenant_query(Eleve).filter(Eleve.id == absence.id_eleve).first()
     if eleve:
         data["prenom"] = eleve.prenom
         data["nom"] = eleve.nom
@@ -36,7 +42,7 @@ def _serialize_absence(db, absence):
 
 def _serialize_incident(db, incident):
     data = IncidentDisciplinaireSchema().dump(incident)
-    eleve = db.query(Eleve).filter(Eleve.id == incident.id_eleve).first()
+    eleve = tenant_query(Eleve).filter(Eleve.id == incident.id_eleve).first()
     if eleve:
         data["prenom"] = eleve.prenom
         data["nom"] = eleve.nom
@@ -46,7 +52,7 @@ def _serialize_incident(db, incident):
 
 
 def _eleve_ids_for_classe(db, id_classe, id_annee=None):
-    q = db.query(Inscription.id_eleve).filter(
+    q = tenant_query(Inscription).with_entities(Inscription.id_eleve).filter(
         Inscription.id_classe == id_classe,
         Inscription.statut.in_(("inscrit", "reinscrit")),
     )
@@ -62,7 +68,7 @@ class AbsencesResource(MethodView):
     def get(self):
         db = get_db()
         user = get_current_user()
-        q = db.query(Absence)
+        q = tenant_query(Absence)
         id_eleve = request.args.get("id_eleve")
         id_classe = request.args.get("id_classe")
         date_debut = request.args.get("date_debut")
@@ -91,6 +97,7 @@ class AbsencesResource(MethodView):
 
         if id_classe:
             cid = uuid.UUID(id_classe)
+            get_or_404_tenant(Classe, cid)
             if user.role == "enseignant" and cid not in set(get_teacher_class_ids(user)):
                 return jsonify({"message": "Accès refusé"}), 403
             inscr_eleve_ids = _eleve_ids_for_classe(db, cid, id_annee=None)
@@ -100,6 +107,7 @@ class AbsencesResource(MethodView):
 
         if id_eleve:
             eid = uuid.UUID(id_eleve)
+            get_or_404_tenant(Eleve, eid)
             # Toujours vérifier l'objet AVANT de renvoyer une liste vide
             if user.role == "parent" and not parent_has_eleve_access(user, eid):
                 return jsonify({"message": "Accès refusé"}), 403
@@ -132,17 +140,20 @@ class AbsencesResource(MethodView):
     @blp.arguments(AbsenceSchema)
     @blp.response(201, AbsenceSchema)
     def post(self, data):
+        reject_client_school_id(request.get_json(silent=True))
         db = get_db()
         user = get_current_user()
         id_eleve = data["id_eleve"]
+        get_or_404_tenant(Eleve, id_eleve)
         if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé — élève hors de vos classes"}), 403
 
         absence = Absence(id=uuid.uuid4(), signale_par=user.id, **data)
+        apply_tenant_school(absence)
         db.add(absence)
         db.commit()
 
-        eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
+        eleve = tenant_query(Eleve).filter(Eleve.id == id_eleve).first()
         nom_eleve = f"{eleve.prenom} {eleve.nom}" if eleve else "Votre enfant"
         creer_notification(
             canal="email",
@@ -161,9 +172,7 @@ class AbsenceDetail(MethodView):
     def put(self, data, id_absence):
         db = get_db()
         user = get_current_user()
-        absence = db.query(Absence).filter(Absence.id == id_absence).first()
-        if not absence:
-            return jsonify({"message": "Absence introuvable"}), 404
+        absence = get_or_404_tenant(Absence, id_absence)
         if user.role == "enseignant" and not teacher_has_eleve_access(user, absence.id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
         for key, value in data.items():
@@ -180,14 +189,14 @@ class DisciplineResource(MethodView):
     def get(self):
         db = get_db()
         user = get_current_user()
-        q = db.query(IncidentDisciplinaire)
+        q = tenant_query(IncidentDisciplinaire)
         id_eleve = request.args.get("id_eleve")
 
         if user.role == "enseignant":
             class_ids = get_teacher_class_ids(user)
             if not class_ids:
                 return jsonify(empty_pagination())
-            annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
             allowed = []
             for cid in class_ids:
                 allowed.extend(_eleve_ids_for_classe(db, cid, annee.id if annee else None))
@@ -197,6 +206,7 @@ class DisciplineResource(MethodView):
 
         if id_eleve:
             eid = uuid.UUID(id_eleve)
+            get_or_404_tenant(Eleve, eid)
             if user.role == "enseignant" and not teacher_has_eleve_access(user, eid):
                 return jsonify({"message": "Accès refusé"}), 403
             q = q.filter(IncidentDisciplinaire.id_eleve == eid)
@@ -219,11 +229,14 @@ class DisciplineResource(MethodView):
     @blp.arguments(IncidentDisciplinaireSchema)
     @blp.response(201, IncidentDisciplinaireSchema)
     def post(self, data):
+        reject_client_school_id(request.get_json(silent=True))
         db = get_db()
         user = get_current_user()
+        get_or_404_tenant(Eleve, data["id_eleve"])
         if user.role == "enseignant" and not teacher_has_eleve_access(user, data["id_eleve"]):
             return jsonify({"message": "Accès refusé — élève hors de vos classes"}), 403
         incident = IncidentDisciplinaire(id=uuid.uuid4(), declare_par=user.id, **data)
+        apply_tenant_school(incident)
         db.add(incident)
         db.commit()
         return incident, 201

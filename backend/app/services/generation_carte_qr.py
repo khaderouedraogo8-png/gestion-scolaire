@@ -12,6 +12,7 @@ from flask import current_app, render_template
 from app.extensions import get_db
 from app.models import DocumentAdministratif, Eleve, Etablissement, Inscription
 from app.services.pdf_render import html_to_pdf
+from app.services.tenant import apply_tenant_school, assert_same_school, get_or_404_tenant, tenant_query
 
 
 def _sign_payload(payload: dict) -> str:
@@ -59,19 +60,21 @@ def generer_carte_scolaire(
 ) -> DocumentAdministratif:
     """Génère une carte scolaire PDF avec QR code HMAC."""
     db = get_db()
-    eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-    if not eleve:
-        raise ValueError("Élève introuvable")
+    from app.models import AnneeScolaire, Classe
 
-    from app.models import AnneeScolaire
+    eleve = get_or_404_tenant(Eleve, id_eleve)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
+    assert_same_school(eleve, annee)
 
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
     inscription = (
-        db.query(Inscription)
+        tenant_query(Inscription)
         .filter(Inscription.id_eleve == id_eleve, Inscription.id_annee == id_annee)
         .first()
     )
-    etablissement = db.query(Etablissement).first()
+    if not inscription:
+        raise ValueError("Élève non inscrit pour cette année")
+
+    etablissement = tenant_query(Etablissement).first()
 
     qr_data = generer_qr_data(eleve, annee.libelle if annee else "")
 
@@ -82,11 +85,7 @@ def generer_carte_scolaire(
     qr_path = os.path.join(qr_dir, f"qr_{eleve.matricule}.png")
     qr.save(qr_path)
 
-    from app.models import Classe
-
-    classe = (
-        db.query(Classe).filter(Classe.id == inscription.id_classe).first() if inscription else None
-    )
+    classe = tenant_query(Classe).filter(Classe.id == inscription.id_classe).first()
 
     html = render_template(
         "carte_scolaire.html",
@@ -114,6 +113,7 @@ def generer_carte_scolaire(
         pdf_url=filepath,
         genere_par=id_utilisateur,
     )
+    apply_tenant_school(doc)
     db.add(doc)
     db.commit()
     return doc

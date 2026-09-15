@@ -8,6 +8,7 @@ from flask_smorest import Blueprint
 from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import JournalAudit, Utilisateur
+from app.services.tenant import tenant_query
 
 blp = Blueprint("audit", __name__, description="Journal d'audit")
 
@@ -38,7 +39,7 @@ class AuditList(MethodView):
     @require_role("administrateur", "directeur")
     def get(self):
         db = get_db()
-        q = db.query(JournalAudit).order_by(JournalAudit.created_at.desc())
+        q = tenant_query(JournalAudit).order_by(JournalAudit.created_at.desc())
         action = request.args.get("action")
         if action:
             q = q.filter(JournalAudit.action == action)

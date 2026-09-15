@@ -38,6 +38,14 @@ from app.schemas.eleve import (
     InscriptionStatutSchema,
     ParentTuteurSchema,
 )
+from app.services.tenant import (
+    apply_tenant_school,
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    reject_client_school_id,
+    tenant_query,
+)
 from app.utils.audit_logger import log_audit
 from app.utils.chiffrement import chiffrer_notes_medicales, dechiffrer_notes_medicales
 
@@ -46,18 +54,20 @@ blp = Blueprint("eleves", __name__, url_prefix="/eleves", description="Gestion d
 
 def _generer_matricule(db, id_annee: uuid.UUID) -> str:
     """Génère un matricule selon le format configuré dans etablissement."""
-    etab = db.query(Etablissement).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
+    school_id = get_current_school_id()
+    etab = db.query(Etablissement).filter(Etablissement.school_id == school_id).first()
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
     format_str = (etab.format_matricule if etab else None) or "{ANNEE}M-{SEQ}"
     annee_court = annee.libelle[:4] if annee else str(date.today().year)
-    count = db.query(Eleve).count() + 1
+    count = tenant_query(Eleve).count() + 1
     matricule = format_str.replace("{ANNEE}", annee_court).replace("{SEQ}", str(count).zfill(3))
     return matricule
 
 
 def _get_parents(db, id_eleve):
     return (
-        db.query(ParentTuteur, EleveParent.tuteur_legal)
+        tenant_query(ParentTuteur)
+        .add_columns(EleveParent.tuteur_legal)
         .join(EleveParent, EleveParent.id_parent == ParentTuteur.id)
         .filter(EleveParent.id_eleve == id_eleve)
         .all()
@@ -66,8 +76,8 @@ def _get_parents(db, id_eleve):
 
 def _serialize_inscription(db, inscription):
     data = InscriptionSchema().dump(inscription)
-    classe = db.query(Classe).filter(Classe.id == inscription.id_classe).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == inscription.id_annee).first()
+    classe = tenant_query(Classe).filter(Classe.id == inscription.id_classe).first()
+    annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == inscription.id_annee).first()
     data["classe_nom"] = classe.libelle if classe else None
     data["annee_libelle"] = annee.libelle if annee else None
     return data
@@ -75,19 +85,19 @@ def _serialize_inscription(db, inscription):
 
 def _serialize_eleve_list_item(db, eleve, id_annee=None):
     result = EleveSchema().dump(eleve)
-    inscr_q = db.query(Inscription).filter(Inscription.id_eleve == eleve.id)
+    inscr_q = tenant_query(Inscription).filter(Inscription.id_eleve == eleve.id)
     if id_annee:
         inscr_q = inscr_q.filter(Inscription.id_annee == id_annee)
     inscr = inscr_q.order_by(Inscription.date_inscription.desc()).first()
     if inscr:
-        classe = db.query(Classe).filter(Classe.id == inscr.id_classe).first()
+        classe = tenant_query(Classe).filter(Classe.id == inscr.id_classe).first()
         result["statut"] = inscr.statut
         result["est_boursier"] = inscr.est_boursier
         result["id_classe"] = str(inscr.id_classe)
         result["id_annee"] = str(inscr.id_annee)
         result["classe_nom"] = classe.libelle if classe else None
         if classe:
-            niveau = db.query(NiveauEtude).filter(NiveauEtude.id == classe.id_niveau).first()
+            niveau = tenant_query(NiveauEtude).filter(NiveauEtude.id == classe.id_niveau).first()
             if niveau:
                 result["niveau_libelle"] = niveau.libelle
                 result["cycle"] = niveau.cycle
@@ -103,7 +113,7 @@ class ElevesList(MethodView):
     def get(self):
         db = get_db()
         user = get_current_user()
-        q = db.query(Eleve)
+        q = tenant_query(Eleve)
         statut = request.args.get("statut")
         id_classe = request.args.get("id_classe")
         id_annee = request.args.get("id_annee")
@@ -111,8 +121,13 @@ class ElevesList(MethodView):
         page = max(int(request.args.get("page", 1)), 1)
         per_page = min(max(int(request.args.get("per_page", 15)), 1), 100)
 
+        if id_classe:
+            get_or_404_tenant(Classe, id_classe)
+        if id_annee:
+            get_or_404_tenant(AnneeScolaire, id_annee)
+
         if statut == "boursier" or id_classe or (statut and statut != "boursier") or id_annee:
-            q = q.join(Inscription)
+            q = q.join(Inscription).filter(Inscription.school_id == get_current_school_id())
             if id_annee:
                 q = q.filter(Inscription.id_annee == uuid.UUID(id_annee))
             if id_classe:
@@ -143,7 +158,7 @@ class ElevesList(MethodView):
 
         annee_uuid = uuid.UUID(id_annee) if id_annee else None
         if not annee_uuid:
-            active = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+            active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
             annee_uuid = active.id if active else None
 
         return jsonify({
@@ -159,6 +174,11 @@ class ElevesList(MethodView):
     @blp.response(201, EleveDetailSchema)
     def post(self, data):
         db = get_db()
+        reject_client_school_id(request.json)
+        classe = get_or_404_tenant(Classe, data["id_classe"])
+        annee = get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        assert_same_school(classe, annee)
+
         matricule = _generer_matricule(db, data["id_annee"])
 
         eleve = Eleve(
@@ -171,6 +191,7 @@ class ElevesList(MethodView):
             lieu_naissance=data.get("lieu_naissance"),
             adresse=data.get("adresse"),
         )
+        apply_tenant_school(eleve)
         if data.get("notes_medicales"):
             eleve.notes_medicales_chiffrees = chiffrer_notes_medicales(data["notes_medicales"])
 
@@ -182,11 +203,14 @@ class ElevesList(MethodView):
             id_classe=data["id_classe"],
             id_annee=data["id_annee"],
         )
+        apply_tenant_school(inscription)
+        assert_same_school(eleve, classe, annee, inscription)
         db.add(inscription)
 
         for p_data in data.get("parents", []):
             tuteur_legal = p_data.pop("tuteur_legal", False)
             parent = ParentTuteur(id=uuid.uuid4(), **p_data)
+            apply_tenant_school(parent)
             db.add(parent)
             db.flush()
             link = EleveParent(id_eleve=eleve.id, id_parent=parent.id, tuteur_legal=tuteur_legal)
@@ -211,9 +235,7 @@ class EleveDetail(MethodView):
         if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
 
-        eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-        if not eleve:
-            return jsonify({"message": "Élève introuvable"}), 404
+        eleve = get_or_404_tenant(Eleve, id_eleve)
 
         result = EleveSchema().dump(eleve)
         if eleve.photo_url:
@@ -228,15 +250,15 @@ class EleveDetail(MethodView):
             parents.append(p)
         result["parents"] = parents
 
-        active = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+        active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
         if active:
             inscr = (
-                db.query(Inscription)
+                tenant_query(Inscription)
                 .filter(Inscription.id_eleve == id_eleve, Inscription.id_annee == active.id)
                 .first()
             )
             if inscr:
-                classe = db.query(Classe).filter(Classe.id == inscr.id_classe).first()
+                classe = tenant_query(Classe).filter(Classe.id == inscr.id_classe).first()
                 result["statut"] = inscr.statut
                 result["est_boursier"] = inscr.est_boursier
                 result["classe_nom"] = classe.libelle if classe else None
@@ -249,9 +271,7 @@ class EleveDetail(MethodView):
     @blp.response(200, EleveSchema)
     def put(self, data, id_eleve):
         db = get_db()
-        eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-        if not eleve:
-            return jsonify({"message": "Élève introuvable"}), 404
+        eleve = get_or_404_tenant(Eleve, id_eleve)
         notes_med = request.json.get("notes_medicales") if request.json else None
         for key, value in data.items():
             if key != "matricule":
@@ -273,7 +293,8 @@ class InscriptionsEleve(MethodView):
         user = get_current_user()
         if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
-        inscriptions = db.query(Inscription).filter(Inscription.id_eleve == id_eleve).all()
+        get_or_404_tenant(Eleve, id_eleve)
+        inscriptions = tenant_query(Inscription).filter(Inscription.id_eleve == id_eleve).all()
         return jsonify([_serialize_inscription(db, i) for i in inscriptions])
 
     @jwt_required()
@@ -282,8 +303,14 @@ class InscriptionsEleve(MethodView):
     @blp.response(201, InscriptionSchema)
     def post(self, data, id_eleve):
         db = get_db()
+        reject_client_school_id(request.json)
+        eleve = get_or_404_tenant(Eleve, id_eleve)
+        classe = get_or_404_tenant(Classe, data["id_classe"])
+        annee = get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        assert_same_school(eleve, classe, annee)
+
         existing = (
-            db.query(Inscription)
+            tenant_query(Inscription)
             .filter(
                 Inscription.id_eleve == id_eleve,
                 Inscription.id_annee == data["id_annee"],
@@ -294,6 +321,8 @@ class InscriptionsEleve(MethodView):
             return jsonify({"message": "Une inscription existe déjà pour cette année scolaire"}), 409
 
         inscription = Inscription(id=uuid.uuid4(), id_eleve=id_eleve, **data)
+        apply_tenant_school(inscription)
+        assert_same_school(eleve, classe, annee, inscription)
         db.add(inscription)
         db.commit()
         return _serialize_inscription(db, inscription), 201
@@ -306,9 +335,7 @@ class InscriptionStatut(MethodView):
     @blp.arguments(InscriptionStatutSchema)
     def patch(self, data, id_inscription):
         db = get_db()
-        inscription = db.query(Inscription).filter(Inscription.id == id_inscription).first()
-        if not inscription:
-            return jsonify({"message": "Inscription introuvable"}), 404
+        inscription = get_or_404_tenant(Inscription, id_inscription)
         statut = data["statut"]
         inscription.statut = statut
         inscription.date_statut_maj = date.today()
@@ -330,9 +357,7 @@ class EleveUpload(MethodView):
     @require_role("administrateur", "directeur", "secretariat")
     def post(self, id_eleve):
         db = get_db()
-        eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-        if not eleve:
-            return jsonify({"message": "Élève introuvable"}), 404
+        eleve = get_or_404_tenant(Eleve, id_eleve)
 
         if "file" not in request.files:
             return jsonify({"message": "Fichier requis"}), 400
@@ -394,8 +419,8 @@ class ElevePhoto(MethodView):
             return jsonify({"message": "Accès refusé"}), 403
         if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
-        eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-        if not eleve or not eleve.photo_url or not os.path.isfile(eleve.photo_url):
+        eleve = get_or_404_tenant(Eleve, id_eleve)
+        if not eleve.photo_url or not os.path.isfile(eleve.photo_url):
             return jsonify({"message": "Photo introuvable"}), 404
         return send_file(eleve.photo_url)
 
@@ -406,9 +431,7 @@ class ElevePhoto(MethodView):
     @require_role("administrateur", "directeur", "secretariat")
     def post(self, id_eleve):
         db = get_db()
-        eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-        if not eleve:
-            return jsonify({"message": "Élève introuvable"}), 404
+        eleve = get_or_404_tenant(Eleve, id_eleve)
         if "file" not in request.files:
             return jsonify({"message": "Fichier requis"}), 400
         file = request.files["file"]

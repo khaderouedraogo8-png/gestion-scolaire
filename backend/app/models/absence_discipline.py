@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, ForeignKeyConstraint, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,8 +13,22 @@ from app.extensions import Base
 
 class Absence(Base):
     __tablename__ = "absence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["id_eleve", "school_id"],
+            ["eleve.id", "eleve.school_id"],
+            ondelete="CASCADE",
+            name="fk_absence_eleve_school",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     id_creneau: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     date_absence: Mapped[date] = mapped_column(Date, nullable=False)
@@ -27,8 +41,22 @@ class Absence(Base):
 
 class IncidentDisciplinaire(Base):
     __tablename__ = "incident_disciplinaire"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["id_eleve", "school_id"],
+            ["eleve.id", "eleve.school_id"],
+            ondelete="CASCADE",
+            name="fk_incident_disciplinaire_eleve_school",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     id_trimestre: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     type_incident: Mapped[str | None] = mapped_column(String(30))

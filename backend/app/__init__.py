@@ -95,7 +95,7 @@ def create_app(config_name: str | None = None) -> Flask:
         if not annee:
             print("Aucune année active.")
             return
-        result = relancer_arrieres(db, annee.id, auto_envoyer=True)
+        result = relancer_arrieres(db, annee.id, auto_envoyer=True, school_id=annee.school_id)
         print(result)
 
     @application.cli.command("traiter-notifications")

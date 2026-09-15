@@ -13,6 +13,7 @@ from app.services.envoi_notification import (
     creer_notification,
     traiter_file_notifications,
 )
+from app.services.tenant import get_or_404_tenant, tenant_query
 
 blp = Blueprint("notifications", __name__, url_prefix="/notifications", description="Notifications")
 
@@ -23,8 +24,7 @@ class NotificationsResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat")
     @blp.response(200, NotificationSchema(many=True))
     def get(self):
-        db = get_db()
-        q = db.query(Notification)
+        q = tenant_query(Notification)
         statut = request.args.get("statut")
         if statut:
             q = q.filter(Notification.statut == statut)
@@ -54,9 +54,7 @@ class RetryNotification(MethodView):
     @require_role("administrateur", "directeur", "secretariat")
     def post(self, id_notification):
         db = get_db()
-        notif = db.query(Notification).filter(Notification.id == id_notification).first()
-        if not notif:
-            return jsonify({"message": "Notification introuvable"}), 404
+        notif = get_or_404_tenant(Notification, id_notification)
         notif.statut = "en_attente"
         notif.tentative_count = 0
         db.commit()

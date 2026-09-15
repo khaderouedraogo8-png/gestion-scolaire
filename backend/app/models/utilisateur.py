@@ -35,11 +35,11 @@ class Utilisateur(Base):
     derniere_connexion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     tentatives_echouees: Mapped[int] = mapped_column(SmallInteger, default=0)
     verrouille_jusqu_a: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Tenant SaaS — nullable en Phase 1 (migration progressive)
-    school_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Tenant SaaS — NOT NULL après PR #9 (isolation réelle)
+    school_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("schools.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
