@@ -153,6 +153,7 @@ const menuItems = [
       { label: 'Calendrier scolaire', path: '/config/calendrier' },
       { label: 'Matières', path: '/config/matieres' },
       { label: 'Coefficients', path: '/config/coefficients' },
+      { label: 'Règles de notation', path: '/config/regles-notation' },
       { label: 'Utilisateurs', path: '/config/utilisateurs' },
       { label: 'Journal audit', path: '/config/audit' },
     ],

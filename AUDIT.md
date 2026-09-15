@@ -998,3 +998,29 @@ Calcul moyennes, frontend configuration, bulletins, Excel, AI.
 
 ### Hors scope Step 4
 Frontend, BulletinTemplate, PDF layout, class council, mentions configurables, persistance historique ruleset sur bulletin.
+
+---
+
+## PR #12 — Step 5 — Frontend configuration des Rulesets
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Frontend :**
+- Routes `/config/regles-notation` + `/config/regles-notation/:id` (rôles CONFIG = admin/directeur/super_admin)
+- Pages `GradingRulesets.jsx`, `GradingRulesetDetail.jsx`
+- Client `services/api/grading.js` → APIs Step 3 uniquement
+- Libellés `utils/gradingLabels.js` (statuts / arrondi / politiques moteur lecture seule)
+
+### Décisions
+1. **Source de vérité** — backend Step 3 ; aucun calcul de moyenne côté JS
+2. **missing-grade policy** — pas de champ API ; panneau informatif aligné sur le moteur Step 4 (required → incomplete ; optional → renormalise ; 0 explicite ≠ missing)
+3. **Versioning** — immutabilité ACTIVE/ARCHIVED ; « Nouvelle version » = POST create même `code` (version auto serveur)
+4. **Historique** — liste filtrée par `code` via GET paginé (pas d’endpoint history dédié)
+5. **Poids ≠ coefficients** — copy UI explicite ; page Coefficients inchangée
+6. **Axes V1** — année / programme / niveau / matière ; classe & période non stockées (mention UI)
+7. **RBAC UI** — masque actions write si hors admin/directeur/super_admin ; backend reste autorité
+8. **Erreurs** — `apiErrorMessage` 403/404/409/… ; confirmation activate/archive/delete composante
+9. **Tests** — `gradingRulesets.test.jsx` (liste, permissions, 60/40, 30/20/50, poids invalides, scale/rounding, 403, 409, activation, missing≠0)
+
+### Hors scope Step 5
+Calculation Engine FE, bulletins, PDF, Excel, AI, class council, promotion, absences, multi-tenant nouveau.
+
