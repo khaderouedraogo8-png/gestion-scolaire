@@ -2,8 +2,8 @@
 -- PROGICIEL INTÉGRÉ DE GESTION SCOLAIRE
 -- Schéma de base de données PostgreSQL 15+
 -- Architecture MULTI-TENANT (base PostgreSQL partagée, isolation par school_id)
--- Référence CI / schéma cible — PR #9 true multi-tenant isolation
--- (voir migrations Alembic tenant_* ; profil école `etablissement` 1:1 avec `schools`)
+-- Référence CI / schéma cible — PR #10 SUPER_ADMIN + onboarding
+-- (voir migrations Alembic tenant_* + platform_super_admin)
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -26,6 +26,7 @@ CREATE TABLE schools (
     is_active            BOOLEAN NOT NULL DEFAULT true,
     created_at           TIMESTAMPTZ DEFAULT now(),
     updated_at           TIMESTAMPTZ DEFAULT now()
+    -- created_by ajouté après utilisateur (FK circulaire)
 );
 
 -- ============================================================================
@@ -84,15 +85,26 @@ CREATE TABLE utilisateur (
     telephone            VARCHAR(30),
     mot_de_passe_hash    TEXT NOT NULL,               -- Argon2id
     role                 VARCHAR(30) NOT NULL CHECK (role IN
-                            ('administrateur', 'directeur', 'enseignant', 'agent_comptable', 'secretariat', 'parent')),
+                            ('administrateur', 'directeur', 'enseignant', 'agent_comptable',
+                             'secretariat', 'parent', 'super_admin')),
     actif                BOOLEAN DEFAULT true,
     doit_changer_mdp     BOOLEAN DEFAULT true,        -- forcer changement au 1er login
     derniere_connexion   TIMESTAMPTZ,
     tentatives_echouees  SMALLINT DEFAULT 0,          -- verrouillage après N échecs
     verrouille_jusqu_a   TIMESTAMPTZ,
-    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
-    created_at           TIMESTAMPTZ DEFAULT now()
+    -- NULL uniquement pour super_admin (PR #10)
+    school_id            UUID REFERENCES schools(id) ON DELETE RESTRICT,
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT ck_utilisateur_super_admin_school CHECK (
+        (role = 'super_admin' AND school_id IS NULL)
+        OR (role <> 'super_admin' AND school_id IS NOT NULL)
+    )
 );
+
+-- schools.created_by (après utilisateur — FK circulaire)
+ALTER TABLE schools
+    ADD COLUMN created_by UUID REFERENCES utilisateur(id) ON DELETE SET NULL;
+CREATE INDEX ix_schools_created_by ON schools (created_by);
 
 -- Parent-only : isolation via utilisateur.school_id
 CREATE TABLE refresh_token (
@@ -548,7 +560,8 @@ CREATE TABLE notification (
 
 CREATE TABLE journal_audit (
     id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    school_id                UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    -- Nullable pour événements plateforme purs (bootstrap SUPER_ADMIN, etc.)
+    school_id                UUID REFERENCES schools(id) ON DELETE RESTRICT,
     id_utilisateur           UUID REFERENCES utilisateur(id) ON DELETE SET NULL,
     action                   VARCHAR(50) NOT NULL,  -- MODIFICATION_NOTE, VALIDATION_BULLETIN, PAIEMENT_ENCAISSE, PAIEMENT_ANNULE, CONNEXION, ECHEC_CONNEXION...
     table_cible              VARCHAR(50),
