@@ -34,6 +34,7 @@ from app.models import (
     Trimestre,
 )
 from app.schemas.notes import (
+    AcademicResultsRecalcSchema,
     BulletinPatchSchema,
     BulletinSchema,
     CoefficientMatiereSchema,
@@ -42,6 +43,12 @@ from app.schemas.notes import (
     GenererBulletinSchema,
     MatiereSchema,
     NoteBatchSchema,
+)
+from app.services.academic_results import (
+    ensure_student_period_results,
+    list_results_for_student_period,
+    mark_stale_for_evaluation,
+    serialize_result_row,
 )
 from app.services.calcul_moyennes import refresh_moyenne_matiere_view
 from app.services.calendrier_scolaire import date_est_bloquee
@@ -134,6 +141,10 @@ def _serialize_bulletin(db, bulletin):
     data["matricule"] = eleve.matricule if eleve else None
     data["trimestre"] = trimestre.numero if trimestre else None
     data["moyenne"] = float(bulletin.moyenne_generale) if bulletin.moyenne_generale is not None else None
+    data["rulesets_snapshot"] = bulletin.rulesets_snapshot or []
+    data["results_calculated_at"] = (
+        bulletin.results_calculated_at.isoformat() if bulletin.results_calculated_at else None
+    )
     if eleve and trimestre:
         ins = (
             tenant_query(Inscription)
@@ -589,8 +600,104 @@ class NotesEvaluation(MethodView):
                 db.add(note)
 
         db.commit()
+        mark_stale_for_evaluation(db, evaluation)
+        db.commit()
         refresh_moyenne_matiere_view(db)
         return jsonify({"message": "Notes enregistrées"}), 200
+
+
+@blp.route("/resultats")
+class AcademicResultsResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self):
+        """Liste les résultats matière persistés pour un élève / classe / période."""
+        db = get_db()
+        user = get_current_user()
+        try:
+            id_eleve = uuid.UUID(request.args["id_eleve"])
+            id_classe = uuid.UUID(request.args["id_classe"])
+            id_period = uuid.UUID(request.args.get("id_period") or request.args["id_trimestre"])
+        except (KeyError, ValueError, TypeError):
+            return jsonify({"message": "id_eleve, id_classe et id_period requis"}), 400
+
+        get_or_404_tenant(Eleve, id_eleve)
+        get_or_404_tenant(Classe, id_classe)
+        _get_trimestre_or_404(db, id_period)
+
+        if user.role == "enseignant" and not teacher_has_eleve_access(
+            user, id_eleve
+        ) and not teacher_has_class_access(user, id_classe):
+            return jsonify({"message": "Accès refusé"}), 403
+
+        rows = list_results_for_student_period(
+            db, id_eleve=id_eleve, id_classe=id_classe, id_period=id_period
+        )
+        return jsonify(
+            {
+                "items": [serialize_result_row(db, r) for r in rows],
+                "total": len(rows),
+                "has_stale": any(r.is_stale for r in rows),
+            }
+        )
+
+
+@blp.route("/resultats/recalculer")
+class AcademicResultsRecalculate(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "enseignant")
+    @blp.arguments(AcademicResultsRecalcSchema)
+    def post(self, data):
+        """Recalcule et persiste les résultats (élève ou classe entière)."""
+        db = get_db()
+        user = get_current_user()
+        reject_client_school_id(request.get_json(silent=True) or {})
+
+        id_classe = data["id_classe"]
+        id_period = data["id_period"]
+        get_or_404_tenant(Classe, id_classe)
+        _get_trimestre_or_404(db, id_period)
+
+        if user.role == "enseignant" and not teacher_has_class_access(user, id_classe):
+            return jsonify({"message": "Accès refusé"}), 403
+
+        refresh_moyenne_matiere_view(db)
+
+        eleve_ids: list[uuid.UUID]
+        if data.get("id_eleve"):
+            id_eleve = data["id_eleve"]
+            get_or_404_tenant(Eleve, id_eleve)
+            if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
+                return jsonify({"message": "Accès refusé"}), 403
+            eleve_ids = [id_eleve]
+        else:
+            inscriptions = (
+                tenant_query(Inscription)
+                .filter(
+                    Inscription.id_classe == id_classe,
+                    Inscription.statut.in_(("inscrit", "reinscrit")),
+                )
+                .all()
+            )
+            eleve_ids = [ins.id_eleve for ins in inscriptions]
+
+        items = []
+        for eid in eleve_ids:
+            rows = ensure_student_period_results(
+                db,
+                id_eleve=eid,
+                id_classe=id_classe,
+                id_period=id_period,
+                force=True,
+            )
+            items.append(
+                {
+                    "id_eleve": str(eid),
+                    "results": [serialize_result_row(db, r) for r in rows],
+                }
+            )
+        db.commit()
+        return jsonify({"items": items, "total": len(items)}), 200
 
 
 @blp.route("/bulletins")

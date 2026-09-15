@@ -1,5 +1,5 @@
 """Schémas notes, évaluations, bulletins."""
-from marshmallow import Schema, ValidationError, fields, validate, validates_schema
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
 from app.models.grading import SYSTEM_EVALUATION_TYPE_CODES
 
@@ -83,6 +83,8 @@ class BulletinSchema(Schema):
     appreciation_generale = fields.String(allow_none=True)
     statut = fields.String(dump_only=True)
     pdf_url = fields.String(dump_only=True)
+    rulesets_snapshot = fields.Raw(dump_only=True)
+    results_calculated_at = fields.DateTime(dump_only=True)
 
 
 class GenererBulletinSchema(Schema):
@@ -101,3 +103,18 @@ class GenererBulletinSchema(Schema):
 
 class BulletinPatchSchema(Schema):
     appreciation_generale = fields.String(allow_none=True, validate=validate.Length(max=2000))
+
+
+class AcademicResultsQuerySchema(Schema):
+    id_eleve = fields.UUID(required=True)
+    id_classe = fields.UUID(required=True)
+    id_period = fields.UUID(required=True)
+
+
+class AcademicResultsRecalcSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id_eleve = fields.UUID(required=False, allow_none=True)
+    id_classe = fields.UUID(required=True)
+    id_period = fields.UUID(required=True)

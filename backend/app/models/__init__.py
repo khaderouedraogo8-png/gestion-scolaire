@@ -1,5 +1,11 @@
 """Export centralisé de tous les modèles SQLAlchemy."""
 from app.models.absence_discipline import Absence, IncidentDisciplinaire
+from app.models.academic_results import (
+    RESULT_SOURCE_LEGACY,
+    RESULT_SOURCE_RULES_ENGINE,
+    RESULT_SOURCES,
+    AcademicSubjectResult,
+)
 from app.models.audit import JournalAudit
 from app.models.document import DocumentAdministratif
 from app.models.eleve import Eleve, EleveParent, Inscription, ParentTuteur
@@ -82,12 +88,16 @@ __all__ = [
     "PLATFORM_ROLE_SUPER_ADMIN",
     "PROGRAM_CODE_GENERAL",
     "PROGRAM_NAME_GENERAL",
+    "RESULT_SOURCES",
+    "RESULT_SOURCE_LEGACY",
+    "RESULT_SOURCE_RULES_ENGINE",
     "ROLES",
     "SCHOOL_ROLES",
     "SYSTEM_EVALUATION_TYPE_CODES",
     "WEIGHT_PERCENT_SCALE",
     "Absence",
     "AcademicPeriod",
+    "AcademicSubjectResult",
     "AffectationEnseignant",
     "AnneeScolaire",
     "Bulletin",

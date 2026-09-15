@@ -4,7 +4,6 @@ import uuid
 from datetime import UTC, datetime
 
 from flask import abort, current_app, render_template
-from sqlalchemy import text
 
 from app.extensions import get_db
 from app.models import (
@@ -16,6 +15,12 @@ from app.models import (
     IncidentDisciplinaire,
     Inscription,
     Trimestre,
+)
+from app.services.academic_calculation_service import RulesResolutionCache
+from app.services.academic_results import (
+    build_rulesets_snapshot,
+    ensure_student_period_results,
+    results_to_moyenne_rows,
 )
 from app.services.calcul_moyennes import (
     calculer_moyenne_generale,
@@ -47,98 +52,23 @@ def _get_trimestre_or_404(db, id_trimestre):
     return trim
 
 
-def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
-    """Moyennes matière : Rules Engine (Step 4) si ruleset ACTIVE, sinon vue legacy.
+def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre, cache=None):
+    """Moyennes matière depuis résultats persistés (PR #13).
 
-    Ne recalcule pas les PDF — fournit les lignes consommées par le bulletin.
+    Recalcule et persiste si absents ou stale. La MV legacy n'est plus la
+    source directe du bulletin — uniquement fallback interne du service persist.
     """
-    from app.services.academic_calculation_service import (
-        RulesResolutionCache,
-        calculate_student_period_results,
-        subject_results_to_moyenne_rows,
+    if id_classe is None:
+        return []
+    cache = cache or RulesResolutionCache()
+    rows = ensure_student_period_results(
+        db,
+        id_eleve=id_eleve,
+        id_classe=id_classe,
+        id_period=id_trimestre,
+        cache=cache,
     )
-    from app.services.grading_rules import GradingContextError, GradingRulesConflictError
-
-    school_id = get_current_school_id()
-    legacy_rows = db.execute(
-        text("""
-            SELECT m.id_matiere, mat.libelle, m.moyenne, cm.coefficient
-            FROM moyenne_matiere_eleve m
-            JOIN matiere mat ON mat.id = m.id_matiere
-            LEFT JOIN classe c ON c.id = m.id_classe
-            LEFT JOIN coefficient_matiere cm ON cm.id_matiere = m.id_matiere
-                AND cm.id_niveau = c.id_niveau
-            WHERE m.id_eleve = :id_eleve AND m.id_trimestre = :id_trimestre
-                AND mat.school_id = :school_id
-        """),
-        {"id_eleve": id_eleve, "id_trimestre": id_trimestre, "school_id": school_id},
-    ).fetchall()
-    legacy_by_matiere = {
-        r[0]: {
-            "id_matiere": r[0],
-            "libelle": r[1],
-            "moyenne": float(r[2]) if r[2] is not None else None,
-            "coefficient": float(r[3]) if r[3] is not None else 1,
-        }
-        for r in legacy_rows
-    }
-
-    try:
-        results, _ga, _meta = calculate_student_period_results(
-            db,
-            id_eleve=id_eleve,
-            id_classe=id_classe,
-            id_period=id_trimestre,
-            cache=RulesResolutionCache(),
-            subject_ids=list(legacy_by_matiere.keys()) or None,
-        )
-    except (GradingRulesConflictError, GradingContextError) as exc:
-        # Conflit / contexte invalide : fallback legacy pour ne pas bloquer la génération
-        # historique. Visible via resolve API + log warning (Step 6 observabilité).
-        current_app.logger.warning(
-            "bulletin_moyennes_fallback_legacy eleve=%s classe=%s periode=%s err=%s",
-            id_eleve,
-            id_classe,
-            id_trimestre,
-            exc,
-        )
-        return list(legacy_by_matiere.values())
-
-    engine_rows = subject_results_to_moyenne_rows(db, results)
-    engine_by_matiere = {r["id_matiere"]: r for r in engine_rows}
-
-    # Fusion : ruleset gagne ; matières sans ruleset → legacy (vue)
-    merged = []
-    seen = set()
-    for mid, row in legacy_by_matiere.items():
-        seen.add(mid)
-        if mid in engine_by_matiere:
-            eng = engine_by_matiere[mid]
-            merged.append(
-                {
-                    "id_matiere": mid,
-                    "libelle": row["libelle"],
-                    "moyenne": eng["moyenne"],
-                    "coefficient": eng["coefficient"],
-                    "ruleset_id": eng.get("ruleset_id"),
-                    "ruleset_version": eng.get("ruleset_version"),
-                }
-            )
-        else:
-            merged.append(row)
-    for mid, eng in engine_by_matiere.items():
-        if mid not in seen:
-            merged.append(
-                {
-                    "id_matiere": mid,
-                    "libelle": eng.get("libelle"),
-                    "moyenne": eng["moyenne"],
-                    "coefficient": eng["coefficient"],
-                    "ruleset_id": eng.get("ruleset_id"),
-                    "ruleset_version": eng.get("ruleset_version"),
-                }
-            )
-    return merged
+    return results_to_moyenne_rows(db, rows), rows
 
 
 def _appreciation_discipline(db, id_eleve, id_trimestre) -> str | None:
@@ -179,7 +109,8 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     assert_same_school(eleve, inscription)
 
     id_classe = inscription.id_classe
-    moyennes_mat = _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre)
+    cache = RulesResolutionCache()
+    moyennes_mat, result_rows = _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre, cache=cache)
     moy_gen = calculer_moyenne_generale(
         [{"moyenne": m["moyenne"], "coefficient_matiere": m["coefficient"]} for m in moyennes_mat]
     )
@@ -188,7 +119,7 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     inscriptions_classe = tenant_query(Inscription).filter(Inscription.id_classe == id_classe).all()
     moyennes_classe = {}
     for ins in inscriptions_classe:
-        mats = _get_moyennes_eleve(db, ins.id_eleve, id_classe, id_trimestre)
+        mats, _rows = _get_moyennes_eleve(db, ins.id_eleve, id_classe, id_trimestre, cache=cache)
         mg = calculer_moyenne_generale(
             [{"moyenne": m["moyenne"], "coefficient_matiere": m["coefficient"]} for m in mats]
         )
@@ -223,6 +154,8 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     bulletin.moyenne_classe = round(moy_classe, 2) if moy_classe else None
     bulletin.mention = determiner_mention(moy_gen)
     bulletin.statut = bulletin.statut or "brouillon"
+    bulletin.rulesets_snapshot = build_rulesets_snapshot(result_rows)
+    bulletin.results_calculated_at = datetime.now(UTC)
     discipline_text = _appreciation_discipline(db, id_eleve, id_trimestre)
     if discipline_text:
         existing = (bulletin.appreciation_generale or "").strip()
@@ -254,7 +187,9 @@ def generer_bulletin_pdf(bulletin: Bulletin) -> str:
     classe = (
         tenant_query(Classe).filter(Classe.id == inscription.id_classe).first() if inscription else None
     )
-    moyennes = _get_moyennes_eleve(db, bulletin.id_eleve, classe.id if classe else None, bulletin.id_trimestre)
+    moyennes, _rows = _get_moyennes_eleve(
+        db, bulletin.id_eleve, classe.id if classe else None, bulletin.id_trimestre
+    )
 
     html = render_template(
         "bulletin.html",

@@ -545,6 +545,48 @@ GROUP BY n.id_eleve, e.id_classe, e.id_matiere, e.id_trimestre;
 
 CREATE UNIQUE INDEX idx_moyenne_unique ON moyenne_matiere_eleve(id_eleve, id_classe, id_matiere, id_trimestre);
 
+CREATE TABLE academic_subject_result (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_eleve             UUID NOT NULL,
+    id_classe            UUID NOT NULL,
+    id_matiere           UUID NOT NULL,
+    id_period            UUID NOT NULL,
+    moyenne              NUMERIC(6,2),
+    coefficient          NUMERIC(4,2) NOT NULL DEFAULT 1,
+    ruleset_id           UUID,
+    ruleset_version      INTEGER,
+    ruleset_code         VARCHAR(40),
+    incomplete           BOOLEAN NOT NULL DEFAULT false,
+    incomplete_reason    VARCHAR(255),
+    source               VARCHAR(20) NOT NULL DEFAULT 'rules_engine'
+                         CHECK (source IN ('rules_engine', 'legacy')),
+    is_stale             BOOLEAN NOT NULL DEFAULT false,
+    calculation_trace    JSONB,
+    calculated_at        TIMESTAMPTZ DEFAULT now(),
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    updated_at           TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_academic_subject_result_scope
+        UNIQUE (school_id, id_eleve, id_classe, id_matiere, id_period),
+    CONSTRAINT uq_academic_subject_result_id_school UNIQUE (id, school_id),
+    CONSTRAINT fk_academic_subject_result_eleve_school FOREIGN KEY (id_eleve, school_id)
+        REFERENCES eleve(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_academic_subject_result_classe_school FOREIGN KEY (id_classe, school_id)
+        REFERENCES classe(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_academic_subject_result_matiere_school FOREIGN KEY (id_matiere, school_id)
+        REFERENCES matiere(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_academic_subject_result_period_school FOREIGN KEY (id_period, school_id)
+        REFERENCES academic_period(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_academic_subject_result_ruleset_school FOREIGN KEY (ruleset_id, school_id)
+        REFERENCES grading_ruleset(id, school_id) ON DELETE SET NULL
+);
+CREATE INDEX ix_academic_subject_result_school_id ON academic_subject_result (school_id);
+CREATE INDEX ix_academic_subject_result_id_eleve ON academic_subject_result (id_eleve);
+CREATE INDEX ix_academic_subject_result_id_classe ON academic_subject_result (id_classe);
+CREATE INDEX ix_academic_subject_result_id_matiere ON academic_subject_result (id_matiere);
+CREATE INDEX ix_academic_subject_result_id_period ON academic_subject_result (id_period);
+CREATE INDEX ix_academic_subject_result_stale ON academic_subject_result (school_id, is_stale);
+
 CREATE TABLE bulletin (
     id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
@@ -560,6 +602,8 @@ CREATE TABLE bulletin (
     valide_par             UUID REFERENCES utilisateur(id),
     date_generation        TIMESTAMPTZ DEFAULT now(),
     pdf_url                TEXT,
+    rulesets_snapshot      JSONB,
+    results_calculated_at  TIMESTAMPTZ,
     CONSTRAINT fk_bulletin_eleve_school FOREIGN KEY (id_eleve, school_id)
         REFERENCES eleve(id, school_id) ON DELETE CASCADE,
     UNIQUE (id_eleve, id_trimestre)
