@@ -913,3 +913,28 @@ resolve_grading_rules, calcul moyennes, workflow notes, templates bulletin, PDF 
 
 ### Backfill
 Aucun backfill des anciennes formules. Seed catalogue `evaluation_type` système par école uniquement. Notes/évaluations/bulletins/coefficients inchangés.
+
+---
+
+## PR #12 — Step 2 — Rules Resolution Engine
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Service :** `app/services/grading_rules.py` — `resolve_grading_rules(db, ResolutionContext)`
+
+### Décisions
+
+1. **Priorité des scopes (V1 réel)** — axes ruleset = Program? × Level? × Subject? (pas Class/Period en matching)  
+   Scores : subject=100, level=10, program=1 → hiérarchie déterministe  
+   `program+level+subject (111) > … > school/year (0)`
+2. **Pas de `query.first()`** — candidats scorés ; ex-aequo → `GradingRulesConflictError`
+3. **Conflit même spécificité** — y compris ACTIVE v1 + ACTIVE v2 même scope (version ≠ priorité)
+4. **ACTIVE uniquement** — DRAFT/ARCHIVED exclus
+5. **Tenant** — validation contexte avant matching ; IDs foreign school → `GradingContextError` (`TENANT_CONTEXT_ERROR`)
+6. **Validation composants** — `validate_component_weights` (somme exacte 100.00 %) réutilisable Step 3
+7. **Coefficient ≠ weight** — le moteur n’utilise pas `CoefficientMatiere`
+8. **Indépendance bulletin** — résultat structuré (`ResolvedGradingRules` + trace), zéro HTML/PDF
+9. **Class/Period dans le contexte** — validation de cohérence académique uniquement (matching V1 inchangé)
+10. **Immuabilité** — résolution en lecture seule ; gap Step 1 (pas de trigger DB) documenté pour Step 3/4
+
+### Hors scope Step 2
+API CRUD rulesets, calcul moyennes, frontend, bulletins, cache Redis.
