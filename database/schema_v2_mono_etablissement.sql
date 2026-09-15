@@ -300,6 +300,92 @@ CREATE TABLE coefficient_matiere (
     UNIQUE (id_matiere, id_niveau)
 );
 
+-- ============================================================================
+-- 4b. GRADING RULES ENGINE (PR #12) — indépendant du design bulletin
+-- Poids d'évaluation (composants) ≠ coefficient matière (ci-dessus).
+-- ============================================================================
+
+CREATE TABLE evaluation_type (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    code                 VARCHAR(40) NOT NULL,
+    label                VARCHAR(100) NOT NULL,
+    is_system            BOOLEAN NOT NULL DEFAULT false,
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_evaluation_type_school_code UNIQUE (school_id, code),
+    CONSTRAINT uq_evaluation_type_id_school UNIQUE (id, school_id)
+);
+CREATE INDEX ix_evaluation_type_school_id ON evaluation_type (school_id);
+CREATE INDEX ix_evaluation_type_school_active ON evaluation_type (school_id, is_active);
+
+CREATE TABLE grading_ruleset (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    code                 VARCHAR(40) NOT NULL,
+    name                 VARCHAR(150) NOT NULL,
+    description          TEXT,
+    status               VARCHAR(20) NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'active', 'archived')),
+    version              INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+    id_annee             UUID NOT NULL,
+    id_program           UUID,
+    id_niveau            UUID,
+    id_matiere           UUID,
+    scale_max            NUMERIC(6,2) NOT NULL DEFAULT 20.00 CHECK (scale_max > 0),
+    rounding_mode        VARCHAR(20) NOT NULL DEFAULT 'half_up'
+        CHECK (rounding_mode IN ('half_up', 'half_even', 'down', 'up')),
+    rounding_precision   SMALLINT NOT NULL DEFAULT 2 CHECK (rounding_precision >= 0),
+    created_by           UUID REFERENCES utilisateur(id) ON DELETE SET NULL,
+    activated_at         TIMESTAMPTZ,
+    archived_at          TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_grading_ruleset_school_code_version UNIQUE (school_id, code, version),
+    CONSTRAINT uq_grading_ruleset_id_school UNIQUE (id, school_id),
+    CONSTRAINT ck_grading_ruleset_niveau_requires_program
+        CHECK ((id_niveau IS NULL) OR (id_program IS NOT NULL)),
+    CONSTRAINT fk_grading_ruleset_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_grading_ruleset_program_school FOREIGN KEY (id_program, school_id)
+        REFERENCES program(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_grading_ruleset_niveau_school FOREIGN KEY (id_niveau, school_id)
+        REFERENCES niveau_etude(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_grading_ruleset_matiere_school FOREIGN KEY (id_matiere, school_id)
+        REFERENCES matiere(id, school_id) ON DELETE RESTRICT
+);
+CREATE INDEX ix_grading_ruleset_school_id ON grading_ruleset (school_id);
+CREATE INDEX ix_grading_ruleset_resolve ON grading_ruleset
+    (school_id, id_annee, status, id_program, id_niveau, id_matiere);
+CREATE INDEX ix_grading_ruleset_school_code_status ON grading_ruleset (school_id, code, status);
+
+CREATE TABLE grading_rule_component (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    ruleset_id           UUID NOT NULL,
+    code                 VARCHAR(40) NOT NULL,
+    label                VARCHAR(100) NOT NULL,
+    id_evaluation_type   UUID NOT NULL,
+    evaluation_context   VARCHAR(40) NOT NULL DEFAULT 'normal'
+        CHECK (evaluation_context IN ('normal', 'examen_blanc', 'rattrapage', 'session_2')),
+    weight               NUMERIC(5,2) NOT NULL CHECK (weight > 0 AND weight <= 100),
+    sequence             SMALLINT NOT NULL CHECK (sequence >= 1),
+    is_required          BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_grading_rule_component_ruleset_code UNIQUE (ruleset_id, code),
+    CONSTRAINT uq_grading_rule_component_ruleset_sequence UNIQUE (ruleset_id, sequence),
+    CONSTRAINT uq_grading_rule_component_id_school UNIQUE (id, school_id),
+    CONSTRAINT fk_grading_rule_component_ruleset_school FOREIGN KEY (ruleset_id, school_id)
+        REFERENCES grading_ruleset(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_grading_rule_component_eval_type_school FOREIGN KEY (id_evaluation_type, school_id)
+        REFERENCES evaluation_type(id, school_id) ON DELETE RESTRICT
+);
+CREATE INDEX ix_grading_rule_component_school_id ON grading_rule_component (school_id);
+CREATE INDEX ix_grading_rule_component_ruleset_id ON grading_rule_component (ruleset_id);
+CREATE INDEX ix_grading_rule_component_ruleset_seq ON grading_rule_component (ruleset_id, sequence);
+
 CREATE TABLE affectation_enseignant (
     id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,

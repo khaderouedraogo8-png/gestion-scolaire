@@ -148,6 +148,9 @@ def onboard_school(
         db.flush()
         db.add(etab)
         db.add(admin)
+        from app.services.evaluation_types import ensure_system_evaluation_types
+
+        ensure_system_evaluation_types(db, school.id)
         db.commit()
     except IntegrityError:
         db.rollback()

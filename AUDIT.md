@@ -859,3 +859,57 @@ School
 ### Post-merge
 
 Revalidation obligatoire sur `main` après merge (pytest, ruff, vitest, eslint, Vite build, tests migration/isolation).
+
+---
+
+## PR #12 — Grading Rules Engine (étape 1 — DB + modèles)
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Décisions (ADR intégré — pas de dossier `/docs/adr` existant)**
+
+### 1. Ruleset séparé du calcul
+`grading_ruleset` / `grading_rule_component` stockent la configuration. Aucune formule hardcodée. Le moteur de résolution/calcul arrive aux steps suivants.
+
+### 2. Versioning
+Version entière portée **sur la ligne ruleset** (`code` métier + `version` ≥ 1). Unicité `(school_id, code, version)`. Historique : v1/v2/v3 coexistent. Statuts `draft` | `active` | `archived`. Une version utilisée dans une publication future restera référencable (FK immuable côté BulletinData — hors step 1). Pas de table parent séparée (cohérent avec le style Program / AcademicPeriod du repo).
+
+### 3. Scopes (V1 Gate 1)
+Axes : `school_id` + `id_annee` (obligatoires) + `id_program?` + `id_niveau?` + `id_matiere?` (NULL = wildcard).  
+Pas de Class override ni Period axis en V1 (périodes trimestre/semestre restent sur AcademicPeriod).  
+CHECK : `id_niveau` exige `id_program`. Une seule table ruleset (pas 7 tables de scope).
+
+### 4. Evaluation weight ≠ subject coefficient
+`grading_rule_component.weight` (pourcentage moyenne matière) **≠** `coefficient_matiere.coefficient` (moyenne générale). `CoefficientMatiere` non modifié.
+
+### 5. Échelle
+`scale_max` Numeric, défaut produit BF `20.00`, évolutif (10/20/100). Pas de `/20` hardcodé dans le ruleset.
+
+### 6. Arrondi
+`rounding_mode` ∈ {`half_up`, `half_even`, `down`, `up`} + `rounding_precision` (défaut 2). Calcul non implémenté step 1.
+
+### 7. Missing ≠ zero
+Inchangé sur `note` (`valeur_note` nullable, `absent`). Le futur moteur ne doit jamais auto-mapper NULL→0. Statuts d’absence enrichis reportés aux steps notes.
+
+### 8. Types d’évaluation extensibles contrôlés
+Table `evaluation_type` **par école** (FK composite tenant-safe). Seed système (devoir, interrogation, composition, examen, tp, oral, projet, exam_blanc, rattrapage). Types custom école sans migration SQL.  
+`Evaluation.type_evaluation` CHECK legacy (`devoir|examen|interrogation`) **conservé** — pas de conversion step 1.  
+**Type ≠ contexte** : colonne `evaluation_context` (`normal|examen_blanc|rattrapage|session_2`) sur le composant ; table contexte dédiée possible plus tard.
+
+### 9. Ruleset indépendant du bulletin
+Aucun HTML/CSS/PDF/template/logo/couleur dans `grading_ruleset`. Architecture cible :
+`Rules Engine → Computed Results → BulletinData → BulletinTemplateVersion → Renderer`.
+
+### 10. Future BulletinData + TemplateVersion
+Ruleset versionné référencable par un futur résultat publié. Templates multi-versions hors scope (PR14). Bindings déclaratifs whitelistés uniquement (pas d’exec Python/SQL/JS).
+
+### 11. Tenant isolation
+`school_id` NOT NULL + `UniqueConstraint(id, school_id)` + FK composites vers année/program/niveau/matière/evaluation_type/ruleset.
+
+### 12. Poids
+Convention **pourcentage** `Numeric(5,2)` : `60.00` + `40.00` = `100.00`. Somme exacte 100 validée au **service** (pas de CHECK multi-lignes). CHECK ligne : `weight > 0 AND weight <= 100`.
+
+### Hors scope step 1
+resolve_grading_rules, calcul moyennes, workflow notes, templates bulletin, PDF v2, class council, AI, billing.
+
+### Backfill
+Aucun backfill des anciennes formules. Seed catalogue `evaluation_type` système par école uniquement. Notes/évaluations/bulletins/coefficients inchangés.
