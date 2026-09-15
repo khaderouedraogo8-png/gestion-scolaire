@@ -30,6 +30,7 @@ from app.models import (
     Trimestre,
     Utilisateur,
 )
+from app.services.academic import build_legacy_period, get_or_create_general_program
 
 DEFAULT_SCHOOL_CODE = "ECOLE-EXISTANTE"
 
@@ -38,6 +39,7 @@ def _ensure_default_school(db):
     """École tenant par défaut (équivalent migration Phase 1)."""
     school = db.query(School).filter(School.code == DEFAULT_SCHOOL_CODE).first()
     if school:
+        get_or_create_general_program(db, school.id)
         return school
     etab = db.query(Etablissement).first()
     school = School(
@@ -54,6 +56,7 @@ def _ensure_default_school(db):
     )
     db.add(school)
     db.flush()
+    get_or_create_general_program(db, school.id)
     return school
 
 
@@ -61,6 +64,7 @@ def run_seed():
     db = get_db()
     school = _ensure_default_school(db)
     school_id = school.id
+    program = get_or_create_general_program(db, school_id)
 
     # Admin par défaut
     if not db.query(Utilisateur).filter(Utilisateur.email == "admin@ecole.local").first():
@@ -120,10 +124,11 @@ def run_seed():
              (date(2026, 4, 1), date(2026, 6, 30))],
             start=1,
         ):
-            trim = Trimestre(
-                id=uuid.uuid4(),
+            trim = build_legacy_period(
                 id_annee=annee.id,
-                numero=num,
+                school_id=school_id,
+                id_program=program.id,
+                sequence=num,
                 date_debut=deb,
                 date_fin=fin,
             )
@@ -144,11 +149,13 @@ def run_seed():
         n = db.query(NiveauEtude).filter(
             NiveauEtude.libelle == libelle,
             NiveauEtude.school_id == school_id,
+            NiveauEtude.id_program == program.id,
         ).first()
         if not n:
             n = NiveauEtude(
                 id=uuid.uuid4(),
                 school_id=school_id,
+                id_program=program.id,
                 libelle=libelle,
                 ordre=ordre,
                 cycle=cycle,
@@ -157,6 +164,8 @@ def run_seed():
             db.flush()
         else:
             n.cycle = cycle
+            if getattr(n, "id_program", None) is None:
+                n.id_program = program.id
         niveaux[libelle] = n
 
     # Classes pour 6ème et Terminale
@@ -174,6 +183,7 @@ def run_seed():
                     school_id=school_id,
                     id_niveau=niveau.id,
                     id_annee=annee.id,
+                    id_program=program.id,
                     libelle=cls_libelle,
                     capacite_max=45,
                 )
@@ -251,7 +261,7 @@ def run_seed():
         Classe.school_id == school_id,
     ).first()
     trimestre_1 = db.query(Trimestre).filter(
-        Trimestre.id_annee == annee.id, Trimestre.numero == 1
+        Trimestre.id_annee == annee.id, Trimestre.sequence == 1
     ).first()
 
     # Élèves de démonstration

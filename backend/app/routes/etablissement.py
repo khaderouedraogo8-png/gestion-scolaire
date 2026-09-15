@@ -35,11 +35,8 @@ blp = Blueprint("etablissement", __name__, url_prefix="/etablissement", descript
 
 
 def _trimestres_tenant_query(db):
-    return (
-        db.query(Trimestre)
-        .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
-        .filter(AnneeScolaire.school_id == get_current_school_id())
-    )
+    # AcademicPeriod porte school_id (isolation directe, plus parent-only)
+    return tenant_query(Trimestre)
 
 
 def _get_trimestre_or_404(db, id_trimestre):
@@ -47,6 +44,45 @@ def _get_trimestre_or_404(db, id_trimestre):
     if trim is None:
         abort(404)
     return trim
+
+
+def _ensure_period_create_fields(db, data: dict) -> dict:
+    """Compat façade /trimestres : complète school_id/program/code/label (étape 1)."""
+    from app.services.academic import period_code_and_label, resolve_period_school_and_program
+
+    payload = dict(data)
+    sequence = int(payload.pop("numero", payload.get("sequence", 1)))
+    payload["sequence"] = sequence
+    school_id, id_program = resolve_period_school_and_program(
+        db,
+        payload["id_annee"],
+        payload.get("id_program"),
+    )
+    payload["school_id"] = school_id
+    payload["id_program"] = id_program
+    period_type = payload.get("period_type") or "trimestre"
+    payload["period_type"] = period_type
+    code, label = period_code_and_label(sequence, period_type)
+    payload.setdefault("code", code)
+    payload.setdefault("label", label)
+    payload.setdefault("is_active", True)
+    return payload
+
+
+def _ensure_niveau_program(db, data: dict, school_id) -> dict:
+    from app.services.academic import get_or_create_general_program
+
+    payload = dict(data)
+    if not payload.get("id_program"):
+        payload["id_program"] = get_or_create_general_program(db, school_id).id
+    return payload
+
+
+def _ensure_classe_program(db, data: dict) -> dict:
+    payload = dict(data)
+    niveau = get_or_404_tenant(NiveauEtude, payload["id_niveau"])
+    payload["id_program"] = niveau.id_program
+    return payload
 
 
 def _evenements_tenant_query(db):
@@ -156,7 +192,7 @@ class TrimestresResource(MethodView):
         if id_annee:
             get_or_404_tenant(AnneeScolaire, id_annee)
             q = q.filter(Trimestre.id_annee == uuid.UUID(id_annee))
-        return q.order_by(Trimestre.numero).all()
+        return q.order_by(Trimestre.sequence).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -165,7 +201,8 @@ class TrimestresResource(MethodView):
     def post(self, data):
         db = get_db()
         get_or_404_tenant(AnneeScolaire, data["id_annee"])
-        trim = Trimestre(id=uuid.uuid4(), **data)
+        payload = _ensure_period_create_fields(db, data)
+        trim = Trimestre(id=uuid.uuid4(), **payload)
         db.add(trim)
         db.commit()
         return trim, 201
@@ -182,7 +219,12 @@ class TrimestreDetail(MethodView):
         trim = _get_trimestre_or_404(db, id_trimestre)
         if "id_annee" in data:
             get_or_404_tenant(AnneeScolaire, data["id_annee"])
-        for key, value in data.items():
+        payload = dict(data)
+        if "numero" in payload and "sequence" not in payload:
+            payload["sequence"] = payload.pop("numero")
+        elif "numero" in payload:
+            payload.pop("numero")
+        for key, value in payload.items():
             setattr(trim, key, value)
         db.commit()
         return trim
@@ -211,7 +253,8 @@ class NiveauxResource(MethodView):
     @blp.response(201, NiveauEtudeSchema)
     def post(self, data):
         db = get_db()
-        niveau = apply_tenant_school(NiveauEtude(id=uuid.uuid4(), **data))
+        payload = _ensure_niveau_program(db, data, get_current_school_id())
+        niveau = apply_tenant_school(NiveauEtude(id=uuid.uuid4(), **payload))
         db.add(niveau)
         db.commit()
         return niveau, 201
@@ -271,7 +314,8 @@ class ClassesResource(MethodView):
         db = get_db()
         get_or_404_tenant(AnneeScolaire, data["id_annee"])
         get_or_404_tenant(NiveauEtude, data["id_niveau"])
-        classe = apply_tenant_school(Classe(id=uuid.uuid4(), **data))
+        payload = _ensure_classe_program(db, data)
+        classe = apply_tenant_school(Classe(id=uuid.uuid4(), **payload))
         db.add(classe)
         db.commit()
         return classe, 201
@@ -290,6 +334,7 @@ class ClasseDetail(MethodView):
             get_or_404_tenant(AnneeScolaire, data["id_annee"])
         if "id_niveau" in data:
             get_or_404_tenant(NiveauEtude, data["id_niveau"])
+            data = {**data, "id_program": get_or_404_tenant(NiveauEtude, data["id_niveau"]).id_program}
         for key, value in data.items():
             setattr(classe, key, value)
         db.commit()

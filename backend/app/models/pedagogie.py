@@ -83,7 +83,9 @@ class Evaluation(Base):
     )
     id_classe: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     id_matiere: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    id_trimestre: Mapped[uuid.UUID] = mapped_column(ForeignKey("trimestre.id", ondelete="CASCADE"), nullable=False)
+    id_trimestre: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("academic_period.id", ondelete="CASCADE"), nullable=False
+    )
     id_enseignant: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     type_evaluation: Mapped[str] = mapped_column(String(20), nullable=False)
     coefficient: Mapped[float] = mapped_column(Numeric(4, 2), default=1, nullable=False)
@@ -175,7 +177,9 @@ class Bulletin(Base):
         index=True,
     )
     id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    id_trimestre: Mapped[uuid.UUID] = mapped_column(ForeignKey("trimestre.id", ondelete="CASCADE"), nullable=False)
+    id_trimestre: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("academic_period.id", ondelete="CASCADE"), nullable=False
+    )
     moyenne_generale: Mapped[float | None] = mapped_column(Numeric(4, 2))
     rang: Mapped[int | None] = mapped_column(Integer)
     effectif_classe: Mapped[int | None] = mapped_column(Integer)

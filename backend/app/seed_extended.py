@@ -55,7 +55,7 @@ def run_extended_seed(db, school):
         return
 
     trimestre_1 = db.query(Trimestre).filter(
-        Trimestre.id_annee == annee.id, Trimestre.numero == 1
+        Trimestre.id_annee == annee.id, Trimestre.sequence == 1
     ).first()
 
     # --- Comptes tous rôles ---

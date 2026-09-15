@@ -2,8 +2,8 @@
 -- PROGICIEL INTÉGRÉ DE GESTION SCOLAIRE
 -- Schéma de base de données PostgreSQL 15+
 -- Architecture MULTI-TENANT (base PostgreSQL partagée, isolation par school_id)
--- Référence CI / schéma cible — PR #10 SUPER_ADMIN + onboarding
--- (voir migrations Alembic tenant_* + platform_super_admin)
+-- Référence CI / schéma cible — PR #11 Academic Foundation (Program + AcademicPeriod)
+-- (voir migrations Alembic tenant_* + platform_super_admin + academic_foundation_pr11)
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -63,14 +63,47 @@ CREATE TABLE annee_scolaire (
     CONSTRAINT uq_annee_scolaire_id_school UNIQUE (id, school_id)
 );
 
--- Parent-only : isolation via annee_scolaire.school_id
-CREATE TABLE trimestre (
+-- Program / filière — school-scoped (GENERAL = compatibilité historique permanente)
+CREATE TABLE program (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_annee             UUID NOT NULL REFERENCES annee_scolaire(id) ON DELETE CASCADE,
-    numero               SMALLINT NOT NULL CHECK (numero IN (1, 2, 3)),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    code                 VARCHAR(40) NOT NULL,
+    name                 VARCHAR(150) NOT NULL,
+    description          TEXT,
+    program_type         VARCHAR(40) NOT NULL DEFAULT 'general',
+    period_type_default  VARCHAR(20) NOT NULL DEFAULT 'trimestre',
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    updated_at           TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_program_school_code UNIQUE (school_id, code),
+    CONSTRAINT uq_program_id_school UNIQUE (id, school_id)
+);
+
+-- AcademicPeriod (évolution de trimestre) — Model B : Year + Program
+-- Les UUID historiques trimestre sont conservés via migration Alembic.
+CREATE TABLE academic_period (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_annee             UUID NOT NULL,
+    id_program           UUID NOT NULL,
+    sequence             SMALLINT NOT NULL CHECK (sequence >= 1),
+    code                 VARCHAR(20) NOT NULL,
+    label                VARCHAR(80) NOT NULL,
+    period_type          VARCHAR(20) NOT NULL
+        CHECK (period_type IN ('trimestre', 'semestre', 'custom', 'annuel')),
     date_debut           DATE NOT NULL,
     date_fin             DATE NOT NULL,
-    UNIQUE (id_annee, numero)
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    updated_at           TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_academic_period_id_school UNIQUE (id, school_id),
+    CONSTRAINT uq_academic_period_year_program_sequence UNIQUE (id_annee, id_program, sequence),
+    CONSTRAINT uq_academic_period_year_program_code UNIQUE (id_annee, id_program, code),
+    CONSTRAINT ck_academic_period_dates CHECK (date_fin >= date_debut),
+    CONSTRAINT fk_academic_period_annee_school FOREIGN KEY (id_annee, school_id)
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_academic_period_program_school FOREIGN KEY (id_program, school_id)
+        REFERENCES program(id, school_id) ON DELETE RESTRICT
 );
 
 -- ============================================================================
@@ -174,12 +207,16 @@ CREATE TABLE eleve_parent (
 CREATE TABLE niveau_etude (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_program           UUID NOT NULL,
     libelle              VARCHAR(50) NOT NULL,   -- ex: 6ème, Terminale
     ordre                SMALLINT,
     cycle                VARCHAR(20) NOT NULL DEFAULT 'premier'
         CHECK (cycle IN ('premier', 'second')),
-    CONSTRAINT uq_niveau_etude_school_libelle UNIQUE (school_id, libelle),
-    CONSTRAINT uq_niveau_etude_id_school UNIQUE (id, school_id)
+    CONSTRAINT uq_niveau_etude_school_program_libelle UNIQUE (school_id, id_program, libelle),
+    CONSTRAINT uq_niveau_etude_id_school UNIQUE (id, school_id),
+    CONSTRAINT uq_niveau_etude_id_program UNIQUE (id, id_program),
+    CONSTRAINT fk_niveau_etude_program_school FOREIGN KEY (id_program, school_id)
+        REFERENCES program(id, school_id) ON DELETE RESTRICT
 );
 
 CREATE TABLE classe (
@@ -187,6 +224,7 @@ CREATE TABLE classe (
     school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_niveau                 UUID NOT NULL,
     id_annee                  UUID NOT NULL,
+    id_program                UUID NOT NULL,
     libelle                   VARCHAR(50) NOT NULL,        -- ex: 6ème A
     id_professeur_principal   UUID,                        -- FK ajoutée après création de enseignant
     capacite_max              INTEGER DEFAULT 50,
@@ -195,6 +233,10 @@ CREATE TABLE classe (
         REFERENCES niveau_etude(id, school_id) ON DELETE RESTRICT,
     CONSTRAINT fk_classe_annee_school FOREIGN KEY (id_annee, school_id)
         REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT fk_classe_program_school FOREIGN KEY (id_program, school_id)
+        REFERENCES program(id, school_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_classe_niveau_program FOREIGN KEY (id_niveau, id_program)
+        REFERENCES niveau_etude(id, id_program) ON DELETE RESTRICT,
     UNIQUE (id_annee, libelle)
 );
 
@@ -323,7 +365,7 @@ CREATE TABLE evaluation (
     school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_classe            UUID NOT NULL,
     id_matiere           UUID NOT NULL,
-    id_trimestre         UUID NOT NULL REFERENCES trimestre(id) ON DELETE CASCADE,
+    id_trimestre         UUID NOT NULL REFERENCES academic_period(id) ON DELETE CASCADE,
     id_enseignant        UUID NOT NULL,
     type_evaluation      VARCHAR(20) NOT NULL CHECK (type_evaluation IN ('devoir', 'examen', 'interrogation')),
     coefficient          NUMERIC(4,2) NOT NULL DEFAULT 1,
@@ -418,7 +460,7 @@ CREATE TABLE bulletin (
     id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_eleve               UUID NOT NULL,
-    id_trimestre           UUID NOT NULL REFERENCES trimestre(id) ON DELETE CASCADE,
+    id_trimestre           UUID NOT NULL REFERENCES academic_period(id) ON DELETE CASCADE,
     moyenne_generale       NUMERIC(4,2),
     rang                   INTEGER,
     effectif_classe        INTEGER,
@@ -506,7 +548,7 @@ CREATE TABLE incident_disciplinaire (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_eleve             UUID NOT NULL,
-    id_trimestre         UUID REFERENCES trimestre(id) ON DELETE SET NULL,
+    id_trimestre         UUID REFERENCES academic_period(id) ON DELETE SET NULL,
     type_incident        VARCHAR(30) CHECK (type_incident IN ('avertissement', 'blame', 'exclusion_temporaire')),
     description          TEXT,
     date_incident         DATE NOT NULL,
@@ -578,7 +620,12 @@ CREATE TABLE journal_audit (
 CREATE INDEX ix_utilisateur_school_id ON utilisateur (school_id);
 CREATE INDEX ix_etablissement_school_id ON etablissement (school_id);
 CREATE INDEX ix_annee_scolaire_school_id ON annee_scolaire (school_id);
+CREATE INDEX ix_program_school_id ON program (school_id);
+CREATE INDEX ix_program_school_active ON program (school_id, is_active);
+CREATE INDEX ix_academic_period_school_id ON academic_period (school_id);
+CREATE INDEX ix_academic_period_year_program ON academic_period (id_annee, id_program);
 CREATE INDEX ix_niveau_etude_school_id ON niveau_etude (school_id);
+CREATE INDEX ix_niveau_etude_id_program ON niveau_etude (id_program);
 CREATE INDEX ix_eleve_school_id ON eleve (school_id);
 CREATE INDEX ix_parent_tuteur_school_id ON parent_tuteur (school_id);
 CREATE INDEX ix_enseignant_school_id ON enseignant (school_id);
@@ -586,6 +633,7 @@ CREATE INDEX ix_matiere_school_id ON matiere (school_id);
 CREATE INDEX ix_salle_school_id ON salle (school_id);
 CREATE INDEX ix_frais_scolaire_school_id ON frais_scolaire (school_id);
 CREATE INDEX ix_classe_school_id ON classe (school_id);
+CREATE INDEX ix_classe_id_program ON classe (id_program);
 CREATE INDEX ix_evaluation_school_id ON evaluation (school_id);
 CREATE INDEX ix_paiement_school_id ON paiement (school_id);
 CREATE INDEX ix_absence_school_id ON absence (school_id);

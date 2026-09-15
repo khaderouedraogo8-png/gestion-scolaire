@@ -18,6 +18,7 @@ from app.models import (
     School,
     Utilisateur,
 )
+from app.services.academic import get_or_create_general_program
 
 
 @pytest.fixture
@@ -40,6 +41,8 @@ def school_pair(db):
             )
             db.add(school)
             db.flush()
+
+        program = get_or_create_general_program(db, school.id)
 
         etab = (
             db.query(Etablissement)
@@ -76,13 +79,18 @@ def school_pair(db):
 
         niveau = (
             db.query(NiveauEtude)
-            .filter(NiveauEtude.school_id == school.id, NiveauEtude.libelle == "6ème")
+            .filter(
+                NiveauEtude.school_id == school.id,
+                NiveauEtude.libelle == "6ème",
+                NiveauEtude.id_program == program.id,
+            )
             .first()
         )
         if not niveau:
             niveau = NiveauEtude(
                 id=uuid.uuid4(),
                 school_id=school.id,
+                id_program=program.id,
                 libelle="6ème",
                 ordre=1,
                 cycle="premier",
@@ -105,10 +113,13 @@ def school_pair(db):
                 school_id=school.id,
                 id_niveau=niveau.id,
                 id_annee=annee.id,
+                id_program=program.id,
                 libelle="6ème A",
             )
             db.add(classe)
             db.flush()
+        elif getattr(classe, "id_program", None) is None:
+            classe.id_program = program.id
 
         matricule = f"{code}-001"
         eleve = (
@@ -183,6 +194,7 @@ def school_pair(db):
             "matiere": matiere,
             "user": user,
             "email": email,
+            "program": program,
         }
 
     db.commit()

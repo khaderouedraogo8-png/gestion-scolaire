@@ -365,6 +365,9 @@ def school_pair(db):
             school = School(id=uuid.uuid4(), name=name, code=code, is_active=True)
             db.add(school)
             db.flush()
+        from app.services.academic import get_or_create_general_program
+
+        program = get_or_create_general_program(db, school.id)
         if not db.query(Etablissement).filter(Etablissement.school_id == school.id).first():
             db.add(
                 Etablissement(
@@ -393,12 +396,21 @@ def school_pair(db):
             db.flush()
         niveau = (
             db.query(NiveauEtude)
-            .filter(NiveauEtude.school_id == school.id, NiveauEtude.libelle == "6ème")
+            .filter(
+                NiveauEtude.school_id == school.id,
+                NiveauEtude.libelle == "6ème",
+                NiveauEtude.id_program == program.id,
+            )
             .first()
         )
         if not niveau:
             niveau = NiveauEtude(
-                id=uuid.uuid4(), school_id=school.id, libelle="6ème", ordre=1, cycle="premier"
+                id=uuid.uuid4(),
+                school_id=school.id,
+                id_program=program.id,
+                libelle="6ème",
+                ordre=1,
+                cycle="premier",
             )
             db.add(niveau)
             db.flush()
@@ -413,10 +425,13 @@ def school_pair(db):
                 school_id=school.id,
                 id_niveau=niveau.id,
                 id_annee=annee.id,
+                id_program=program.id,
                 libelle="6ème A",
             )
             db.add(classe)
             db.flush()
+        elif getattr(classe, "id_program", None) is None:
+            classe.id_program = program.id
         admin_email = f"admin-{code.lower()}@pr10.local"
         admin = db.query(Utilisateur).filter(Utilisateur.email == admin_email).first()
         if not admin:

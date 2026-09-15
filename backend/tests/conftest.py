@@ -8,6 +8,7 @@ from app import create_app
 from app.auth.jwt_handler import hash_password
 from app.extensions import get_db
 from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, School, Trimestre, Utilisateur
+from app.services.academic import build_legacy_period, get_or_create_general_program
 
 DEFAULT_SCHOOL_CODE = "ECOLE-EXISTANTE"
 
@@ -53,6 +54,8 @@ def default_school(db):
         )
         db.add(school)
         db.commit()
+    get_or_create_general_program(db, school.id)
+    db.commit()
     return school
 
 
@@ -118,6 +121,7 @@ def annee_classe(db, etablissement_data, default_school):
     from datetime import date
 
     sid = default_school.id
+    program = get_or_create_general_program(db, sid)
     annee = (
         db.query(AnneeScolaire)
         .filter(AnneeScolaire.school_id == sid, AnneeScolaire.est_active.is_(True))
@@ -137,13 +141,18 @@ def annee_classe(db, etablissement_data, default_school):
 
     niveau = (
         db.query(NiveauEtude)
-        .filter(NiveauEtude.school_id == sid, NiveauEtude.libelle == "6ème")
+        .filter(
+            NiveauEtude.school_id == sid,
+            NiveauEtude.libelle == "6ème",
+            NiveauEtude.id_program == program.id,
+        )
         .first()
     )
     if not niveau:
         niveau = NiveauEtude(
             id=uuid.uuid4(),
             school_id=sid,
+            id_program=program.id,
             libelle="6ème",
             ordre=1,
             cycle="premier",
@@ -152,6 +161,8 @@ def annee_classe(db, etablissement_data, default_school):
         db.flush()
     else:
         niveau.cycle = "premier"
+        if getattr(niveau, "id_program", None) is None:
+            niveau.id_program = program.id
 
     classe = (
         db.query(Classe)
@@ -164,21 +175,25 @@ def annee_classe(db, etablissement_data, default_school):
             school_id=sid,
             id_niveau=niveau.id,
             id_annee=annee.id,
+            id_program=program.id,
             libelle="6ème A",
         )
         db.add(classe)
         db.flush()
+    elif getattr(classe, "id_program", None) is None:
+        classe.id_program = program.id
 
     trimestre = (
         db.query(Trimestre)
-        .filter(Trimestre.id_annee == annee.id, Trimestre.numero == 1)
+        .filter(Trimestre.id_annee == annee.id, Trimestre.sequence == 1)
         .first()
     )
     if not trimestre:
-        trimestre = Trimestre(
-            id=uuid.uuid4(),
+        trimestre = build_legacy_period(
             id_annee=annee.id,
-            numero=1,
+            school_id=sid,
+            id_program=program.id,
+            sequence=1,
             date_debut=date(2025, 9, 1),
             date_fin=date(2025, 12, 20),
         )
@@ -186,4 +201,10 @@ def annee_classe(db, etablissement_data, default_school):
 
     db.commit()
 
-    return {"annee": annee, "classe": classe, "niveau": niveau, "trimestre": trimestre}
+    return {
+        "annee": annee,
+        "classe": classe,
+        "niveau": niveau,
+        "trimestre": trimestre,
+        "program": program,
+    }

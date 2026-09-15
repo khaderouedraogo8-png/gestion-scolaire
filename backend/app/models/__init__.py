@@ -10,11 +10,15 @@ from app.models.emploi_temps import (
     Salle,
 )
 from app.models.etablissement import (
+    PROGRAM_CODE_GENERAL,
+    PROGRAM_NAME_GENERAL,
+    AcademicPeriod,
     AnneeScolaire,
     Classe,
     Etablissement,
     EvenementCalendrier,
     NiveauEtude,
+    Program,
     Trimestre,
 )
 from app.models.finance import (
@@ -47,9 +51,12 @@ from app.models.utilisateur import (
 __all__ = [
     "PLATFORM_ROLES",
     "PLATFORM_ROLE_SUPER_ADMIN",
+    "PROGRAM_CODE_GENERAL",
+    "PROGRAM_NAME_GENERAL",
     "ROLES",
     "SCHOOL_ROLES",
     "Absence",
+    "AcademicPeriod",
     "AffectationEnseignant",
     "AnneeScolaire",
     "Bulletin",
@@ -74,6 +81,7 @@ __all__ = [
     "Notification",
     "Paiement",
     "ParentTuteur",
+    "Program",
     "ProgrammeDevoir",
     "RefreshToken",
     "ReinitialisationMdp",

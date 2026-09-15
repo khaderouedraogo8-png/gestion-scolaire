@@ -736,3 +736,34 @@ DELETE /api/platform/context/school
 
 Billing, Stripe, Mobile Money, permissions granulaires table, hard delete school, soft-delete RGPD.
 
+
+---
+
+## PR #11 — Academic Foundation (étape 1 — DB + ORM)
+
+**Branche :** `cursor/saas-academic-foundation-8bcc`  
+**Statut étape 1 :** DB + modèles + migration + tests — **READY FOR STEP 2** (API `/programs` `/periodes` + FE non inclus)
+
+### Livré
+
+- Table `program` (school-scoped) + backfill `GENERAL` / « Général » par école (compat historique permanente)
+- `trimestre` → `academic_period` (UUID conservés) — Model B : Year + Program
+- `niveau_etude.id_program`, unicité `(school_id, id_program, libelle)`
+- `classe.id_program` aligné niveau via FK composite `(id_niveau, id_program)`
+- FK composites anti cross-tenant (period↔year/program, level↔program, class↔niveau/program)
+- Alias ORM `Trimestre = AcademicPeriod` + synonym `numero` ↔ `sequence`
+- Helper `app/services/academic.py`
+- Migration Alembic `academic_foundation_pr11`
+- Schéma CI `database/schema_v2_mono_etablissement.sql` aligné
+- Compat minimale routes `/trimestres` + create niveau/classe (défaut GENERAL)
+- Tests `test_academic_foundation.py` (structure, IntegrityError cas 1–4, isolation API)
+
+### Hors scope étape 1
+
+Routes `/programs` `/periodes`, FE config, grading, examens, Track.
+
+### Validation live
+
+- BEFORE/AFTER migration (DB test) : schools 45, années 528, trimestres/periods 367, evals 518, notes 76, bulletins 2, inscriptions 1345 — **identiques** ; UUID période inchangés ; 45 programs GENERAL
+- `pytest` : **112 passed**
+- `ruff check app tests` : **PASS**

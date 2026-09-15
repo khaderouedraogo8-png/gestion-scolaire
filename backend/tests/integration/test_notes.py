@@ -35,15 +35,19 @@ class TestNotes:
             db.query(Trimestre)
             .filter(
                 Trimestre.id_annee == annee_classe["annee"].id,
-                Trimestre.numero == 1,
+                Trimestre.sequence == 1,
             )
             .first()
         )
         if not trimestre:
-            trimestre = Trimestre(
-                id=uuid.uuid4(),
+            from app.services.academic import build_legacy_period, get_or_create_general_program
+
+            program = get_or_create_general_program(db, sid)
+            trimestre = build_legacy_period(
                 id_annee=annee_classe["annee"].id,
-                numero=1,
+                school_id=sid,
+                id_program=program.id,
+                sequence=1,
                 date_debut=date(2025, 9, 1),
                 date_fin=date(2025, 12, 20),
             )
