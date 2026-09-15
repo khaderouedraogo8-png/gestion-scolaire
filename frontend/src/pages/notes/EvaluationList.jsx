@@ -1,7 +1,8 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { notesApi } from '../../services/api/notes';
 import { configApi } from '../../services/api/config';
+import { gradingApi } from '../../services/api/grading';
 import Table from '../../components/Table';
 import { emptyIcons } from '../../utils/emptyIcons';
 import Modal from '../../components/Modal';
@@ -19,6 +20,7 @@ export default function EvaluationList() {
   const [classes, setClasses] = useState([]);
   const [trimestres, setTrimestres] = useState([]);
   const [matieres, setMatieres] = useState([]);
+  const [evaluationTypes, setEvaluationTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classeFilter, setClasseFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -54,13 +56,19 @@ export default function EvaluationList() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [classesData, matieresData, anneesData] = await Promise.all([
+        const [classesData, matieresData, anneesData, typesData] = await Promise.all([
           configApi.listClasses(),
           notesApi.listMatieres(),
           configApi.listAnnees(),
+          gradingApi.listEvaluationTypes({ active_only: true }),
         ]);
         setClasses(classesData.items || classesData || []);
         setMatieres(matieresData.items || matieresData || []);
+        const types = typesData.items || typesData || [];
+        setEvaluationTypes(types);
+        if (types.length && !types.some((t) => t.code === 'devoir')) {
+          setForm((f) => ({ ...f, type_evaluation: types[0].code }));
+        }
         const anneeList = anneesData.items || anneesData || [];
         const active = anneeList.find((a) => a.est_active);
         if (active) {
@@ -77,6 +85,15 @@ export default function EvaluationList() {
     };
     init();
   }, []);
+
+  const typeOptions =
+    evaluationTypes.length > 0
+      ? evaluationTypes.map((t) => ({ value: t.code, label: t.label || t.code }))
+      : [
+          { value: 'devoir', label: 'Devoir' },
+          { value: 'interrogation', label: 'Interrogation' },
+          { value: 'examen', label: 'Examen' },
+        ];
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -113,6 +130,14 @@ export default function EvaluationList() {
       header: 'Évaluation',
       render: (r) => <span className="font-medium">{r.libelle || r.type_evaluation}</span>,
     },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (r) => {
+        const t = evaluationTypes.find((x) => x.code === r.type_evaluation);
+        return t?.label || r.type_evaluation || '—';
+      },
+    },
     { key: 'matiere', header: 'Matière', render: (r) => r.matiere_nom || '—' },
     { key: 'classe', header: 'Classe', render: (r) => r.classe_nom || '—' },
     {
@@ -143,7 +168,7 @@ export default function EvaluationList() {
       <PageHeader
         eyebrow="Notes & bulletins"
         title="Évaluations"
-        subtitle="Gestion des évaluations et saisie des notes"
+        subtitle="Gestion des évaluations et saisie des notes — types issus du catalogue école"
         actions={
           canWrite && (
             <button type="button" onClick={() => setModalOpen(true)} className="btn-primary">
@@ -233,24 +258,24 @@ export default function EvaluationList() {
             required
             options={trimestres.map((t) => ({
               value: String(t.id),
-              label: `Trimestre ${t.numero}`,
+              label: t.label || `Trimestre ${t.numero}`,
             }))}
           />
           <FormField
-            label="Type"
+            label="Type d'évaluation"
             name="type_evaluation"
             type="select"
             value={form.type_evaluation}
             onChange={(e) => setForm({ ...form, type_evaluation: e.target.value })}
-            options={[
-              { value: 'devoir', label: 'Devoir' },
-              { value: 'interrogation', label: 'Interrogation' },
-              { value: 'examen', label: 'Examen' },
-            ]}
+            required
+            options={typeOptions}
           />
+          <p className="text-xs text-texte-secondaire">
+            Les poids dans la moyenne matière viennent du Ruleset actif (pas de % hardcodés ici).
+          </p>
           <div className="grid grid-cols-2 gap-4">
             <FormField
-              label="Coefficient"
+              label="Coefficient (legacy évaluation)"
               name="coefficient"
               type="number"
               value={form.coefficient}

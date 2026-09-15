@@ -54,8 +54,12 @@ export default function SaisieNotes() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await notesApi.saveNotes(selectedId, notes);
-      toast.success('Notes enregistrées — moyennes recalculées');
+      const res = await notesApi.saveNotes(selectedId, notes);
+      toast.success(
+        res?.results_stale
+          ? 'Notes enregistrées — résultats à recalculer'
+          : 'Notes enregistrées'
+      );
     } catch (err) {
       toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
@@ -137,6 +141,18 @@ export default function SaisieNotes() {
               <button type="button" onClick={handleSave} disabled={saving || evaluation.statut_saisie === 'cloturee'} className="btn-primary">
                 {saving ? 'Enregistrement...' : 'Enregistrer les notes'}
               </button>
+              {evaluation.id_classe && evaluation.id_trimestre ? (
+                <Link
+                  to={`/notes/resultats?id_classe=${evaluation.id_classe}&id_period=${evaluation.id_trimestre}`}
+                  className="btn-secondary inline-flex items-center"
+                >
+                  Voir les résultats
+                </Link>
+              ) : (
+                <Link to="/notes/resultats" className="btn-secondary inline-flex items-center">
+                  Voir les résultats
+                </Link>
+              )}
               {evaluation.statut_saisie === 'cloturee' ? (
                 <button type="button" onClick={handleRouvrir} disabled={closing} className="btn-secondary">
                   Rouvrir la saisie

@@ -83,6 +83,7 @@ const menuItems = [
     children: [
       { label: 'Évaluations', path: '/notes/evaluations' },
       { label: 'Saisie des notes', path: '/notes/saisie' },
+      { label: 'Résultats', path: '/notes/resultats' },
       { label: 'Bulletins', path: '/notes/bulletins' },
     ],
   },

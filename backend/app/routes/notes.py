@@ -603,7 +603,13 @@ class NotesEvaluation(MethodView):
         mark_stale_for_evaluation(db, evaluation)
         db.commit()
         refresh_moyenne_matiere_view(db)
-        return jsonify({"message": "Notes enregistrées"}), 200
+        return jsonify({
+            "message": "Notes enregistrées",
+            "results_stale": True,
+            "id_classe": str(evaluation.id_classe),
+            "id_period": str(evaluation.id_trimestre),
+            "id_matiere": str(evaluation.id_matiere),
+        }), 200
 
 
 @blp.route("/resultats")
