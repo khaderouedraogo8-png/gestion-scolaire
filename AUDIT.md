@@ -799,3 +799,63 @@ Routes `/programs` `/periodes`, FE config, grading, examens, Track.
 
 - pytest : **127 passed**
 - ruff : **PASS**
+
+---
+
+## PR #11 — Academic Foundation (étape 3 — Frontend)
+
+**Statut :** Structure académique UI — livrée
+
+### Livré
+
+- Routes `/etablissement/programmes`, `/periodes`, `/niveaux`, `/classes` (+ détail programme)
+- Nav Structure académique ; sidebar Configuration mise à jour
+- Legacy `/config/trimestres` sans plafond 1–3 (façade `/trimestres`)
+- Labels contextuels `2nde · Programme` ; cascade Programme → Niveau → Classe
+- `PUT /niveaux/<id>` pour édition
+- Tests FE `academicStructure.test.jsx`
+
+### Hors scope (conservé)
+
+Track, GradingRuleset, moteur de notes, Class Council, IA, billing
+
+---
+
+## PR #11 — Academic Foundation (étape 4 — Validation)
+
+**Verdict :** **MERGE READY WITH NON-BLOCKING RISKS**
+
+Risques non bloquants retenus :
+
+1. N+1 counts sur `list_programs` (MEDIUM) — follow-up perf
+2. Couverture tests RBAC/SUPER_ADMIN/audit partielle (MEDIUM)
+3. `BulletinList.jsx` filtre encore Trimestre 1–3 (dette notes, hors PR11)
+4. Downgrade Alembic non sûr après multi-programmes (FORWARD-ONLY, documenté)
+
+---
+
+## PR #11 — MERGED (étape 5)
+
+**Branche principale :** `main`  
+**Merge commit :** `8aab423` — `Merge pull request #11 from khaderouedraogo8-png/cursor/saas-academic-foundation-8bcc`  
+**PR :** https://github.com/khaderouedraogo8-png/gestion-scolaire/pull/11 — **MERGED**
+
+### Modèle canonique
+
+```
+School
+└── AcademicYear
+    └── Program (school-scoped ; GENERAL = historique permanent)
+        ├── AcademicPeriod  (Year + Program ; sequence libre ≥ 1)
+        ├── NiveauEtude
+        └── Classe  (alignée niveau.program via FK composite)
+```
+
+### Contrats API
+
+- `/api/etablissement/periodes` = **API canonique**
+- `/api/etablissement/trimestres` = **façade de compatibilité** (même service `academic_service` ; `numero` ↔ `sequence`)
+
+### Post-merge
+
+Revalidation obligatoire sur `main` après merge (pytest, ruff, vitest, eslint, Vite build, tests migration/isolation).
