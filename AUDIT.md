@@ -767,3 +767,35 @@ Routes `/programs` `/periodes`, FE config, grading, examens, Track.
 - BEFORE/AFTER migration (DB test) : schools 45, années 528, trimestres/periods 367, evals 518, notes 76, bulletins 2, inscriptions 1345 — **identiques** ; UUID période inchangés ; 45 programs GENERAL
 - `pytest` : **112 passed**
 - `ruff check app tests` : **PASS**
+
+---
+
+## PR #11 — Academic Foundation (étape 2 — API)
+
+**Branche :** `cursor/saas-academic-foundation-8bcc`  
+**Statut :** API Programs + Periodes + façade /trimestres — **READY FOR STEP 3** (frontend)
+
+### Livré
+
+- `GET/POST /api/etablissement/programs` (+ pagination, search, is_active)
+- `GET/PATCH /api/etablissement/programs/<id>`
+- `POST /api/etablissement/programs/<id>/deactivate` (soft ; GENERAL protégé)
+- `GET/POST /api/etablissement/periodes` (+ filtres program/année/type/active)
+- `GET/PATCH /api/etablissement/periodes/<id>`
+- `POST /api/etablissement/periodes/<id>/deactivate`
+- Façade `/trimestres` → **même** `academic_service` (numero ← sequence)
+- Niveaux/Classes : `id_program` validé tenant ; classe alignée sur niveau
+- Audit : `PROGRAM_*` / `PERIOD_*` (+ `actor_type=platform_support` si SUPER_ADMIN)
+- Tests : `test_academic_api.py` (15) + régression
+
+### Contrats UI (étape 3)
+
+- Programs : code, name, type, period_type_default, counts (levels/classes/periods)
+- Periodes : sequence libre ≥1, types trimestre/semestre/custom/annuel
+- Filtres + pagination PR#7
+- Erreurs 400/403/404/409 cohérentes
+
+### Validation
+
+- pytest : **127 passed**
+- ruff : **PASS**
