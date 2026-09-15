@@ -35,14 +35,20 @@ from app.models.pedagogie import (
 )
 from app.models.school import School
 from app.models.utilisateur import (
+    PLATFORM_ROLE_SUPER_ADMIN,
+    PLATFORM_ROLES,
     ROLES,
+    SCHOOL_ROLES,
     RefreshToken,
     ReinitialisationMdp,
     Utilisateur,
 )
 
 __all__ = [
+    "PLATFORM_ROLE_SUPER_ADMIN",
+    "PLATFORM_ROLES",
     "ROLES",
+    "SCHOOL_ROLES",
     "Absence",
     "AffectationEnseignant",
     "AnneeScolaire",

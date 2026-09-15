@@ -54,25 +54,30 @@ import ParentHome from './pages/parent/ParentHome';
 import ParentPedagogie from './pages/parent/ParentPedagogie';
 import PaiementsParent from './pages/finance/PaiementsParent';
 
-const ADMIN = ['administrateur', 'directeur'];
-const ALL_AUTHENTICATED = [...ADMIN, 'enseignant', 'agent_comptable', 'secretariat', 'parent'];
-const DASHBOARD = [...ADMIN, 'agent_comptable', 'secretariat'];
-const ELEVE_READ = [...ADMIN, 'agent_comptable', 'secretariat', 'parent'];
-const ELEVE_WRITE = [...ADMIN, 'secretariat'];
-const NOTES = [...ADMIN, 'enseignant', 'secretariat', 'parent'];
-const NOTES_WRITE = [...ADMIN, 'enseignant'];
-const FINANCE = [...ADMIN, 'agent_comptable', 'secretariat'];
-const FINANCE_WRITE = [...ADMIN, 'agent_comptable'];
-const EMPLOI = [...ADMIN, 'enseignant'];
-const ABSENCES = [...ADMIN, 'enseignant', 'secretariat', 'parent'];
-const DOCS = [...ADMIN, 'secretariat'];
-const NOTIF = [...ADMIN, 'secretariat'];
-const CLASS_NAV = [...ADMIN, 'agent_comptable', 'secretariat', 'enseignant'];
+import PlatformSchools from './pages/platform/PlatformSchools';
+import PlatformOnboarding from './pages/platform/PlatformOnboarding';
 
-const CONFIG = ADMIN;
+const ADMIN = ['administrateur', 'directeur'];
+const SUPER_ADMIN = ['super_admin'];
+const ALL_AUTHENTICATED = [...ADMIN, 'enseignant', 'agent_comptable', 'secretariat', 'parent', ...SUPER_ADMIN];
+const DASHBOARD = [...ADMIN, 'agent_comptable', 'secretariat', ...SUPER_ADMIN];
+const ELEVE_READ = [...ADMIN, 'agent_comptable', 'secretariat', 'parent', ...SUPER_ADMIN];
+const ELEVE_WRITE = [...ADMIN, 'secretariat', ...SUPER_ADMIN];
+const NOTES = [...ADMIN, 'enseignant', 'secretariat', 'parent', ...SUPER_ADMIN];
+const NOTES_WRITE = [...ADMIN, 'enseignant', ...SUPER_ADMIN];
+const FINANCE = [...ADMIN, 'agent_comptable', 'secretariat', ...SUPER_ADMIN];
+const FINANCE_WRITE = [...ADMIN, 'agent_comptable', ...SUPER_ADMIN];
+const EMPLOI = [...ADMIN, 'enseignant', ...SUPER_ADMIN];
+const ABSENCES = [...ADMIN, 'enseignant', 'secretariat', 'parent', ...SUPER_ADMIN];
+const DOCS = [...ADMIN, 'secretariat', ...SUPER_ADMIN];
+const NOTIF = [...ADMIN, 'secretariat', ...SUPER_ADMIN];
+const CLASS_NAV = [...ADMIN, 'agent_comptable', 'secretariat', 'enseignant', ...SUPER_ADMIN];
+
+const CONFIG = [...ADMIN, ...SUPER_ADMIN];
 
 function HomeRedirect() {
   const role = useAuthStore((s) => s.user?.role);
+  if (role === 'super_admin') return <Navigate to="/platform/schools" replace />;
   if (role === 'parent') return <Navigate to="/parent" replace />;
   if (role && DASHBOARD.includes(role)) return <Navigate to="/dashboard" replace />;
   if (role === 'enseignant') return <Navigate to="/classes" replace />;
@@ -105,6 +110,22 @@ export const routes = [
     ),
     children: [
       { index: true, element: <HomeRedirect /> },
+      {
+        path: 'platform/schools',
+        element: (
+          <ProtectedRoute roles={SUPER_ADMIN}>
+            <PlatformSchools />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'platform/onboarding',
+        element: (
+          <ProtectedRoute roles={SUPER_ADMIN}>
+            <PlatformOnboarding />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: 'parent',
         element: (

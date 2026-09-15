@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { authApi } from '../services/api/auth';
 import { schoolsApi } from '../services/api/schools';
+import { platformApi } from '../services/api/platform';
 
 let accessToken = null;
 let initializePromise = null;
@@ -13,7 +14,14 @@ export function setAccessToken(token) {
   accessToken = token;
 }
 
-async function loadCurrentSchool() {
+function isSuperAdminUser(user) {
+  return user?.role === 'super_admin';
+}
+
+async function loadCurrentSchoolForUser(user) {
+  if (isSuperAdminUser(user)) {
+    return null;
+  }
   try {
     return await schoolsApi.getCurrent();
   } catch {
@@ -24,6 +32,7 @@ async function loadCurrentSchool() {
 export const useAuthStore = create((set, get) => ({
   user: null,
   currentSchool: null,
+  actingSchoolId: null,
   isAuthenticated: false,
   isInitializing: true,
   isLoading: false,
@@ -37,10 +46,11 @@ export const useAuthStore = create((set, get) => ({
         const data = await authApi.refresh();
         setAccessToken(data.access_token);
         const me = await authApi.me();
-        const currentSchool = await loadCurrentSchool();
+        const currentSchool = await loadCurrentSchoolForUser(me);
         set({
           user: me,
           currentSchool,
+          actingSchoolId: null,
           isAuthenticated: true,
           isInitializing: false,
           error: null,
@@ -50,6 +60,7 @@ export const useAuthStore = create((set, get) => ({
         set({
           user: null,
           currentSchool: null,
+          actingSchoolId: null,
           isAuthenticated: false,
           isInitializing: false,
           error: null,
@@ -65,10 +76,11 @@ export const useAuthStore = create((set, get) => ({
     try {
       const data = await authApi.login(email, password);
       setAccessToken(data.access_token);
-      const currentSchool = await loadCurrentSchool();
+      const currentSchool = await loadCurrentSchoolForUser(data.user);
       set({
         user: data.user,
         currentSchool,
+        actingSchoolId: null,
         isAuthenticated: true,
         isLoading: false,
         error: null,
@@ -95,7 +107,13 @@ export const useAuthStore = create((set, get) => ({
       /* ignore logout errors */
     } finally {
       setAccessToken(null);
-      set({ user: null, currentSchool: null, isAuthenticated: false, error: null });
+      set({
+        user: null,
+        currentSchool: null,
+        actingSchoolId: null,
+        isAuthenticated: false,
+        error: null,
+      });
     }
   },
 
@@ -103,9 +121,26 @@ export const useAuthStore = create((set, get) => ({
     const data = await authApi.refresh();
     setAccessToken(data.access_token);
     const me = await authApi.me();
-    const currentSchool = await loadCurrentSchool();
-    set({ user: me, currentSchool, isAuthenticated: true });
+    const currentSchool = await loadCurrentSchoolForUser(me);
+    set({ user: me, currentSchool, actingSchoolId: null, isAuthenticated: true });
     return { ...data, user: me };
+  },
+
+  enterSchoolContext: async (schoolId) => {
+    const data = await platformApi.enterSchoolContext(schoolId);
+    setAccessToken(data.access_token);
+    set({
+      actingSchoolId: schoolId,
+      currentSchool: data.acting_school || null,
+    });
+    return data;
+  },
+
+  exitSchoolContext: async () => {
+    const data = await platformApi.exitSchoolContext();
+    setAccessToken(data.access_token);
+    set({ actingSchoolId: null, currentSchool: null });
+    return data;
   },
 
   changePassword: async (currentPassword, newPassword) => {
@@ -127,6 +162,8 @@ export const useAuthStore = create((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  isSuperAdmin: () => isSuperAdminUser(get().user),
 
   hasRole: (...roles) => {
     const { user } = get();

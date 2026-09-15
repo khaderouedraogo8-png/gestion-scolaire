@@ -18,6 +18,7 @@ import { useAuthStore } from '../store/authStore';
 import SealMedallion from './SealMedallion';
 
 const ADMIN_ROLES = ['administrateur', 'directeur'];
+const PLATFORM_ROLES = ['super_admin'];
 
 const ICONS = {
   home: Home,
@@ -35,6 +36,18 @@ const ICONS = {
 };
 
 const menuItems = [
+  {
+    label: 'Écoles plateforme',
+    path: '/platform/schools',
+    icon: 'dashboard',
+    roles: PLATFORM_ROLES,
+  },
+  {
+    label: 'Onboarding',
+    path: '/platform/onboarding',
+    icon: 'config',
+    roles: PLATFORM_ROLES,
+  },
   { label: 'Accueil', path: '/parent', icon: 'home', roles: ['parent'] },
   {
     label: 'Programme pédagogique',
@@ -206,8 +219,17 @@ function NavItem({ item, collapsed, onNavigate }) {
 
 export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
   const user = useAuthStore((s) => s.user);
+  const actingSchoolId = useAuthStore((s) => s.actingSchoolId);
   const role = user?.role;
-  const visibleItems = menuItems.filter((item) => role && item.roles.includes(role));
+  const visibleItems = menuItems.filter((item) => {
+    if (!role) return false;
+    if (item.roles.includes(role)) return true;
+    // SUPER_ADMIN en contexte école : accès navigation admin école
+    if (role === 'super_admin' && actingSchoolId) {
+      return item.roles.some((r) => ADMIN_ROLES.includes(r));
+    }
+    return false;
+  });
 
   return (
     <aside

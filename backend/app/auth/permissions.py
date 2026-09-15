@@ -15,12 +15,17 @@ from app.models import (
     Inscription,
     ParentTuteur,
 )
+from app.models.utilisateur import PLATFORM_ROLE_SUPER_ADMIN
+from app.services.tenant import is_super_admin
 
 
 def require_role(*roles):
     """
     Décorateur RBAC : exige que l'utilisateur authentifié possède l'un des rôles listés.
     Usage : @require_role('directeur', 'administrateur')
+
+    La vérification utilise le rôle en base (get_current_user), pas le claim JWT seul.
+    Un super_admin avec acting_school_id valide est autorisé (support plateforme).
     """
 
     def decorator(fn):
@@ -30,6 +35,12 @@ def require_role(*roles):
             user = get_current_user()
             if not user or not user.actif:
                 return jsonify({"message": "Non authentifié"}), 401
+            if is_super_admin(user):
+                # Métier uniquement avec contexte école explicite
+                from app.services.tenant import resolve_effective_school_id
+
+                resolve_effective_school_id(require=True)
+                return fn(*args, **kwargs)
             if user.role not in roles:
                 return jsonify({"message": "Accès refusé — rôle insuffisant"}), 403
             return fn(*args, **kwargs)
@@ -37,6 +48,34 @@ def require_role(*roles):
         return wrapper
 
     return decorator
+
+
+def require_super_admin(fn):
+    """
+    Exige le rôle plateforme super_admin (school_id IS NULL en DB).
+    Ne se fie jamais au seul claim JWT.
+    """
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        user = get_current_user()
+        if not user or not user.actif:
+            return jsonify({"message": "Non authentifié"}), 401
+        if not is_super_admin(user) or user.role != PLATFORM_ROLE_SUPER_ADMIN:
+            return jsonify({"message": "Accès réservé au SUPER_ADMIN plateforme"}), 403
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def _has_admin_like_access(user) -> bool:
+    """Admin école, directeur, ou SUPER_ADMIN en contexte école."""
+    if not user:
+        return False
+    if user.role in ("administrateur", "directeur"):
+        return True
+    return is_super_admin(user)
 
 
 def get_enseignant_for_user(user) -> Enseignant | None:
@@ -52,7 +91,7 @@ def get_enseignant_for_user(user) -> Enseignant | None:
 
 def teacher_has_class_access(user, id_classe: uuid.UUID) -> bool:
     """Vérifie qu'un enseignant est affecté à la classe donnée."""
-    if user.role in ("administrateur", "directeur"):
+    if _has_admin_like_access(user):
         return True
     if user.role != "enseignant":
         return False
@@ -74,7 +113,7 @@ def teacher_has_class_access(user, id_classe: uuid.UUID) -> bool:
 
 def teacher_has_matiere_classe_access(user, id_classe: uuid.UUID, id_matiere: uuid.UUID) -> bool:
     """Vérifie l'affectation enseignant/classe/matière."""
-    if user.role in ("administrateur", "directeur"):
+    if _has_admin_like_access(user):
         return True
     if user.role != "enseignant":
         return False
@@ -97,7 +136,7 @@ def teacher_has_matiere_classe_access(user, id_classe: uuid.UUID, id_matiere: uu
 
 def parent_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
     """Vérifie qu'un parent a accès à la fiche de son enfant."""
-    if user.role in ("administrateur", "directeur", "secretariat"):
+    if _has_admin_like_access(user) or user.role == "secretariat":
         return True
     if user.role != "parent":
         return False
@@ -122,7 +161,7 @@ def parent_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
 
 def teacher_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
     """Vérifie qu'un enseignant est affecté à une classe où l'élève est inscrit."""
-    if user.role in ("administrateur", "directeur", "secretariat", "agent_comptable"):
+    if _has_admin_like_access(user) or user.role in ("secretariat", "agent_comptable"):
         return True
     if user.role != "enseignant":
         return False
@@ -141,13 +180,13 @@ def teacher_has_eleve_access(user, id_eleve: uuid.UUID) -> bool:
 
 
 def can_view_medical_notes(user) -> bool:
-    """Seuls admin/directeur/secrétariat peuvent voir les notes médicales."""
-    return user.role in ("administrateur", "directeur", "secretariat")
+    """Seuls admin/directeur/secrétariat (ou SUPER_ADMIN en contexte) peuvent voir les notes médicales."""
+    return _has_admin_like_access(user) or user.role == "secretariat"
 
 
 def get_teacher_class_ids(user) -> list[uuid.UUID]:
     """Retourne la liste des IDs de classes accessibles à l'enseignant."""
-    if user.role in ("administrateur", "directeur", "secretariat", "agent_comptable"):
+    if _has_admin_like_access(user) or user.role in ("secretariat", "agent_comptable"):
         return []
     enseignant = get_enseignant_for_user(user)
     if not enseignant:
@@ -205,7 +244,7 @@ def get_parent_classe_ids(user, id_annee: uuid.UUID | None = None) -> list[uuid.
 
 def parent_has_classe_access(user, id_classe: uuid.UUID, id_annee: uuid.UUID | None = None) -> bool:
     """Vérifie qu'un parent a un enfant inscrit dans la classe."""
-    if user.role in ("administrateur", "directeur", "secretariat"):
+    if _has_admin_like_access(user) or user.role == "secretariat":
         return True
     if user.role != "parent":
         return False
@@ -214,7 +253,7 @@ def parent_has_classe_access(user, id_classe: uuid.UUID, id_annee: uuid.UUID | N
 
 def filter_eleves_by_role(query, user):
     """Filtre une requête élèves selon le rôle de l'utilisateur."""
-    if user.role in ("administrateur", "directeur", "secretariat", "agent_comptable"):
+    if _has_admin_like_access(user) or user.role in ("secretariat", "agent_comptable"):
         return query
     if user.role == "enseignant":
         class_ids = get_teacher_class_ids(user)

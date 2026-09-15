@@ -10,7 +10,8 @@ from flask import current_app, request
 from flask_jwt_extended import create_access_token, get_jwt_identity
 
 from app.extensions import get_db
-from app.models import RefreshToken, Utilisateur
+from app.models import RefreshToken, School, Utilisateur
+from app.models.utilisateur import PLATFORM_ROLE_SUPER_ADMIN
 
 # Paramètres OWASP recommandés pour Argon2id
 ph = PasswordHasher(
@@ -43,16 +44,34 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def create_tokens_for_user(user: Utilisateur) -> tuple[str, str, RefreshToken]:
+def build_access_token_for_user(
+    user: Utilisateur,
+    *,
+    acting_school_id: uuid.UUID | None = None,
+) -> str:
+    """Access token uniquement (claims rôle + acting_school_id optionnel pour super_admin)."""
+    claims: dict = {"role": user.role, "email": user.email}
+    if (
+        user.role == PLATFORM_ROLE_SUPER_ADMIN
+        and user.school_id is None
+        and acting_school_id is not None
+    ):
+        claims["acting_school_id"] = str(acting_school_id)
+    return create_access_token(identity=str(user.id), additional_claims=claims)
+
+
+def create_tokens_for_user(
+    user: Utilisateur,
+    *,
+    acting_school_id: uuid.UUID | None = None,
+) -> tuple[str, str, RefreshToken]:
     """
     Crée un access token JWT (15 min) et un refresh token (7 jours).
     Le refresh token est stocké hashé en base pour rotation/révocation.
+
+    acting_school_id : claim temporaire uniquement pour super_admin (school switch).
     """
-    identity = str(user.id)
-    access_token = create_access_token(
-        identity=identity,
-        additional_claims={"role": user.role, "email": user.email},
-    )
+    access_token = build_access_token_for_user(user, acting_school_id=acting_school_id)
 
     raw_refresh = secrets.token_urlsafe(64)
     expire_at = datetime.now(UTC) + current_app.config["JWT_REFRESH_TOKEN_EXPIRES"]
@@ -72,10 +91,23 @@ def create_tokens_for_user(user: Utilisateur) -> tuple[str, str, RefreshToken]:
     return access_token, raw_refresh, refresh_record
 
 
+def _school_allows_session(user: Utilisateur) -> bool:
+    """False si user école avec école inactive (super_admin toujours True)."""
+    if user.role == PLATFORM_ROLE_SUPER_ADMIN and user.school_id is None:
+        return True
+    if not user.school_id:
+        return False
+    db = get_db()
+    school = db.query(School).filter(School.id == user.school_id).first()
+    return bool(school and school.is_active)
+
+
 def rotate_refresh_token(old_raw_token: str) -> tuple[str, str] | None:
     """
     Rotation du refresh token : révoque l'ancien et en émet un nouveau.
     Retourne (access_token, new_raw_refresh) ou None si invalide.
+
+    Le claim acting_school_id n'est PAS conservé au refresh (re-switch requis).
     """
     db = get_db()
     token_hash = _hash_token(old_raw_token)
@@ -93,6 +125,8 @@ def rotate_refresh_token(old_raw_token: str) -> tuple[str, str] | None:
 
     user = db.query(Utilisateur).filter(Utilisateur.id == record.id_utilisateur).first()
     if not user or not user.actif:
+        return None
+    if not _school_allows_session(user):
         return None
 
     # Révoquer l'ancien token (rotation)

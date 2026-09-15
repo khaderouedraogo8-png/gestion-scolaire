@@ -14,11 +14,17 @@ def log_audit(
     id_enregistrement: uuid.UUID | None = None,
     details: dict | None = None,
     school_id: uuid.UUID | None = None,
+    *,
+    allow_null_school: bool = False,
 ):
     """
     Enregistre une entrée dans journal_audit.
-    Actions typiques : MODIFICATION_NOTE, VALIDATION_BULLETIN, PAIEMENT_ENCAISSE,
-    PAIEMENT_ANNULE, CONNEXION, ECHEC_CONNEXION.
+
+    school_id :
+      - explicite si fourni
+      - sinon dérivé de l'utilisateur
+      - sinon tenant courant (si disponible)
+      - peut rester NULL pour événements plateforme (allow_null_school=True)
     """
     db = get_db()
 
@@ -27,16 +33,17 @@ def log_audit(
         if user and user.school_id:
             school_id = user.school_id
 
-    if school_id is None:
+    if school_id is None and not allow_null_school:
         try:
-            from app.services.tenant import get_current_school_id
+            from app.services.tenant import resolve_effective_school_id
 
-            school_id = get_current_school_id()
+            school_id = resolve_effective_school_id(require=False)
         except Exception:
             school_id = None
 
-    if school_id is None:
-        # Sans tenant résolvable : ne pas écrire (évite IntegrityError NOT NULL)
+    if school_id is None and not allow_null_school:
+        # Sans tenant résolvable : ne pas écrire (évite IntegrityError sur anciens schémas)
+        # Sauf allow_null_school pour bootstrap / exit context global.
         return None
 
     entry = JournalAudit(
