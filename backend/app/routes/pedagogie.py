@@ -2,7 +2,7 @@
 import uuid
 from datetime import date
 
-from flask import jsonify, request, send_file
+from flask import abort, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -16,8 +16,10 @@ from app.auth.permissions import (
 )
 from app.extensions import get_db
 from app.models import (
+    AnneeScolaire,
     Classe,
     Enseignant,
+    Evaluation,
     Matiere,
     ProgrammeDevoir,
     SeanceCours,
@@ -42,13 +44,49 @@ from app.services.generation_pedagogique import (
     generer_pdf_programme_devoirs,
     generer_pdf_programme_trimestriel,
 )
+from app.services.tenant import (
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
+)
 
 blp = Blueprint("pedagogie", __name__, url_prefix="/pedagogie", description="Programme pédagogique")
 
 
+def _programme_tenant_query(db):
+    return (
+        db.query(ProgrammeDevoir)
+        .join(Classe, ProgrammeDevoir.id_classe == Classe.id)
+        .filter(Classe.school_id == get_current_school_id())
+    )
+
+
+def _get_programme_tenant(db, id_programme):
+    row = _programme_tenant_query(db).filter(ProgrammeDevoir.id == id_programme).first()
+    if not row:
+        abort(404)
+    return row
+
+
+def _seance_tenant_query(db):
+    return (
+        db.query(SeanceCours)
+        .join(Classe, SeanceCours.id_classe == Classe.id)
+        .filter(Classe.school_id == get_current_school_id())
+    )
+
+
+def _get_seance_tenant(db, id_seance):
+    row = _seance_tenant_query(db).filter(SeanceCours.id == id_seance).first()
+    if not row:
+        abort(404)
+    return row
+
+
 def _serialize_programme(db, row):
     data = ProgrammeDevoirSchema().dump(row)
-    matiere = db.query(Matiere).filter(Matiere.id == row.id_matiere).first()
+    matiere = tenant_query(Matiere).filter(Matiere.id == row.id_matiere).first()
     data["matiere_nom"] = matiere.libelle if matiere else None
     data["jour_libelle"] = JOURS.get(row.jour_semaine, str(row.jour_semaine))
     return data
@@ -65,7 +103,7 @@ def _can_edit_programme(user, id_classe, id_matiere=None):
 
 
 def _notify_programme_change(db, id_classe: uuid.UUID, message: str):
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
+    classe = get_or_404_tenant(Classe, id_classe)
     libelle = classe.libelle if classe else "votre classe"
     notifier_parents_classe(
         db,
@@ -77,8 +115,8 @@ def _notify_programme_change(db, id_classe: uuid.UUID, message: str):
 
 def _serialize_seance(db, row):
     data = SeanceCoursSchema().dump(row)
-    matiere = db.query(Matiere).filter(Matiere.id == row.id_matiere).first()
-    enseignant = db.query(Enseignant).filter(Enseignant.id == row.id_enseignant).first()
+    matiere = tenant_query(Matiere).filter(Matiere.id == row.id_matiere).first()
+    enseignant = tenant_query(Enseignant).filter(Enseignant.id == row.id_enseignant).first()
     data["matiere_nom"] = matiere.libelle if matiere else None
     data["enseignant_nom"] = f"{enseignant.prenom} {enseignant.nom}" if enseignant else None
     return data
@@ -97,10 +135,12 @@ class ProgrammeDevoirsResource(MethodView):
             return jsonify({"message": "id_classe et id_annee requis"}), 400
         classe_uuid = uuid.UUID(id_classe)
         annee_uuid = uuid.UUID(id_annee)
+        get_or_404_tenant(Classe, classe_uuid)
+        get_or_404_tenant(AnneeScolaire, annee_uuid)
         if user.role == "parent" and not parent_has_classe_access(user, classe_uuid, annee_uuid):
             return jsonify({"message": "Accès refusé"}), 403
         rows = (
-            db.query(ProgrammeDevoir)
+            _programme_tenant_query(db)
             .filter(
                 ProgrammeDevoir.id_classe == classe_uuid,
                 ProgrammeDevoir.id_annee == annee_uuid,
@@ -118,8 +158,13 @@ class ProgrammeDevoirsResource(MethodView):
         if not _can_edit_programme(user, data["id_classe"], data["id_matiere"]):
             return jsonify({"message": "Accès refusé"}), 403
         db = get_db()
+        assert_same_school(
+            get_or_404_tenant(Classe, data["id_classe"]),
+            get_or_404_tenant(Matiere, data["id_matiere"]),
+            get_or_404_tenant(AnneeScolaire, data["id_annee"]),
+        )
         existing = (
-            db.query(ProgrammeDevoir)
+            _programme_tenant_query(db)
             .filter(
                 ProgrammeDevoir.id_classe == data["id_classe"],
                 ProgrammeDevoir.id_matiere == data["id_matiere"],
@@ -149,9 +194,7 @@ class ProgrammeDevoirDetail(MethodView):
     def put(self, data, id_programme):
         user = get_current_user()
         db = get_db()
-        row = db.query(ProgrammeDevoir).filter(ProgrammeDevoir.id == id_programme).first()
-        if not row:
-            return jsonify({"message": "Entrée introuvable"}), 404
+        row = _get_programme_tenant(db, id_programme)
         if not _can_edit_programme(user, row.id_classe, row.id_matiere):
             return jsonify({"message": "Accès refusé"}), 403
         for key, value in data.items():
@@ -165,9 +208,7 @@ class ProgrammeDevoirDetail(MethodView):
     def delete(self, id_programme):
         user = get_current_user()
         db = get_db()
-        row = db.query(ProgrammeDevoir).filter(ProgrammeDevoir.id == id_programme).first()
-        if not row:
-            return jsonify({"message": "Entrée introuvable"}), 404
+        row = _get_programme_tenant(db, id_programme)
         if not _can_edit_programme(user, row.id_classe, row.id_matiere):
             return jsonify({"message": "Accès refusé"}), 403
         id_classe = row.id_classe
@@ -189,11 +230,13 @@ class PdfProgrammeDevoirs(MethodView):
         user = get_current_user()
         classe_uuid = uuid.UUID(id_classe)
         annee_uuid = uuid.UUID(id_annee)
+        get_or_404_tenant(Classe, classe_uuid)
+        get_or_404_tenant(AnneeScolaire, annee_uuid)
         if user.role == "parent" and not parent_has_classe_access(user, classe_uuid, annee_uuid):
             return jsonify({"message": "Accès refusé"}), 403
         try:
             path = generer_pdf_programme_devoirs(classe_uuid, annee_uuid)
-            classe = get_db().query(Classe).filter(Classe.id == classe_uuid).first()
+            classe = get_or_404_tenant(Classe, classe_uuid)
             name = f"programme_devoirs_{classe.libelle if classe else id_classe}.pdf"
             return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=name)
         except RuntimeError as e:
@@ -210,6 +253,7 @@ class PdfCalendrierCompositions(MethodView):
         if not id_classe or not id_trimestre:
             return jsonify({"message": "id_classe et id_trimestre requis"}), 400
         user = get_current_user()
+        get_or_404_tenant(Classe, uuid.UUID(id_classe))
         include_brouillon = user.role in ("administrateur", "directeur", "secretariat", "enseignant")
         try:
             path = generer_pdf_calendrier_compositions(
@@ -228,6 +272,7 @@ class PdfListeEleves(MethodView):
         id_classe = request.args.get("id_classe")
         if not id_classe:
             return jsonify({"message": "id_classe requis"}), 400
+        get_or_404_tenant(Classe, uuid.UUID(id_classe))
         try:
             path = generer_pdf_liste_eleves(uuid.UUID(id_classe))
             return send_file(path, mimetype="application/pdf", as_attachment=False, download_name="liste_eleves.pdf")
@@ -243,6 +288,7 @@ class PdfFicheCorrection(MethodView):
         id_evaluation = request.args.get("id_evaluation")
         if not id_evaluation:
             return jsonify({"message": "id_evaluation requis"}), 400
+        get_or_404_tenant(Evaluation, uuid.UUID(id_evaluation))
         try:
             path = generer_pdf_fiche_correction(uuid.UUID(id_evaluation))
             return send_file(path, mimetype="application/pdf", as_attachment=False, download_name="fiche_correction.pdf")
@@ -261,6 +307,7 @@ class PdfFicheAppel(MethodView):
         date_str = request.args.get("date")
         if not id_classe:
             return jsonify({"message": "id_classe requis"}), 400
+        get_or_404_tenant(Classe, uuid.UUID(id_classe))
         date_appel = date.fromisoformat(date_str) if date_str else None
         try:
             path = generer_pdf_fiche_appel(uuid.UUID(id_classe), date_appel)
@@ -278,6 +325,8 @@ class PdfFicheScolarite(MethodView):
         id_annee = request.args.get("id_annee")
         if not id_classe or not id_annee:
             return jsonify({"message": "id_classe et id_annee requis"}), 400
+        get_or_404_tenant(Classe, uuid.UUID(id_classe))
+        get_or_404_tenant(AnneeScolaire, uuid.UUID(id_annee))
         try:
             path = generer_pdf_fiche_scolarite(uuid.UUID(id_classe), uuid.UUID(id_annee))
             return send_file(path, mimetype="application/pdf", as_attachment=False, download_name="fiche_scolarite.pdf")
@@ -318,10 +367,12 @@ class SeancesResource(MethodView):
             return jsonify({"message": "id_classe et id_annee requis"}), 400
         classe_uuid = uuid.UUID(id_classe)
         annee_uuid = uuid.UUID(id_annee)
+        get_or_404_tenant(Classe, classe_uuid)
+        get_or_404_tenant(AnneeScolaire, annee_uuid)
         if user.role == "parent" and not parent_has_classe_access(user, classe_uuid, annee_uuid):
             return jsonify({"message": "Accès refusé"}), 403
         rows = (
-            db.query(SeanceCours)
+            _seance_tenant_query(db)
             .filter(SeanceCours.id_classe == classe_uuid, SeanceCours.id_annee == annee_uuid)
             .order_by(SeanceCours.date_seance.desc())
             .all()
@@ -336,11 +387,17 @@ class SeancesResource(MethodView):
         if not _can_edit_programme(user, data["id_classe"], data["id_matiere"]):
             return jsonify({"message": "Accès refusé"}), 403
         db = get_db()
+        assert_same_school(
+            get_or_404_tenant(Classe, data["id_classe"]),
+            get_or_404_tenant(Matiere, data["id_matiere"]),
+            get_or_404_tenant(Enseignant, data["id_enseignant"]),
+            get_or_404_tenant(AnneeScolaire, data["id_annee"]),
+        )
         bloque, libelle = date_est_bloquee(db, data["id_annee"], data["date_seance"])
         if bloque:
             return jsonify({"message": f"Date bloquée : {libelle}"}), 400
         existing = (
-            db.query(SeanceCours)
+            _seance_tenant_query(db)
             .filter(
                 SeanceCours.id_classe == data["id_classe"],
                 SeanceCours.id_matiere == data["id_matiere"],
@@ -367,11 +424,15 @@ class SeanceDetail(MethodView):
     def put(self, data, id_seance):
         user = get_current_user()
         db = get_db()
-        row = db.query(SeanceCours).filter(SeanceCours.id == id_seance).first()
-        if not row:
-            return jsonify({"message": "Séance introuvable"}), 404
+        row = _get_seance_tenant(db, id_seance)
         if not _can_edit_programme(user, row.id_classe, row.id_matiere):
             return jsonify({"message": "Accès refusé"}), 403
+        assert_same_school(
+            get_or_404_tenant(Classe, data["id_classe"]),
+            get_or_404_tenant(Matiere, data["id_matiere"]),
+            get_or_404_tenant(Enseignant, data["id_enseignant"]),
+            get_or_404_tenant(AnneeScolaire, data["id_annee"]),
+        )
         bloque, libelle = date_est_bloquee(db, data["id_annee"], data["date_seance"])
         if bloque:
             return jsonify({"message": f"Date bloquée : {libelle}"}), 400
@@ -385,9 +446,7 @@ class SeanceDetail(MethodView):
     def delete(self, id_seance):
         user = get_current_user()
         db = get_db()
-        row = db.query(SeanceCours).filter(SeanceCours.id == id_seance).first()
-        if not row:
-            return jsonify({"message": "Séance introuvable"}), 404
+        row = _get_seance_tenant(db, id_seance)
         if not _can_edit_programme(user, row.id_classe, row.id_matiere):
             return jsonify({"message": "Accès refusé"}), 403
         db.delete(row)
@@ -408,6 +467,8 @@ class PdfProgrammeTrimestriel(MethodView):
         user = get_current_user()
         classe_uuid = uuid.UUID(id_classe)
         annee_uuid = uuid.UUID(id_annee)
+        get_or_404_tenant(Classe, classe_uuid)
+        get_or_404_tenant(AnneeScolaire, annee_uuid)
         if user.role == "parent" and not parent_has_classe_access(user, classe_uuid, annee_uuid):
             return jsonify({"message": "Accès refusé"}), 403
         try:

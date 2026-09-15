@@ -17,13 +17,18 @@ class TestNotes:
         assert response.status_code == 201
         assert response.get_json()["libelle"] == "Mathématiques"
 
-    def test_saisie_notes_absent_vs_zero(self, client, auth_headers, db, annee_classe):
+    def test_saisie_notes_absent_vs_zero(self, client, auth_headers, db, annee_classe, default_school):
         from app.models import Enseignant, Matiere, Trimestre
 
-        matiere = Matiere(id=uuid.uuid4(), libelle="Français", code="FR")
+        sid = default_school.id
+        matiere = Matiere(id=uuid.uuid4(), libelle="Français", code="FR", school_id=sid)
         db.add(matiere)
         enseignant = Enseignant(
-            id=uuid.uuid4(), nom="Dupont", prenom="Jean", email="jean@test.local"
+            id=uuid.uuid4(),
+            nom="Dupont",
+            prenom="Jean",
+            email="jean@test.local",
+            school_id=sid,
         )
         db.add(enseignant)
         trimestre = (

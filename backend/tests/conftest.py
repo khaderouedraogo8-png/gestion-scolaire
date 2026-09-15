@@ -7,7 +7,9 @@ import pytest
 from app import create_app
 from app.auth.jwt_handler import hash_password
 from app.extensions import get_db
-from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, Trimestre, Utilisateur
+from app.models import AnneeScolaire, Classe, Etablissement, NiveauEtude, School, Trimestre, Utilisateur
+
+DEFAULT_SCHOOL_CODE = "ECOLE-EXISTANTE"
 
 
 @pytest.fixture(scope="session")
@@ -32,7 +34,30 @@ def db(app):
 
 
 @pytest.fixture
-def admin_user(db):
+def default_school(db):
+    """École tenant par défaut (équivalent backfill migration)."""
+    school = db.query(School).filter(School.code == DEFAULT_SCHOOL_CODE).first()
+    if not school:
+        etab = db.query(Etablissement).first()
+        school = School(
+            id=uuid.uuid4(),
+            name=(etab.nom if etab else "École existante"),
+            code=DEFAULT_SCHOOL_CODE,
+            email=etab.email if etab else None,
+            phone=etab.telephone if etab else None,
+            address=etab.adresse if etab else None,
+            city=etab.ville if etab else None,
+            country=etab.pays if etab else None,
+            logo=etab.logo_url if etab else None,
+            is_active=True,
+        )
+        db.add(school)
+        db.commit()
+    return school
+
+
+@pytest.fixture
+def admin_user(db, default_school):
     user = db.query(Utilisateur).filter(Utilisateur.email == "admin@ecole.local").first()
     if not user:
         user = Utilisateur(
@@ -44,6 +69,7 @@ def admin_user(db):
             role="administrateur",
             actif=True,
             doit_changer_mdp=True,
+            school_id=default_school.id,
         )
         db.add(user)
         db.commit()
@@ -52,6 +78,7 @@ def admin_user(db):
         user.tentatives_echouees = 0
         user.verrouille_jusqu_a = None
         user.actif = True
+        user.school_id = default_school.id
         db.commit()
     return user
 
@@ -67,27 +94,39 @@ def auth_headers(client, admin_user):
 
 
 @pytest.fixture
-def etablissement_data(db):
-    if not db.query(Etablissement).first():
+def etablissement_data(db, default_school):
+    etab = (
+        db.query(Etablissement)
+        .filter(Etablissement.school_id == default_school.id)
+        .first()
+    )
+    if not etab:
         etab = Etablissement(
             id=uuid.uuid4(),
+            school_id=default_school.id,
             nom="École Test",
             sigle="ET",
             format_matricule="{ANNEE}M-{SEQ}",
         )
         db.add(etab)
         db.commit()
-    return db.query(Etablissement).first()
+    return etab
 
 
 @pytest.fixture
-def annee_classe(db, etablissement_data):
+def annee_classe(db, etablissement_data, default_school):
     from datetime import date
 
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+    sid = default_school.id
+    annee = (
+        db.query(AnneeScolaire)
+        .filter(AnneeScolaire.school_id == sid, AnneeScolaire.est_active.is_(True))
+        .first()
+    )
     if not annee:
         annee = AnneeScolaire(
             id=uuid.uuid4(),
+            school_id=sid,
             libelle="2025-2026",
             date_debut=date(2025, 9, 1),
             date_fin=date(2026, 6, 30),
@@ -96,18 +135,33 @@ def annee_classe(db, etablissement_data):
         db.add(annee)
         db.flush()
 
-    niveau = db.query(NiveauEtude).filter(NiveauEtude.libelle == "6ème").first()
+    niveau = (
+        db.query(NiveauEtude)
+        .filter(NiveauEtude.school_id == sid, NiveauEtude.libelle == "6ème")
+        .first()
+    )
     if not niveau:
-        niveau = NiveauEtude(id=uuid.uuid4(), libelle="6ème", ordre=1, cycle="premier")
+        niveau = NiveauEtude(
+            id=uuid.uuid4(),
+            school_id=sid,
+            libelle="6ème",
+            ordre=1,
+            cycle="premier",
+        )
         db.add(niveau)
         db.flush()
     else:
         niveau.cycle = "premier"
 
-    classe = db.query(Classe).filter(Classe.libelle == "6ème A").first()
+    classe = (
+        db.query(Classe)
+        .filter(Classe.school_id == sid, Classe.libelle == "6ème A", Classe.id_annee == annee.id)
+        .first()
+    )
     if not classe:
         classe = Classe(
             id=uuid.uuid4(),
+            school_id=sid,
             id_niveau=niveau.id,
             id_annee=annee.id,
             libelle="6ème A",

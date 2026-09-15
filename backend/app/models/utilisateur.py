@@ -6,7 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, SmallInteger, String, Text, func
 from sqlalchemy.dialects.postgresql import INET, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
 
@@ -35,7 +35,16 @@ class Utilisateur(Base):
     derniere_connexion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     tentatives_echouees: Mapped[int] = mapped_column(SmallInteger, default=0)
     verrouille_jusqu_a: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Tenant SaaS — NOT NULL après PR #9 (isolation réelle)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    school = relationship("School", foreign_keys=[school_id])
 
 
 class RefreshToken(Base):

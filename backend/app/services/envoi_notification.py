@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 from flask import current_app
 
 from app.extensions import get_db
-from app.models import Notification
+from app.models import Eleve, Notification
+from app.services.tenant import apply_tenant_school, get_or_404_tenant, tenant_query
 
 
 class NotificationProvider(ABC):
@@ -130,16 +131,20 @@ def creer_notification(
 ) -> Notification:
     """Crée une notification en file d'attente."""
     db = get_db()
+    if id_eleve:
+        get_or_404_tenant(Eleve, id_eleve)
     if id_eleve and not id_parent:
         id_parent = _resolve_parent_id(db, id_eleve)
-    notif = Notification(
-        id=uuid.uuid4(),
-        id_eleve=id_eleve,
-        id_parent=id_parent,
-        canal=canal,
-        type_notification=type_notification,
-        contenu=contenu,
-        statut="en_attente",
+    notif = apply_tenant_school(
+        Notification(
+            id=uuid.uuid4(),
+            id_eleve=id_eleve,
+            id_parent=id_parent,
+            canal=canal,
+            type_notification=type_notification,
+            contenu=contenu,
+            statut="en_attente",
+        )
     )
     db.add(notif)
     db.commit()
@@ -167,7 +172,7 @@ def traiter_file_notifications(limit: int = 50) -> int:
     """Traite les notifications en attente. Retourne le nombre envoyées."""
     db = get_db()
     pending = (
-        db.query(Notification)
+        tenant_query(Notification)
         .filter(Notification.statut == "en_attente", Notification.tentative_count < 3)
         .limit(limit)
         .all()
@@ -184,7 +189,14 @@ def traiter_file_notifications(limit: int = 50) -> int:
                 notif.id_parent = id_parent
                 db.commit()
         if id_parent:
-            parent = db.query(ParentTuteur).filter(ParentTuteur.id == id_parent).first()
+            parent = (
+                db.query(ParentTuteur)
+                .filter(
+                    ParentTuteur.id == id_parent,
+                    ParentTuteur.school_id == notif.school_id,
+                )
+                .first()
+            )
             if parent:
                 destinataire = parent.email if notif.canal == "email" else parent.telephone
         if destinataire and envoyer_notification(notif, destinataire):

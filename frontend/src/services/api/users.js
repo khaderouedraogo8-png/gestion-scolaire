@@ -22,12 +22,12 @@ export const usersApi = {
   },
 
   forgotPassword: async (email) => {
-    const { data } = await apiClient.post('/users/forgot-password', { email });
+    const { data } = await apiClient.post('/forgot-password', { email });
     return data;
   },
 
   resetPasswordWithToken: async (token, nouveau_mot_de_passe) => {
-    const { data } = await apiClient.post('/users/reset-password', { token, nouveau_mot_de_passe });
+    const { data } = await apiClient.post('/reset-password', { token, nouveau_mot_de_passe });
     return data;
   },
 };

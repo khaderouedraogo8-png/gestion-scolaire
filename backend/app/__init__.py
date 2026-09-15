@@ -51,11 +51,13 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
     from app.routes.pedagogie import blp as pedagogie_blp
+    from app.routes.schools import blp as schools_blp
     from app.routes.users import blp as users_blp
 
     # Auth : routes plates (/api/login, /api/me, …)
     api.register_blueprint(auth_blp, url_prefix="/api")
-    api.register_blueprint(users_blp, url_prefix="/api")
+    api.register_blueprint(users_blp, url_prefix="/api/users")
+    api.register_blueprint(schools_blp, url_prefix="/api/schools")
     # Modules : préfixe explicite pour éviter les collisions sur /api/
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
@@ -68,6 +70,10 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(notifications_blp, url_prefix="/api/notifications")
     api.register_blueprint(dashboard_blp, url_prefix="/api/dashboard")
     api.register_blueprint(audit_blp, url_prefix="/api/audit")
+
+    from app.utils.errors import register_error_handlers
+
+    register_error_handlers(application)
 
     @application.cli.command("seed")
     def seed_command():
@@ -89,7 +95,7 @@ def create_app(config_name: str | None = None) -> Flask:
         if not annee:
             print("Aucune année active.")
             return
-        result = relancer_arrieres(db, annee.id, auto_envoyer=True)
+        result = relancer_arrieres(db, annee.id, auto_envoyer=True, school_id=annee.school_id)
         print(result)
 
     @application.cli.command("traiter-notifications")

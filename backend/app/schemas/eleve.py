@@ -79,3 +79,10 @@ class EleveCreateSchema(Schema):
     id_classe = fields.UUID(required=True)
     id_annee = fields.UUID(required=True)
     parents = fields.Nested(ParentTuteurSchema, many=True, load_default=[])
+
+
+class InscriptionStatutSchema(Schema):
+    statut = fields.String(
+        required=True,
+        validate=validate.OneOf(["inscrit", "abandon", "suspendu", "reinscrit", "diplome"]),
+    )

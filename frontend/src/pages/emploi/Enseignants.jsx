@@ -42,7 +42,7 @@ export default function Enseignants() {
         ]);
         if (cancelled) return;
         setEnseignants(Array.isArray(ens) ? ens : ens.items || []);
-        setUsers(Array.isArray(usr) ? usr.filter((u) => u.role === 'enseignant') : []);
+        setUsers((Array.isArray(usr) ? usr : usr.items || []).filter((u) => u.role === 'enseignant'));
       } catch {
         if (!cancelled) toastRef.current.error('Impossible de charger les enseignants. Réessayer.');
       } finally {
@@ -64,7 +64,7 @@ export default function Enseignants() {
         isAdmin ? usersApi.list() : Promise.resolve([]),
       ]);
       setEnseignants(Array.isArray(ens) ? ens : ens.items || []);
-      setUsers(Array.isArray(usr) ? usr.filter((u) => u.role === 'enseignant') : []);
+      setUsers((Array.isArray(usr) ? usr : usr.items || []).filter((u) => u.role === 'enseignant'));
     } catch {
       toast.error('Impossible de charger les enseignants. Réessayer.');
     } finally {

@@ -9,9 +9,11 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,8 +24,15 @@ from app.extensions import Base
 
 class Etablissement(Base):
     __tablename__ = "etablissement"
+    __table_args__ = (UniqueConstraint("school_id", name="uq_etablissement_school_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     nom: Mapped[str] = mapped_column(String(150), nullable=False)
     sigle: Mapped[str | None] = mapped_column(String(20))
     adresse: Mapped[str | None] = mapped_column(Text)
@@ -43,15 +52,27 @@ class Etablissement(Base):
 
 class AnneeScolaire(Base):
     __tablename__ = "annee_scolaire"
+    __table_args__ = (
+        UniqueConstraint("school_id", "libelle", name="uq_annee_scolaire_school_libelle"),
+        UniqueConstraint("id", "school_id", name="uq_annee_scolaire_id_school"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    libelle: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    libelle: Mapped[str] = mapped_column(String(20), nullable=False)
     date_debut: Mapped[date] = mapped_column(Date, nullable=False)
     date_fin: Mapped[date] = mapped_column(Date, nullable=False)
     est_active: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Trimestre(Base):
+    """Parent-only : isolation via AnneeScolaire.school_id."""
+
     __tablename__ = "trimestre"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -63,25 +84,58 @@ class Trimestre(Base):
 
 class NiveauEtude(Base):
     __tablename__ = "niveau_etude"
+    __table_args__ = (
+        UniqueConstraint("school_id", "libelle", name="uq_niveau_etude_school_libelle"),
+        UniqueConstraint("id", "school_id", name="uq_niveau_etude_id_school"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    libelle: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    libelle: Mapped[str] = mapped_column(String(50), nullable=False)
     ordre: Mapped[int | None] = mapped_column(SmallInteger)
     cycle: Mapped[str] = mapped_column(String(20), nullable=False, default="premier")
 
 
 class Classe(Base):
     __tablename__ = "classe"
+    __table_args__ = (
+        UniqueConstraint("id", "school_id", name="uq_classe_id_school"),
+        ForeignKeyConstraint(
+            ["id_niveau", "school_id"],
+            ["niveau_etude.id", "niveau_etude.school_id"],
+            ondelete="RESTRICT",
+            name="fk_classe_niveau_school",
+        ),
+        ForeignKeyConstraint(
+            ["id_annee", "school_id"],
+            ["annee_scolaire.id", "annee_scolaire.school_id"],
+            ondelete="CASCADE",
+            name="fk_classe_annee_school",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id_niveau: Mapped[uuid.UUID] = mapped_column(ForeignKey("niveau_etude.id", ondelete="RESTRICT"), nullable=False)
-    id_annee: Mapped[uuid.UUID] = mapped_column(ForeignKey("annee_scolaire.id", ondelete="CASCADE"), nullable=False)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    id_niveau: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    id_annee: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     libelle: Mapped[str] = mapped_column(String(50), nullable=False)
     id_professeur_principal: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     capacite_max: Mapped[int] = mapped_column(default=50)
 
 
 class EvenementCalendrier(Base):
+    """Parent-only : isolation via AnneeScolaire.school_id."""
+
     __tablename__ = "evenement_calendrier"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

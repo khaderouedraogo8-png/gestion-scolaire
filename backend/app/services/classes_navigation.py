@@ -7,15 +7,16 @@ from datetime import date, timedelta
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from app.models import Absence, Classe, Inscription, NiveauEtude
+from app.models import Absence, AnneeScolaire, Classe, Inscription, NiveauEtude
+from app.services.tenant import get_current_school_id, get_or_404_tenant, tenant_query
 
 
 def _active_annee_id(db: Session, id_annee: uuid.UUID | None) -> uuid.UUID | None:
     if id_annee:
+        get_or_404_tenant(AnneeScolaire, id_annee)
         return id_annee
-    from app.models import AnneeScolaire
 
-    active = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+    active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
     return active.id if active else None
 
 
@@ -34,10 +35,11 @@ def get_classes_navigation(
     today = date.today()
     pending_since = today - timedelta(days=7)
 
+    school_id = get_current_school_id()
     q = (
         db.query(Classe, NiveauEtude)
         .join(NiveauEtude, NiveauEtude.id == Classe.id_niveau)
-        .filter(Classe.id_annee == annee_id)
+        .filter(Classe.id_annee == annee_id, Classe.school_id == school_id)
     )
     if cycle:
         q = q.filter(NiveauEtude.cycle == cycle)
@@ -50,7 +52,8 @@ def get_classes_navigation(
     results = []
     for classe, niveau in rows:
         effectif = (
-            db.query(func.count(Inscription.id))
+            tenant_query(Inscription)
+            .with_entities(func.count(Inscription.id))
             .filter(
                 Inscription.id_classe == classe.id,
                 Inscription.id_annee == annee_id,
@@ -62,7 +65,8 @@ def get_classes_navigation(
 
         eleve_ids = [
             r[0]
-            for r in db.query(Inscription.id_eleve)
+            for r in tenant_query(Inscription)
+            .with_entities(Inscription.id_eleve)
             .filter(
                 Inscription.id_classe == classe.id,
                 Inscription.id_annee == annee_id,
@@ -75,13 +79,15 @@ def get_classes_navigation(
         non_justifiees = 0
         if eleve_ids:
             absences_jour = (
-                db.query(func.count(Absence.id))
+                tenant_query(Absence)
+                .with_entities(func.count(Absence.id))
                 .filter(Absence.id_eleve.in_(eleve_ids), Absence.date_absence == today)
                 .scalar()
                 or 0
             )
             non_justifiees = (
-                db.query(func.count(Absence.id))
+                tenant_query(Absence)
+                .with_entities(func.count(Absence.id))
                 .filter(
                     Absence.id_eleve.in_(eleve_ids),
                     Absence.justifiee.is_(False),
@@ -119,6 +125,7 @@ def get_absences_par_classe_dashboard(
 
     today = date.today()
     pending_since = today - timedelta(days=jours_non_justifiees)
+    school_id = get_current_school_id()
 
     def _group(rows):
         cycles: dict[str, dict] = {}
@@ -142,10 +149,11 @@ def get_absences_par_classe_dashboard(
             JOIN classe c ON c.id = i.id_classe
             JOIN niveau_etude ne ON ne.id = c.id_niveau
             WHERE a.date_absence = :today
+              AND c.school_id = CAST(:school_id AS UUID)
             GROUP BY ne.cycle, c.id, c.libelle, ne.ordre
             ORDER BY ne.ordre, c.libelle
         """),
-        {"id_annee": annee_id, "today": today},
+        {"id_annee": annee_id, "today": today, "school_id": str(school_id)},
     ).fetchall()
 
     pending_rows = db.execute(
@@ -158,10 +166,11 @@ def get_absences_par_classe_dashboard(
             JOIN classe c ON c.id = i.id_classe
             JOIN niveau_etude ne ON ne.id = c.id_niveau
             WHERE a.justifiee = false AND a.date_absence >= :pending_since
+              AND c.school_id = CAST(:school_id AS UUID)
             GROUP BY ne.cycle, c.id, c.libelle, ne.ordre
             ORDER BY ne.ordre, c.libelle
         """),
-        {"id_annee": annee_id, "pending_since": pending_since},
+        {"id_annee": annee_id, "pending_since": pending_since, "school_id": str(school_id)},
     ).fetchall()
 
     return {

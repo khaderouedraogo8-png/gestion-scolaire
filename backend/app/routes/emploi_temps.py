@@ -1,7 +1,7 @@
 """Module 4 — Routes emploi du temps, enseignants, affectations."""
 import uuid
 
-from flask import jsonify, request, send_file
+from flask import abort, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -11,6 +11,7 @@ from app.auth.permissions import get_enseignant_for_user, require_role
 from app.extensions import get_db
 from app.models import (
     AffectationEnseignant,
+    AnneeScolaire,
     Classe,
     CreneauEmploiTemps,
     Enseignant,
@@ -24,17 +25,39 @@ from app.schemas.emploi_temps import (
     SalleSchema,
 )
 from app.services.generation_pedagogique import generer_pdf_fiche_enseignant
+from app.services.tenant import (
+    apply_tenant_school,
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
+)
 
 blp = Blueprint("emploi_temps", __name__, url_prefix="/emploi-temps", description="Emploi du temps")
 
 JOURS = {1: "Lundi", 2: "Mardi", 3: "Mercredi", 4: "Jeudi", 5: "Vendredi", 6: "Samedi", 7: "Dimanche"}
 
 
+def _creneaux_tenant_query(db):
+    return (
+        db.query(CreneauEmploiTemps)
+        .join(AffectationEnseignant, CreneauEmploiTemps.id_affectation == AffectationEnseignant.id)
+        .filter(AffectationEnseignant.school_id == get_current_school_id())
+    )
+
+
+def _get_creneau_tenant(db, id_creneau):
+    creneau = _creneaux_tenant_query(db).filter(CreneauEmploiTemps.id == id_creneau).first()
+    if not creneau:
+        abort(404)
+    return creneau
+
+
 def _serialize_affectation(db, aff):
     data = AffectationEnseignantSchema().dump(aff)
-    ens = db.query(Enseignant).filter(Enseignant.id == aff.id_enseignant).first()
-    cls = db.query(Classe).filter(Classe.id == aff.id_classe).first()
-    mat = db.query(Matiere).filter(Matiere.id == aff.id_matiere).first()
+    ens = tenant_query(Enseignant).filter(Enseignant.id == aff.id_enseignant).first()
+    cls = tenant_query(Classe).filter(Classe.id == aff.id_classe).first()
+    mat = tenant_query(Matiere).filter(Matiere.id == aff.id_matiere).first()
     data["enseignant_nom"] = f"{ens.prenom} {ens.nom}" if ens else None
     data["classe_nom"] = cls.libelle if cls else None
     data["matiere_nom"] = mat.libelle if mat else None
@@ -52,13 +75,13 @@ def _serialize_creneau(db, creneau):
     data["jour_libelle"] = JOURS.get(creneau.jour_semaine, str(creneau.jour_semaine))
     data["heure_debut"] = creneau.heure_debut.strftime("%H:%M") if creneau.heure_debut else None
     data["heure_fin"] = creneau.heure_fin.strftime("%H:%M") if creneau.heure_fin else None
-    aff = db.query(AffectationEnseignant).filter(
+    aff = tenant_query(AffectationEnseignant).filter(
         AffectationEnseignant.id == creneau.id_affectation
     ).first()
     if aff:
         data.update(_serialize_affectation(db, aff))
     if creneau.id_salle:
-        salle = db.query(Salle).filter(Salle.id == creneau.id_salle).first()
+        salle = tenant_query(Salle).filter(Salle.id == creneau.id_salle).first()
         data["salle_libelle"] = salle.libelle if salle else None
     return data
 
@@ -69,8 +92,7 @@ class EnseignantsResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant")
     @blp.response(200, EnseignantSchema(many=True))
     def get(self):
-        db = get_db()
-        return db.query(Enseignant).order_by(Enseignant.nom).all()
+        return tenant_query(Enseignant).order_by(Enseignant.nom).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -78,7 +100,7 @@ class EnseignantsResource(MethodView):
     @blp.response(201, EnseignantSchema)
     def post(self, data):
         db = get_db()
-        enseignant = Enseignant(id=uuid.uuid4(), **data)
+        enseignant = apply_tenant_school(Enseignant(id=uuid.uuid4(), **data))
         db.add(enseignant)
         db.commit()
         return enseignant, 201
@@ -91,15 +113,13 @@ class EnseignantDetail(MethodView):
     def get(self, id_enseignant):
         db = get_db()
         user = get_current_user()
-        enseignant = db.query(Enseignant).filter(Enseignant.id == id_enseignant).first()
-        if not enseignant:
-            return jsonify({"message": "Enseignant introuvable"}), 404
+        enseignant = get_or_404_tenant(Enseignant, id_enseignant)
         if user.role == "enseignant":
             linked = get_enseignant_for_user(user)
             if not linked or linked.id != enseignant.id:
                 return jsonify({"message": "Accès refusé"}), 403
         id_annee = request.args.get("id_annee")
-        affectations_q = db.query(AffectationEnseignant).filter(
+        affectations_q = tenant_query(AffectationEnseignant).filter(
             AffectationEnseignant.id_enseignant == id_enseignant
         )
         if id_annee:
@@ -111,7 +131,7 @@ class EnseignantDetail(MethodView):
         aff_ids = [a["id"] for a in affectations]
         creneaux = []
         if aff_ids:
-            for c in db.query(CreneauEmploiTemps).filter(
+            for c in _creneaux_tenant_query(db).filter(
                 CreneauEmploiTemps.id_affectation.in_([uuid.UUID(i) for i in aff_ids])
             ).all():
                 creneaux.append(_serialize_creneau(db, c))
@@ -127,9 +147,7 @@ class EnseignantDetail(MethodView):
     @blp.response(200, EnseignantSchema)
     def put(self, data, id_enseignant):
         db = get_db()
-        enseignant = db.query(Enseignant).filter(Enseignant.id == id_enseignant).first()
-        if not enseignant:
-            return jsonify({"message": "Enseignant introuvable"}), 404
+        enseignant = get_or_404_tenant(Enseignant, id_enseignant)
         for key, value in data.items():
             setattr(enseignant, key, value)
         db.commit()
@@ -157,7 +175,7 @@ class AffectationsResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant")
     def get(self):
         db = get_db()
-        q = db.query(AffectationEnseignant)
+        q = tenant_query(AffectationEnseignant)
         id_annee = request.args.get("id_annee")
         id_classe = request.args.get("id_classe")
         id_enseignant = request.args.get("id_enseignant")
@@ -176,7 +194,13 @@ class AffectationsResource(MethodView):
     @blp.response(201, AffectationEnseignantSchema)
     def post(self, data):
         db = get_db()
-        affectation = AffectationEnseignant(id=uuid.uuid4(), **data)
+        assert_same_school(
+            get_or_404_tenant(Enseignant, data["id_enseignant"]),
+            get_or_404_tenant(Classe, data["id_classe"]),
+            get_or_404_tenant(Matiere, data["id_matiere"]),
+            get_or_404_tenant(AnneeScolaire, data["id_annee"]),
+        )
+        affectation = apply_tenant_school(AffectationEnseignant(id=uuid.uuid4(), **data))
         db.add(affectation)
         db.commit()
         return affectation, 201
@@ -188,14 +212,10 @@ class AffectationDetail(MethodView):
     @require_role("administrateur", "directeur")
     def delete(self, id_affectation):
         db = get_db()
-        aff = db.query(AffectationEnseignant).filter(
-            AffectationEnseignant.id == id_affectation
-        ).first()
-        if not aff:
-            return jsonify({"message": "Affectation introuvable"}), 404
-        db.query(CreneauEmploiTemps).filter(
+        aff = get_or_404_tenant(AffectationEnseignant, id_affectation)
+        _creneaux_tenant_query(db).filter(
             CreneauEmploiTemps.id_affectation == id_affectation
-        ).delete()
+        ).delete(synchronize_session=False)
         db.delete(aff)
         db.commit()
         return jsonify({"message": "Affectation supprimée"})
@@ -207,8 +227,8 @@ class SallesResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant")
     @blp.response(200, SalleSchema(many=True))
     def get(self):
-        db = get_db()
-        return db.query(Salle).order_by(Salle.libelle).all()
+        get_db()
+        return tenant_query(Salle).order_by(Salle.libelle).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -216,7 +236,7 @@ class SallesResource(MethodView):
     @blp.response(201, SalleSchema)
     def post(self, data):
         db = get_db()
-        salle = Salle(id=uuid.uuid4(), **data)
+        salle = apply_tenant_school(Salle(id=uuid.uuid4(), **data))
         db.add(salle)
         db.commit()
         return salle, 201
@@ -228,7 +248,7 @@ class CreneauxResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant")
     def get(self):
         db = get_db()
-        q = db.query(CreneauEmploiTemps)
+        q = _creneaux_tenant_query(db)
         id_affectation = request.args.get("id_affectation")
         id_classe = request.args.get("id_classe")
         id_annee = request.args.get("id_annee")
@@ -238,7 +258,7 @@ class CreneauxResource(MethodView):
         if id_classe or id_annee:
             filtered = []
             for c in creneaux:
-                aff = db.query(AffectationEnseignant).filter(
+                aff = tenant_query(AffectationEnseignant).filter(
                     AffectationEnseignant.id == c.id_affectation
                 ).first()
                 if not aff:
@@ -257,6 +277,9 @@ class CreneauxResource(MethodView):
     @blp.response(201, CreneauEmploiTempsSchema)
     def post(self, data):
         db = get_db()
+        get_or_404_tenant(AffectationEnseignant, data["id_affectation"])
+        if data.get("id_salle"):
+            get_or_404_tenant(Salle, data["id_salle"])
         creneau = CreneauEmploiTemps(id=uuid.uuid4(), **data)
         db.add(creneau)
         try:
@@ -277,9 +300,11 @@ class CreneauDetail(MethodView):
     @blp.response(200, CreneauEmploiTempsSchema)
     def put(self, data, id_creneau):
         db = get_db()
-        creneau = db.query(CreneauEmploiTemps).filter(CreneauEmploiTemps.id == id_creneau).first()
-        if not creneau:
-            return jsonify({"message": "Créneau introuvable"}), 404
+        creneau = _get_creneau_tenant(db, id_creneau)
+        if data.get("id_affectation"):
+            get_or_404_tenant(AffectationEnseignant, data["id_affectation"])
+        if data.get("id_salle"):
+            get_or_404_tenant(Salle, data["id_salle"])
         for key, value in data.items():
             setattr(creneau, key, value)
         try:
@@ -295,9 +320,7 @@ class CreneauDetail(MethodView):
     @require_role("administrateur", "directeur")
     def delete(self, id_creneau):
         db = get_db()
-        creneau = db.query(CreneauEmploiTemps).filter(CreneauEmploiTemps.id == id_creneau).first()
-        if not creneau:
-            return jsonify({"message": "Créneau introuvable"}), 404
+        creneau = _get_creneau_tenant(db, id_creneau)
         db.delete(creneau)
         db.commit()
         return jsonify({"message": "Créneau supprimé"})

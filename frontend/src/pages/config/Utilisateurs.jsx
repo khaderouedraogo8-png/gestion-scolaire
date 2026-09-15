@@ -39,7 +39,7 @@ export default function Utilisateurs() {
     setLoading(true);
     try {
       const data = await usersApi.list();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : data.items || []);
     } catch {
       toastRef.current.error('Impossible de charger les utilisateurs. Réessayez.');
     } finally {

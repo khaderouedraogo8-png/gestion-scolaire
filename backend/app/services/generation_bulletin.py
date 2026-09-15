@@ -3,11 +3,12 @@ import os
 import uuid
 from datetime import UTC, datetime
 
-from flask import current_app, render_template
+from flask import abort, current_app, render_template
 from sqlalchemy import text
 
 from app.extensions import get_db
 from app.models import (
+    AnneeScolaire,
     Bulletin,
     Classe,
     Eleve,
@@ -23,11 +24,32 @@ from app.services.calcul_moyennes import (
     refresh_moyenne_matiere_view,
 )
 from app.services.pdf_render import html_to_pdf
+from app.services.tenant import (
+    apply_tenant_school,
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    tenant_query,
+)
 from app.utils.audit_logger import log_audit
+
+
+def _get_trimestre_or_404(db, id_trimestre):
+    """Trimestre parent-only : isolation via AnneeScolaire.school_id."""
+    trim = (
+        db.query(Trimestre)
+        .join(AnneeScolaire, AnneeScolaire.id == Trimestre.id_annee)
+        .filter(Trimestre.id == id_trimestre, AnneeScolaire.school_id == get_current_school_id())
+        .first()
+    )
+    if not trim:
+        abort(404)
+    return trim
 
 
 def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
     """Récupère les moyennes par matière depuis la vue matérialisée."""
+    school_id = get_current_school_id()
     rows = db.execute(
         text("""
             SELECT m.id_matiere, mat.libelle, m.moyenne, cm.coefficient
@@ -37,8 +59,9 @@ def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
             LEFT JOIN coefficient_matiere cm ON cm.id_matiere = m.id_matiere
                 AND cm.id_niveau = c.id_niveau
             WHERE m.id_eleve = :id_eleve AND m.id_trimestre = :id_trimestre
+                AND mat.school_id = :school_id
         """),
-        {"id_eleve": id_eleve, "id_trimestre": id_trimestre},
+        {"id_eleve": id_eleve, "id_trimestre": id_trimestre, "school_id": school_id},
     ).fetchall()
     return [
         {
@@ -54,7 +77,7 @@ def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
 def _appreciation_discipline(db, id_eleve, id_trimestre) -> str | None:
     """Synthèse des incidents disciplinaires du trimestre pour le bulletin."""
     incidents = (
-        db.query(IncidentDisciplinaire)
+        tenant_query(IncidentDisciplinaire)
         .filter(
             IncidentDisciplinaire.id_eleve == id_eleve,
             IncidentDisciplinaire.id_trimestre == id_trimestre,
@@ -76,18 +99,17 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     db = get_db()
     refresh_moyenne_matiere_view(db)
 
-    eleve = db.query(Eleve).filter(Eleve.id == id_eleve).first()
-    trimestre = db.query(Trimestre).filter(Trimestre.id == id_trimestre).first()
-    if not eleve or not trimestre:
-        raise ValueError("Élève ou trimestre introuvable")
+    eleve = get_or_404_tenant(Eleve, id_eleve)
+    trimestre = _get_trimestre_or_404(db, id_trimestre)
 
     inscription = (
-        db.query(Inscription)
+        tenant_query(Inscription)
         .filter(Inscription.id_eleve == id_eleve, Inscription.id_annee == trimestre.id_annee)
         .first()
     )
     if not inscription:
         raise ValueError("Inscription introuvable pour cet élève")
+    assert_same_school(eleve, inscription)
 
     id_classe = inscription.id_classe
     moyennes_mat = _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre)
@@ -96,7 +118,7 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     )
 
     # Moyennes de toute la classe pour rang et moyenne classe
-    inscriptions_classe = db.query(Inscription).filter(Inscription.id_classe == id_classe).all()
+    inscriptions_classe = tenant_query(Inscription).filter(Inscription.id_classe == id_classe).all()
     moyennes_classe = {}
     for ins in inscriptions_classe:
         mats = _get_moyennes_eleve(db, ins.id_eleve, id_classe, id_trimestre)
@@ -109,9 +131,11 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     moyennes_valides = [m for m in moyennes_classe.values() if m is not None]
     moy_classe = sum(moyennes_valides) / len(moyennes_valides) if moyennes_valides else None
 
-    bulletin = db.query(Bulletin).filter(
-        Bulletin.id_eleve == id_eleve, Bulletin.id_trimestre == id_trimestre
-    ).first()
+    bulletin = (
+        tenant_query(Bulletin)
+        .filter(Bulletin.id_eleve == id_eleve, Bulletin.id_trimestre == id_trimestre)
+        .first()
+    )
 
     if bulletin and bulletin.statut == "publie":
         raise ValueError("Bulletin publié — lecture seule")
@@ -122,6 +146,8 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
             id_eleve=id_eleve,
             id_trimestre=id_trimestre,
         )
+        apply_tenant_school(bulletin)
+        assert_same_school(eleve, bulletin)
         db.add(bulletin)
 
     bulletin.moyenne_generale = moy_gen
@@ -144,19 +170,23 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
 def generer_bulletin_pdf(bulletin: Bulletin) -> str:
     """Génère le PDF du bulletin et retourne le chemin du fichier."""
     db = get_db()
-    eleve = db.query(Eleve).filter(Eleve.id == bulletin.id_eleve).first()
-    trimestre = db.query(Trimestre).filter(Trimestre.id == bulletin.id_trimestre).first()
-    etablissement = db.query(Etablissement).first()
-    from app.models import AnneeScolaire
+    assert_same_school(bulletin)
+    eleve = get_or_404_tenant(Eleve, bulletin.id_eleve)
+    trimestre = _get_trimestre_or_404(db, bulletin.id_trimestre)
+    etablissement = (
+        db.query(Etablissement).filter(Etablissement.school_id == get_current_school_id()).first()
+    )
 
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == trimestre.id_annee).first() if trimestre else None
+    annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == trimestre.id_annee).first()
 
     inscription = (
-        db.query(Inscription)
+        tenant_query(Inscription)
         .filter(Inscription.id_eleve == bulletin.id_eleve, Inscription.id_annee == trimestre.id_annee)
         .first()
     )
-    classe = db.query(Classe).filter(Classe.id == inscription.id_classe).first() if inscription else None
+    classe = (
+        tenant_query(Classe).filter(Classe.id == inscription.id_classe).first() if inscription else None
+    )
     moyennes = _get_moyennes_eleve(db, bulletin.id_eleve, classe.id if classe else None, bulletin.id_trimestre)
 
     html = render_template(
@@ -185,9 +215,7 @@ def generer_bulletin_pdf(bulletin: Bulletin) -> str:
 def valider_bulletin(bulletin_id: uuid.UUID, id_utilisateur: uuid.UUID) -> Bulletin:
     """Valide un bulletin (directeur/admin)."""
     db = get_db()
-    bulletin = db.query(Bulletin).filter(Bulletin.id == bulletin_id).first()
-    if not bulletin:
-        raise ValueError("Bulletin introuvable")
+    bulletin = get_or_404_tenant(Bulletin, bulletin_id)
     if bulletin.statut == "publie":
         raise ValueError("Bulletin déjà publié")
     bulletin.statut = "valide"
@@ -200,9 +228,7 @@ def valider_bulletin(bulletin_id: uuid.UUID, id_utilisateur: uuid.UUID) -> Bulle
 def publier_bulletin(bulletin_id: uuid.UUID, id_utilisateur: uuid.UUID) -> Bulletin:
     """Publie un bulletin validé."""
     db = get_db()
-    bulletin = db.query(Bulletin).filter(Bulletin.id == bulletin_id).first()
-    if not bulletin:
-        raise ValueError("Bulletin introuvable")
+    bulletin = get_or_404_tenant(Bulletin, bulletin_id)
     if bulletin.statut != "valide":
         raise ValueError("Le bulletin doit être validé avant publication")
     generer_bulletin_pdf(bulletin)
@@ -212,8 +238,8 @@ def publier_bulletin(bulletin_id: uuid.UUID, id_utilisateur: uuid.UUID) -> Bulle
 
     from app.services.envoi_notification import creer_notification
 
-    eleve = db.query(Eleve).filter(Eleve.id == bulletin.id_eleve).first()
-    trimestre = db.query(Trimestre).filter(Trimestre.id == bulletin.id_trimestre).first()
+    eleve = get_or_404_tenant(Eleve, bulletin.id_eleve)
+    trimestre = _get_trimestre_or_404(db, bulletin.id_trimestre)
     if eleve and trimestre:
         creer_notification(
             "email",

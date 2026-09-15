@@ -43,3 +43,9 @@ class PaiementCreateSchema(Schema):
 
 class AnnulationPaiementSchema(Schema):
     motif_annulation = fields.String(required=True)
+
+
+class RelanceArrieresSchema(Schema):
+    id_annee = fields.UUID(required=True)
+    canal = fields.String(load_default="email", validate=validate.OneOf(["email", "sms"]))
+    auto_envoyer = fields.Boolean(load_default=True)

@@ -11,6 +11,7 @@ from app.auth.permissions import require_role
 from app.extensions import get_db
 from app.models import Absence, Inscription, Paiement
 from app.services.classes_navigation import get_absences_par_classe_dashboard
+from app.services.tenant import get_current_school_id, tenant_query
 
 blp = Blueprint("dashboard", __name__, url_prefix="/dashboard", description="Tableau de bord")
 
@@ -22,6 +23,7 @@ class DashboardStats(MethodView):
     def get(self):
         db = get_db()
         id_annee = request.args.get("id_annee")
+        school_id = get_current_school_id()
 
         effectifs_query = db.execute(
             text("""
@@ -31,11 +33,12 @@ class DashboardStats(MethodView):
                 JOIN classe c ON c.id = i.id_classe
                 JOIN niveau_etude ne ON ne.id = c.id_niveau
                 WHERE i.statut IN ('inscrit', 'reinscrit')
+                  AND i.school_id = CAST(:school_id AS UUID)
                   AND (:id_annee IS NULL OR i.id_annee = CAST(:id_annee AS UUID))
                 GROUP BY ne.libelle, ne.ordre, e.sexe
                 ORDER BY ne.ordre, e.sexe
             """),
-            {"id_annee": id_annee},
+            {"id_annee": id_annee, "school_id": str(school_id)},
         ).fetchall()
 
         effectifs = [
@@ -51,8 +54,10 @@ class DashboardStats(MethodView):
                            COUNT(*) FILTER (WHERE m.moyenne >= 10) AS reussis
                     FROM moyenne_matiere_eleve m
                     JOIN matiere mat ON mat.id = m.id_matiere
+                    WHERE mat.school_id = CAST(:school_id AS UUID)
                     GROUP BY mat.libelle
-                """)
+                """),
+                {"school_id": str(school_id)},
             ).fetchall()
 
             taux_reussite = [
@@ -65,13 +70,17 @@ class DashboardStats(MethodView):
                 for r in reussite_query
             ]
         except Exception:
+            db.rollback()
             taux_reussite = []
+            # Re-bind tenant context after rollback
+            school_id = get_current_school_id()
 
         tresorerie = 0
         total_du = 0
         if id_annee:
             paiements = (
-                db.query(func.coalesce(func.sum(Paiement.montant_verse), 0))
+                tenant_query(Paiement)
+                .with_entities(func.coalesce(func.sum(Paiement.montant_verse), 0))
                 .filter(Paiement.id_annee == id_annee, Paiement.annule.is_(False))
                 .scalar()
             )
@@ -85,22 +94,23 @@ class DashboardStats(MethodView):
                     JOIN frais_scolaire fs ON fs.id_niveau = c.id_niveau AND fs.id_annee = i.id_annee
                     JOIN echeance_paiement ec ON ec.id_frais = fs.id
                     WHERE i.id_annee = CAST(:id_annee AS UUID)
+                      AND i.school_id = CAST(:school_id AS UUID)
                       AND i.statut IN ('inscrit', 'reinscrit')
                 """),
-                {"id_annee": id_annee},
+                {"id_annee": id_annee, "school_id": str(school_id)},
             ).scalar()
             total_du = float(du or 0)
 
         taux_recouvrement = round(tresorerie / total_du * 100, 1) if total_du > 0 else 0
 
-        inscrits_q = db.query(func.count(Inscription.id)).filter(
+        inscrits_q = tenant_query(Inscription).with_entities(func.count(Inscription.id)).filter(
             Inscription.statut.in_(("inscrit", "reinscrit"))
         )
         if id_annee:
             inscrits_q = inscrits_q.filter(Inscription.id_annee == id_annee)
         total_eleves = inscrits_q.scalar()
 
-        absences_mois = db.query(func.count(Absence.id)).scalar() or 0
+        absences_mois = tenant_query(Absence).with_entities(func.count(Absence.id)).scalar() or 0
 
         return jsonify({
             "effectifs_par_niveau": effectifs,

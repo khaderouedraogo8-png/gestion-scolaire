@@ -18,12 +18,18 @@ def relancer_arrieres(
     canal: str = "email",
     min_jours_entre_relances: int = 7,
     auto_envoyer: bool = False,
+    school_id: uuid.UUID | None = None,
 ) -> dict:
     """
     Crée des notifications de type retard_paiement pour chaque élève en arriéré.
     Évite les doublons si une relance a déjà été créée/envoyée récemment.
     """
-    arrieres = list_arrieres(db, id_annee)
+    if school_id is None:
+        from app.services.tenant import get_current_school_id
+
+        school_id = get_current_school_id()
+
+    arrieres = list_arrieres(db, id_annee, school_id=school_id)
     seuil = datetime.now(UTC) - timedelta(days=min_jours_entre_relances)
     crees = 0
     ignores = 0
@@ -33,6 +39,7 @@ def relancer_arrieres(
         recente = (
             db.query(Notification)
             .filter(
+                Notification.school_id == school_id,
                 Notification.id_eleve == id_eleve,
                 Notification.type_notification == "retard_paiement",
                 Notification.created_at >= seuil,
