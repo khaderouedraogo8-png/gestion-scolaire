@@ -88,8 +88,9 @@ def create_app(config_name: str | None = None) -> Flask:
     @application.cli.command("create-super-admin")
     def create_super_admin_command():
         """Bootstrap ops : crée (ou réactive) le premier SUPER_ADMIN plateforme."""
-        import click
         import uuid as uuid_mod
+
+        import click
 
         from app.auth.jwt_handler import hash_password
         from app.extensions import get_db

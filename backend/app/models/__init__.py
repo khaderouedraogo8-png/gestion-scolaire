@@ -45,8 +45,8 @@ from app.models.utilisateur import (
 )
 
 __all__ = [
-    "PLATFORM_ROLE_SUPER_ADMIN",
     "PLATFORM_ROLES",
+    "PLATFORM_ROLE_SUPER_ADMIN",
     "ROLES",
     "SCHOOL_ROLES",
     "Absence",

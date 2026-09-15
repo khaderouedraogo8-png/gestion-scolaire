@@ -316,9 +316,7 @@ class TestSecurity:
         assert list_a.status_code == 200
         emails = [u["email"] for u in (list_a.get_json().get("items") or list_a.get_json().get("data") or [])]
         assert email not in emails
-        # B cannot get A admin by id
-        get_cross = client.get(f"/api/users/{school_pair['A']['admin'].id}", headers=headers_b)
-        # GET detail may not exist — patch instead
+        # B cannot patch A admin by id
         patch_cross = client.patch(
             f"/api/users/{school_pair['A']['admin'].id}",
             headers=headers_b,
