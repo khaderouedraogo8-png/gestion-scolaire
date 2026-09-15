@@ -142,6 +142,58 @@ class TestZeroAndMissing:
         assert result.subject_average == Decimal("8.33")
 
 
+class TestOptionalMissingRenormalization:
+    """V1 : optionnelle manquante → omise + renormalisation (≠ ZERO, ≠ inventer 0)."""
+
+    def test_optional_missing_renormalizes_30_20_50(self):
+        # TP optionnel manquant : 30/50 sur devoir+composition présents
+        # raw = (14*0.30 + 12*0.50) * 100 / 80 = (4.2+6)*100/80 = 12.75
+        rules = build_minimal_resolved_rules(
+            components=[
+                ("DEV", "devoir", Decimal(30), True),
+                ("TP", "tp", Decimal(20), False),
+                ("COMP", "composition", Decimal(50), True),
+            ]
+        )
+        result = calculate_subject_result(
+            [_g("devoir", 14), _g("composition", 12)],
+            rules,
+        )
+        assert not result.incomplete
+        assert result.subject_average == Decimal("12.75")
+        tp = next(c for c in result.components if c.code == "TP")
+        assert tp.missing is True
+        assert tp.component_average is None
+
+    def test_optional_missing_not_treated_as_zero(self):
+        rules = build_minimal_resolved_rules(
+            components=[
+                ("DEV", "devoir", Decimal(60), True),
+                ("COMP", "composition", Decimal(40), False),
+            ]
+        )
+        missing_opt = calculate_subject_result([_g("devoir", 14)], rules)
+        explicit_zero = calculate_subject_result(
+            [_g("devoir", 14), _g("composition", 0)],
+            rules,
+        )
+        # missing opt → only devoir : 14.00 ; zero opt → 14*0.6 + 0*0.4 = 8.40
+        assert missing_opt.subject_average == Decimal("14.00")
+        assert explicit_zero.subject_average == Decimal("8.40")
+        assert missing_opt.subject_average != explicit_zero.subject_average
+
+    def test_required_missing_still_blocks_with_optional_present(self):
+        rules = build_minimal_resolved_rules(
+            components=[
+                ("DEV", "devoir", Decimal(60), True),
+                ("COMP", "composition", Decimal(40), False),
+            ]
+        )
+        result = calculate_subject_result([_g("composition", 18)], rules)
+        assert result.incomplete
+        assert result.subject_average is None
+
+
 class TestCoefficientSeparate:
     def test_coefficient_after_subject_average(self):
         rules = build_minimal_resolved_rules(

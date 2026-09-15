@@ -1024,3 +1024,35 @@ Frontend, BulletinTemplate, PDF layout, class council, mentions configurables, p
 ### Hors scope Step 5
 Calculation Engine FE, bulletins, PDF, Excel, AI, class council, promotion, absences, multi-tenant nouveau.
 
+---
+
+## PR #12 — Step 6 — Validation exhaustive / QA / intégration
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Nature :** validation + corrections ciblées (pas de nouvelle feature métier).
+
+### Corrections Step 6
+1. **Tests renormalisation optionnelle** — couverture manquante pour `is_required=False` (30/20/50 TP manquant → 12.75 ; missing ≠ zero explicite ; required manquant reste BLOCK).
+2. **Helper `build_minimal_resolved_rules`** — accepte `(code, type, weight, is_required)`.
+3. **Observabilité bulletin** — log `warning` si fallback legacy sur `GradingRulesConflictError` / `GradingContextError` (comportement legacy conservé).
+
+### Résultats tests (Step 6)
+- Backend grading suites : **108 passed** (unit calc + specificity + foundation + resolution + API + integration calc)
+- Frontend Vitest : **35 passed** (dont 17 grading)
+- Ruff (modules grading) : OK
+- ESLint : 0 errors (3 warnings préexistants hors scope)
+- Vite build : OK
+
+### Policies missing réellement supportées (V1)
+| Policy conceptuelle | Support API configurable ? | Comportement moteur |
+|---------------------|----------------------------|---------------------|
+| BLOCK / REQUIRE_ALL (required missing) | Non (via `is_required=true`) | moyenne matière `None`, `incomplete=True` |
+| EXCLUDE + PARTIAL_NORMALIZATION (optional missing) | Non (via `is_required=false`) | omit + renormalise poids présents |
+| ZERO (missing→0) | **Non supporté** | jamais auto-map NULL→0 |
+| EXCLUDE sans renormalisation | **Non** | N/A |
+
+### Verdict
+**VALIDATION COMPLETE — PR12 READY FOR STEP 7 WITH NON-BLOCKING RISKS**
+
+Risques non bloquants documentés : pas de `missing_grade_policy` API ; axes classe/période absents V1 ; fallback bulletin legacy sur conflit (maintenant loggé) ; pas d’endpoint history dédié ; `evaluation_context` non utilisé au calcul ; MV dashboard legacy peut diverger.
+

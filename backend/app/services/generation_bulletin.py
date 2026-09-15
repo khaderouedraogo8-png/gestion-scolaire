@@ -92,9 +92,16 @@ def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre):
             cache=RulesResolutionCache(),
             subject_ids=list(legacy_by_matiere.keys()) or None,
         )
-    except (GradingRulesConflictError, GradingContextError):
-        # Conflit / contexte invalide : ne pas masquer — fallback legacy pour ne pas
-        # bloquer la génération historique ; le conflit reste visible via resolve API.
+    except (GradingRulesConflictError, GradingContextError) as exc:
+        # Conflit / contexte invalide : fallback legacy pour ne pas bloquer la génération
+        # historique. Visible via resolve API + log warning (Step 6 observabilité).
+        current_app.logger.warning(
+            "bulletin_moyennes_fallback_legacy eleve=%s classe=%s periode=%s err=%s",
+            id_eleve,
+            id_classe,
+            id_trimestre,
+            exc,
+        )
         return list(legacy_by_matiere.values())
 
     engine_rows = subject_results_to_moyenne_rows(db, results)

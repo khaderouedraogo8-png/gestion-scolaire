@@ -367,7 +367,7 @@ def calculate_general_average(
 
 def build_minimal_resolved_rules(
     *,
-    components: list[tuple[str, str, Decimal]],
+    components: list[tuple],
     scale_max: Decimal = Decimal("20.00"),
     rounding_mode: str = GRADING_ROUNDING_HALF_UP,
     rounding_precision: int = 2,
@@ -379,13 +379,19 @@ def build_minimal_resolved_rules(
     """Helper tests : construit un ResolvedGradingRules minimal sans DB.
 
     ``components`` = [(code, evaluation_type_code, weight), ...]
+    ou [(code, evaluation_type_code, weight, is_required), ...]
     """
     from app.services.grading_rules import ResolutionTrace
 
     rid = ruleset_id or uuid.uuid4()
     sid = school_id or uuid.uuid4()
     resolved_comps: list[ResolvedComponent] = []
-    for i, (code, type_code, weight) in enumerate(components, start=1):
+    for i, item in enumerate(components, start=1):
+        if len(item) == 4:
+            code, type_code, weight, is_required = item
+        else:
+            code, type_code, weight = item
+            is_required = True
         resolved_comps.append(
             ResolvedComponent(
                 id=uuid.uuid4(),
@@ -396,7 +402,7 @@ def build_minimal_resolved_rules(
                 evaluation_context="normal",
                 weight=_as_decimal(weight),
                 sequence=i,
-                is_required=True,
+                is_required=bool(is_required),
             )
         )
     return ResolvedGradingRules(
