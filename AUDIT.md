@@ -511,65 +511,73 @@ Ajouter `school_id` (où pertinent), backfill, filtrer toutes les requêtes/rout
 
 ## PR #8 — Final Validation
 
-**Date audit :** 2026-09-14  
+**Date audit (re-run) :** 2026-09-15  
 **Branche :** `cursor/saas-multitenant-foundation-8bcc`  
-**Commit Phase 1 :** `0d5edf1`  
-**Verdict :** voir section STATUS ci-dessous (exécuté sur code + DB réelle).
+**Commits Phase 1 :** `0d5edf1` + `f0b86aa`  
+**Verdict exécuté :** **READY TO MERGE** (Phase 1 foundation) — P0=0, P1=0
 
 ### Architecture
 
 shared database + tenant identifier (`schools` / `utilisateur.school_id`)
 
-### Migration (exécutée)
+### Migration (re-exécutée 2026-09-15)
 
 | Étape | Résultat |
 |-------|----------|
 | `alembic downgrade -1` | PASS — drop `schools` + `utilisateur.school_id` |
 | `alembic upgrade head` | PASS — recreate + default school + backfill |
-| Préservation données métier | PASS — counts inchangés (utilisateur 546, eleve 967, classe 668, note 50, paiement 25, …) |
-| Backfill | PASS — après upgrade : `utilisateur.school_id IS NULL = 0` (546/546) |
-| FK réelle | PASS — `fk_utilisateur_school_id … ON DELETE SET NULL` ; INSERT/UPDATE UUID inexistant → IntegrityError |
-| Indexes réels | PASS — `uq_schools_code`, `ix_utilisateur_school_id` présents dans `pg_indexes` |
+| Préservation données métier | PASS — counts inchangés (utilisateur 623, eleve 1078, classe 736, note 56, paiement 29, …) |
+| Backfill | PASS — après upgrade : `school_id IS NULL = 0` (623/623 → 1 school `ECOLE-EXISTANTE`) |
+| FK réelle | PASS — `fk_utilisateur_school_id … ON DELETE SET NULL` ; UUID inexistant → IntegrityError |
+| Indexes réels | PASS — `uq_schools_code`, `ix_utilisateur_school_id` dans `pg_indexes` |
+| Unique `schools.code` | PASS — doublon → IntegrityError |
 
-**Comportement downgrade documenté :** le downgrade **supprime** la table `schools` et la colonne `school_id` (association tenant perdue). Les tables métier (élèves, notes, etc.) sont conservées.
+**Downgrade documenté :** détruit volontairement `schools` + colonne `school_id` (lien tenant perdu). Tables métier conservées.
 
-**ondelete SET NULL :** supprimer une école remet `utilisateur.school_id` à NULL (utilisateurs sans tenant). Acceptable en Phase 1 (nullable) — à durcir (RESTRICT) en Phase 2+.
+**ON DELETE SET NULL :** supprimer une école nullifie `utilisateur.school_id` (vérifié). Acceptable Phase 1 ; durcir en Phase 2+.
 
-### Tenant context / API / sécurité (exécutés)
+**Note :** avant re-upgrade, 74 users avaient `school_id NULL` (créations post-migration / tests). Le backfill migration les réassocie ; la colonne reste nullable par design Phase 1.
+
+### Tenant context / API / sécurité (re-exécutés)
 
 | Check | Résultat |
 |-------|----------|
-| `GET /api/schools/current` sans auth | 401 |
-| User A → school A / User B → school B | PASS (IDs distincts) |
-| Query spoof `?school_id=<B>` avec token A | PASS — reste school A |
-| POST/PATCH school CRUD | 405 / 404 (pas de CRUD public) |
-| User sans school | 403 contrôlé |
-| École inactive | 403 contrôlé |
-| JWT claims | `school_id` **absent** du token (role/email seulement) — tenant relu depuis User en DB |
-| Frontend `school_id` | aucune occurrence — store `currentSchool` lecture seule via API |
+| Sans JWT / JWT invalide | 401 |
+| User A → AUD-A / User B → AUD-B | PASS (IDs distincts) |
+| Query `?school_id=<B>` + Header `X-School-Id` | PASS — reste A (spoof inefficace) |
+| POST `/current` / GET\|PATCH `/schools/<id>` | 405 / 404 |
+| User sans school / école inactive | 403 |
+| JWT claims | pas de `school_id` (role/email/sub) — tenant depuis User DB |
+| Frontend | aucun `school_id` ; `currentSchool` via GET API seulement |
 
-### Tests
+### Tests / lint / build (re-exécutés)
 
-- Suite complète : **73 passed** (après correctif pagination flaky sur `test_parent_sees_published_exam_before_cloture` — pollution classe partagée + `per_page` défaut 25)
-- Sous-ensemble `-k school or tenant` : **10 passed**
+- `pytest -q` : **73 passed / 0 failed / 4.52s**
+- `ruff check app tests` : PASS  
+- `npm run lint` : 0 errors / 3 warnings hooks préexistants  
+- `npm run build` : PASS
 
-### Lint / build
+### Modèles NON isolés (Phase 2 — volontaire)
 
-- Backend ruff : PASS  
-- Frontend eslint : PASS (0 erreur / 3 warnings hooks préexistants)  
-- Frontend `vite build` : PASS
+eleve, parent_tuteur, eleve_parent, inscription, classe, annee_scolaire, trimestre, niveau_etude, matiere, coefficient_matiere, evaluation, note, bulletin, programme_devoir, seance_cours, enseignant, affectation_enseignant, salle, creneau_emploi_temps, frais_scolaire, echeance_paiement, paiement, absence, incident_disciplinaire, document_administratif, notification, evenement_calendrier, etablissement (profil), journal_audit — **PHASE 2**.
 
-### Limites — modèles PAS encore isolés
+### Scope vs `main`
 
-Eleve, Classe, AnneeScolaire, Trimestre, Matiere, Evaluation, Note, Bulletin, Paiement, FraisScolaire, Absence, IncidentDisciplinaire, DocumentAdministratif, Enseignant, Affectation, Salle, Creneau, Notification, Etablissement (profil), etc. — **PHASE 2**.
+Branche **empile PR #7** (16 commits / 41 fichiers). Commit Phase 1 seul = 15 fichiers in-scope. Recommandation ops : merger PR #7 d’abord **ou** accepter le stack (PR #7 déjà validée READY).
 
-### Scope PR vs `main`
+### P0 / P1
 
-La branche **empile PR #7** (P0/P1) + Phase 1. Le commit Phase 1 seul (`0d5edf1`) touche 15 fichiers (scope fondation correct). Diff `main...HEAD` = 41 fichiers (contenu PR #7 inclus) — **merger PR #7 d’abord** ou accepter le stack.
+Aucun.
+
+### P2
+
+- Stack PR #7 non mergée dans `main`
+- `ON DELETE SET NULL` + `school_id` nullable → users sans tenant possibles hors backfill
+- Isolation métier absente (attendu Phase 2)
 
 ### Prochaine étape
 
-Phase 2 — isolation réelle des données par `school_id` sur routes/modèles métier + tests School A ≠ School B.
+**Merge PR #8** puis **Phase 2 — isolation réelle par école**.
 
 ---
 
