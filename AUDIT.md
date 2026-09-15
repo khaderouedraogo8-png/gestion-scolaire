@@ -938,3 +938,37 @@ Aucun backfill des anciennes formules. Seed catalogue `evaluation_type` système
 
 ### Hors scope Step 2
 API CRUD rulesets, calcul moyennes, frontend, bulletins, cache Redis.
+
+---
+
+## PR #12 — Step 3 — Grading Rulesets API
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Routes :** `/api/grading-rulesets*` + `/api/evaluation-types`  
+**Service :** `app/services/grading_rulesets.py` (consomme `resolve_grading_rules` Step 2)
+
+### Endpoints
+| Méthode | Endpoint | Rôle |
+|---------|----------|------|
+| GET | `/api/evaluation-types` | catalogue tenant |
+| GET | `/api/grading-rulesets` | liste paginée (sans composants) |
+| POST | `/api/grading-rulesets` | crée DRAFT (+ composants optionnels) |
+| GET | `/api/grading-rulesets/<id>` | détail + composants |
+| PATCH | `/api/grading-rulesets/<id>` | update DRAFT uniquement |
+| POST | `/api/grading-rulesets/<id>/components` | ajout composant (DRAFT) |
+| PATCH/DELETE | `…/components/<cid>` | update/delete (DRAFT) |
+| POST | `/api/grading-rulesets/<id>/activate` | DRAFT→ACTIVE (+ archive même code) |
+| POST | `/api/grading-rulesets/<id>/archive` | DRAFT\|ACTIVE→ARCHIVED |
+| POST | `/api/grading-rulesets/resolve` | résolution via moteur Step 2 (`diagnostic`) |
+
+### Décisions
+1. **school_id / status / version / created_by** — serveur uniquement ; spoof → 400
+2. **Axes Class/Period** — refusés à la création (V1 modèle) ; OK en resolve (validation contexte)
+3. **Somme poids 100 %** — exigée à l’activation (DRAFT peut être partiel)
+4. **Activation** — `SELECT … FOR UPDATE` ; auto-archive ACTIVE même `code` ; conflit si autre ACTIVE même scope
+5. **Erreurs** — enveloppe PR7 + `abort_api` codes métier (`NO_RULESET`, `RULESET_CONFLICT`, …)
+6. **RBAC** — lecture admin/directeur/secrétariat/enseignant/comptable ; écriture admin/directeur
+7. **Indépendance** — zéro notes / moyennes / bulletin / frontend
+
+### Hors scope Step 3
+Calcul moyennes, frontend configuration, bulletins, Excel, AI.
