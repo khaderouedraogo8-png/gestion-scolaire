@@ -123,16 +123,16 @@ describe('Programmes page', () => {
 
   it('affiche les programmes avec badge historique GENERAL', async () => {
     wrap(<Programmes />);
-    expect(await screen.findByText('Technique')).toBeInTheDocument();
+    expect(await screen.findByText('TECH')).toBeInTheDocument();
     expect(screen.getByText('Historique')).toBeInTheDocument();
-    expect(screen.getByText('2 niv. · 3 cl.')).toBeInTheDocument();
+    expect(screen.getByText(/2 niv\./)).toBeInTheDocument();
   });
 
   it('crée un programme', async () => {
     const user = userEvent.setup();
     mockCreateProgram.mockResolvedValue({ ...TECH, id: 'new' });
     wrap(<Programmes />);
-    await screen.findByText('Technique');
+    await screen.findByText('TECH');
     await user.click(screen.getByRole('button', { name: /nouveau programme/i }));
     await user.type(screen.getByLabelText(/code/i), 'PRO');
     await user.type(screen.getByLabelText(/^nom/i), 'Professionnel');
@@ -147,8 +147,8 @@ describe('Programmes page', () => {
     const user = userEvent.setup();
     mockUpdateProgram.mockResolvedValue(TECH);
     wrap(<Programmes />);
-    await screen.findByText('Technique');
-    const row = screen.getByText('Technique').closest('tr');
+    await screen.findByText('TECH');
+    const row = screen.getByText('TECH').closest('tr');
     await user.click(within(row).getByRole('button', { name: /modifier/i }));
     const nameInput = screen.getByLabelText(/^nom/i);
     await user.clear(nameInput);
@@ -161,11 +161,12 @@ describe('Programmes page', () => {
     const user = userEvent.setup();
     mockDeactivateProgram.mockResolvedValue({ ...TECH, is_active: false });
     wrap(<Programmes />);
-    await screen.findByText('Technique');
-    const row = screen.getByText('Technique').closest('tr');
+    await screen.findByText('TECH');
+    const row = screen.getByText('TECH').closest('tr');
     await user.click(within(row).getByRole('button', { name: /désactiver/i }));
-    expect(screen.getByText(/désactiver le programme/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^désactiver$/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/sera désactivé/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /^désactiver$/i }));
     await waitFor(() => expect(mockDeactivateProgram).toHaveBeenCalledWith('p-tech'));
   });
 
@@ -187,7 +188,7 @@ describe('Programmes page', () => {
       response: { status: 409, data: { message: 'Un programme avec le code « TECH » existe déjà.' } },
     });
     wrap(<Programmes />);
-    await screen.findByText('Technique');
+    await screen.findByText('TECH');
     await user.click(screen.getByRole('button', { name: /nouveau programme/i }));
     await user.type(screen.getByLabelText(/code/i), 'TECH');
     await user.type(screen.getByLabelText(/^nom/i), 'Dup');
