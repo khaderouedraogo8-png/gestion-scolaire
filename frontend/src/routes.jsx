@@ -40,14 +40,17 @@ import Notifications from './pages/notifications/Notifications';
 
 import Etablissement from './pages/config/Etablissement';
 import Annees from './pages/config/Annees';
-import Classes from './pages/config/Classes';
-import Niveaux from './pages/config/Niveaux';
+import Classes from './pages/etablissement/Classes';
+import Niveaux from './pages/etablissement/Niveaux';
 import Matieres from './pages/config/Matieres';
 import Coefficients from './pages/config/Coefficients';
 import CalendrierScolaire from './pages/config/CalendrierScolaire';
 import Trimestres from './pages/config/Trimestres';
 import AuditJournal from './pages/config/AuditJournal';
 import Utilisateurs from './pages/config/Utilisateurs';
+import Programmes from './pages/etablissement/Programmes';
+import ProgrammeDetail from './pages/etablissement/ProgrammeDetail';
+import Periodes from './pages/etablissement/Periodes';
 
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ParentHome from './pages/parent/ParentHome';
@@ -379,6 +382,46 @@ export const routes = [
         element: (
           <ProtectedRoute roles={CONFIG}>
             <Annees />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'etablissement/programmes',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <Programmes />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'etablissement/programmes/:id',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <ProgrammeDetail />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'etablissement/periodes',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <Periodes />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'etablissement/niveaux',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <Niveaux />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'etablissement/classes',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <Classes />
           </ProtectedRoute>
         ),
       },

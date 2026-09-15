@@ -1,4 +1,4 @@
-"""Routes établissement, année scolaire, trimestre, niveau, classe."""
+"""Routes établissement, année, programmes, périodes, niveaux, classes."""
 import uuid
 
 from flask import abort, jsonify, request
@@ -14,39 +14,36 @@ from app.models import (
     Etablissement,
     EvenementCalendrier,
     NiveauEtude,
-    Trimestre,
+    Program,
 )
 from app.schemas.etablissement import (
     AnneeScolaireSchema,
     ClasseSchema,
     EtablissementSchema,
     NiveauEtudeSchema,
+    PeriodCreateSchema,
+    PeriodUpdateSchema,
+    ProgramCreateSchema,
+    ProgramUpdateSchema,
     TrimestreSchema,
 )
 from app.schemas.pedagogie import EvenementCalendrierSchema
+from app.services import academic as academic_service
 from app.services.tenant import (
     apply_tenant_school,
     get_current_school_id,
     get_or_404_tenant,
+    reject_client_school_id,
     tenant_query,
 )
+from app.utils.pagination import pagination_payload, parse_pagination
 
-blp = Blueprint("etablissement", __name__, url_prefix="/etablissement", description="Configuration établissement")
-
-
-def _trimestres_tenant_query(db):
-    return (
-        db.query(Trimestre)
-        .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
-        .filter(AnneeScolaire.school_id == get_current_school_id())
-    )
-
-
-def _get_trimestre_or_404(db, id_trimestre):
-    trim = _trimestres_tenant_query(db).filter(Trimestre.id == id_trimestre).first()
-    if trim is None:
-        abort(404)
-    return trim
+blp = Blueprint(
+    "etablissement",
+    __name__,
+    url_prefix="/etablissement",
+    description="Configuration établissement",
+)
 
 
 def _evenements_tenant_query(db):
@@ -62,6 +59,11 @@ def _get_evenement_or_404(db, id_evenement):
     if event is None:
         abort(404)
     return event
+
+
+# ---------------------------------------------------------------------------
+# Établissement / Années
+# ---------------------------------------------------------------------------
 
 
 @blp.route("/")
@@ -81,6 +83,7 @@ class EtablissementResource(MethodView):
     @blp.response(201, EtablissementSchema)
     def post(self, data):
         db = get_db()
+        reject_client_school_id(data)
         if tenant_query(Etablissement).first():
             return jsonify({"message": "Établissement déjà configuré pour cette école"}), 409
         etab = apply_tenant_school(Etablissement(id=uuid.uuid4(), **data))
@@ -94,6 +97,7 @@ class EtablissementResource(MethodView):
     @blp.response(200, EtablissementSchema)
     def put(self, data):
         db = get_db()
+        reject_client_school_id(data)
         etab = tenant_query(Etablissement).first()
         if not etab:
             return jsonify({"message": "Établissement non configuré"}), 404
@@ -119,6 +123,7 @@ class AnneesResource(MethodView):
     @blp.response(201, AnneeScolaireSchema)
     def post(self, data):
         db = get_db()
+        reject_client_school_id(data)
         if data.get("est_active"):
             tenant_query(AnneeScolaire).update({"est_active": False})
         annee = apply_tenant_school(AnneeScolaire(id=uuid.uuid4(), **data))
@@ -135,6 +140,7 @@ class AnneeDetail(MethodView):
     @blp.response(200, AnneeScolaireSchema)
     def put(self, data, id_annee):
         db = get_db()
+        reject_client_school_id(data)
         annee = get_or_404_tenant(AnneeScolaire, id_annee)
         if data.get("est_active"):
             tenant_query(AnneeScolaire).update({"est_active": False})
@@ -142,6 +148,139 @@ class AnneeDetail(MethodView):
             setattr(annee, key, value)
         db.commit()
         return annee
+
+
+# ---------------------------------------------------------------------------
+# Programs (canonique)
+# ---------------------------------------------------------------------------
+
+
+@blp.route("/programs")
+class ProgramsResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
+    def get(self):
+        db = get_db()
+        page, per_page = parse_pagination()
+        is_active = academic_service._parse_bool_arg(request.args.get("is_active"))
+        search = request.args.get("search")
+        items, total, pages = academic_service.list_programs(
+            db,
+            is_active=is_active,
+            search=search,
+            page=page,
+            per_page=per_page,
+        )
+        return jsonify(
+            pagination_payload(items, page=page, per_page=per_page, total=total, pages=pages)
+        )
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(ProgramCreateSchema)
+    def post(self, data):
+        db = get_db()
+        reject_client_school_id(request.get_json(silent=True) or {})
+        result = academic_service.create_program(db, data)
+        return jsonify(result), 201
+
+
+@blp.route("/programs/<uuid:id_program>")
+class ProgramDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
+    def get(self, id_program):
+        db = get_db()
+        return jsonify(academic_service.get_program(db, id_program))
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(ProgramUpdateSchema)
+    def patch(self, data, id_program):
+        db = get_db()
+        return jsonify(academic_service.update_program(db, id_program, data))
+
+
+@blp.route("/programs/<uuid:id_program>/deactivate")
+class ProgramDeactivate(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    def post(self, id_program):
+        db = get_db()
+        return jsonify(academic_service.deactivate_program(db, id_program))
+
+
+# ---------------------------------------------------------------------------
+# Périodes (canonique) — même service que /trimestres
+# ---------------------------------------------------------------------------
+
+
+@blp.route("/periodes")
+class PeriodesResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
+    def get(self):
+        db = get_db()
+        page, per_page = parse_pagination()
+        id_program = request.args.get("id_program") or request.args.get("program_id")
+        id_annee = request.args.get("id_annee") or request.args.get("academic_year_id")
+        period_type = request.args.get("period_type")
+        is_active = academic_service._parse_bool_arg(request.args.get("is_active"))
+
+        items, total, pages = academic_service.list_periods(
+            db,
+            id_program=uuid.UUID(id_program) if id_program else None,
+            id_annee=uuid.UUID(id_annee) if id_annee else None,
+            period_type=period_type,
+            is_active=is_active,
+            page=page,
+            per_page=per_page,
+        )
+        payload = [academic_service.serialize_period(p) for p in items]
+        return jsonify(
+            pagination_payload(payload, page=page, per_page=per_page, total=total or 0, pages=pages or 0)
+        )
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(PeriodCreateSchema)
+    def post(self, data):
+        db = get_db()
+        period = academic_service.create_period(db, data)
+        return jsonify(academic_service.serialize_period(period)), 201
+
+
+@blp.route("/periodes/<uuid:id_periode>")
+class PeriodeDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
+    def get(self, id_periode):
+        db = get_db()
+        period = academic_service.get_period(db, id_periode)
+        return jsonify(academic_service.serialize_period(period))
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(PeriodUpdateSchema)
+    def patch(self, data, id_periode):
+        db = get_db()
+        period = academic_service.update_period(db, id_periode, data)
+        return jsonify(academic_service.serialize_period(period))
+
+
+@blp.route("/periodes/<uuid:id_periode>/deactivate")
+class PeriodeDeactivate(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    def post(self, id_periode):
+        db = get_db()
+        period = academic_service.deactivate_period(db, id_periode)
+        return jsonify(academic_service.serialize_period(period))
+
+
+# ---------------------------------------------------------------------------
+# Trimestres — façade legacy → AcademicPeriodService
+# ---------------------------------------------------------------------------
 
 
 @blp.route("/trimestres")
@@ -152,11 +291,13 @@ class TrimestresResource(MethodView):
     def get(self):
         db = get_db()
         id_annee = request.args.get("id_annee")
-        q = _trimestres_tenant_query(db)
-        if id_annee:
-            get_or_404_tenant(AnneeScolaire, id_annee)
-            q = q.filter(Trimestre.id_annee == uuid.UUID(id_annee))
-        return q.order_by(Trimestre.numero).all()
+        items, _, _ = academic_service.list_periods(
+            db,
+            id_annee=uuid.UUID(id_annee) if id_annee else None,
+            page=None,
+            per_page=None,
+        )
+        return items
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -164,11 +305,8 @@ class TrimestresResource(MethodView):
     @blp.response(201, TrimestreSchema)
     def post(self, data):
         db = get_db()
-        get_or_404_tenant(AnneeScolaire, data["id_annee"])
-        trim = Trimestre(id=uuid.uuid4(), **data)
-        db.add(trim)
-        db.commit()
-        return trim, 201
+        # Façade : numero → sequence via create_period
+        return academic_service.create_period(db, data), 201
 
 
 @blp.route("/trimestres/<uuid:id_trimestre>")
@@ -179,22 +317,20 @@ class TrimestreDetail(MethodView):
     @blp.response(200, TrimestreSchema)
     def put(self, data, id_trimestre):
         db = get_db()
-        trim = _get_trimestre_or_404(db, id_trimestre)
-        if "id_annee" in data:
-            get_or_404_tenant(AnneeScolaire, data["id_annee"])
-        for key, value in data.items():
-            setattr(trim, key, value)
-        db.commit()
-        return trim
+        return academic_service.update_period(db, id_trimestre, data)
 
     @jwt_required()
     @require_role("administrateur", "directeur")
     def delete(self, id_trimestre):
         db = get_db()
-        trim = _get_trimestre_or_404(db, id_trimestre)
-        db.delete(trim)
-        db.commit()
-        return jsonify({"message": "Trimestre supprimé"})
+        # Soft-deactivate (pas de hard delete destructif)
+        academic_service.deactivate_period(db, id_trimestre)
+        return jsonify({"message": "Trimestre désactivé"})
+
+
+# ---------------------------------------------------------------------------
+# Niveaux / Classes
+# ---------------------------------------------------------------------------
 
 
 @blp.route("/niveaux")
@@ -203,7 +339,12 @@ class NiveauxResource(MethodView):
     @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
     @blp.response(200, NiveauEtudeSchema(many=True))
     def get(self):
-        return tenant_query(NiveauEtude).order_by(NiveauEtude.ordre).all()
+        q = tenant_query(NiveauEtude)
+        id_program = request.args.get("id_program") or request.args.get("program_id")
+        if id_program:
+            get_or_404_tenant(Program, id_program)
+            q = q.filter(NiveauEtude.id_program == uuid.UUID(id_program))
+        return q.order_by(NiveauEtude.ordre).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur")
@@ -211,10 +352,36 @@ class NiveauxResource(MethodView):
     @blp.response(201, NiveauEtudeSchema)
     def post(self, data):
         db = get_db()
-        niveau = apply_tenant_school(NiveauEtude(id=uuid.uuid4(), **data))
+        reject_client_school_id(data)
+        payload = dict(data)
+        payload["id_program"] = academic_service.resolve_niveau_program_id(
+            db, payload, get_current_school_id()
+        )
+        niveau = apply_tenant_school(NiveauEtude(id=uuid.uuid4(), **payload))
         db.add(niveau)
         db.commit()
         return niveau, 201
+
+
+@blp.route("/niveaux/<uuid:id_niveau>")
+class NiveauDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(NiveauEtudeSchema)
+    @blp.response(200, NiveauEtudeSchema)
+    def put(self, data, id_niveau):
+        db = get_db()
+        reject_client_school_id(data)
+        niveau = get_or_404_tenant(NiveauEtude, id_niveau)
+        payload = dict(data)
+        payload["id_program"] = academic_service.resolve_niveau_program_id(
+            db, payload, get_current_school_id()
+        )
+        for key in ("libelle", "ordre", "cycle", "id_program"):
+            if key in payload:
+                setattr(niveau, key, payload[key])
+        db.commit()
+        return niveau
 
 
 @blp.route("/classes")
@@ -222,8 +389,6 @@ class ClassesResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
     def get(self):
-        from flask import request
-
         from app.auth.jwt_handler import get_current_user
         from app.auth.permissions import get_teacher_class_ids
         from app.services.classes_navigation import get_classes_navigation
@@ -231,6 +396,7 @@ class ClassesResource(MethodView):
         db = get_db()
         user = get_current_user()
         id_annee = request.args.get("id_annee")
+        id_program = request.args.get("id_program") or request.args.get("program_id")
         cycle = request.args.get("cycle")
         enriched = request.args.get("enriched", "").lower() in ("1", "true", "yes")
 
@@ -257,6 +423,9 @@ class ClassesResource(MethodView):
         q = tenant_query(Classe)
         if annee_uuid:
             q = q.filter(Classe.id_annee == annee_uuid)
+        if id_program:
+            get_or_404_tenant(Program, id_program)
+            q = q.filter(Classe.id_program == uuid.UUID(id_program))
         if class_ids is not None:
             if not class_ids:
                 return jsonify([])
@@ -269,9 +438,12 @@ class ClassesResource(MethodView):
     @blp.response(201, ClasseSchema)
     def post(self, data):
         db = get_db()
+        reject_client_school_id(data)
         get_or_404_tenant(AnneeScolaire, data["id_annee"])
         get_or_404_tenant(NiveauEtude, data["id_niveau"])
-        classe = apply_tenant_school(Classe(id=uuid.uuid4(), **data))
+        payload = dict(data)
+        payload["id_program"] = academic_service.resolve_classe_program_id(db, payload)
+        classe = apply_tenant_school(Classe(id=uuid.uuid4(), **payload))
         db.add(classe)
         db.commit()
         return classe, 201
@@ -285,15 +457,25 @@ class ClasseDetail(MethodView):
     @blp.response(200, ClasseSchema)
     def put(self, data, id_classe):
         db = get_db()
+        reject_client_school_id(data)
         classe = get_or_404_tenant(Classe, id_classe)
-        if "id_annee" in data:
-            get_or_404_tenant(AnneeScolaire, data["id_annee"])
-        if "id_niveau" in data:
-            get_or_404_tenant(NiveauEtude, data["id_niveau"])
-        for key, value in data.items():
+        payload = dict(data)
+        if "id_annee" in payload:
+            get_or_404_tenant(AnneeScolaire, payload["id_annee"])
+        if "id_niveau" in payload:
+            get_or_404_tenant(NiveauEtude, payload["id_niveau"])
+            payload["id_program"] = academic_service.resolve_classe_program_id(
+                db, {**payload, "id_niveau": payload["id_niveau"]}
+            )
+        for key, value in payload.items():
             setattr(classe, key, value)
         db.commit()
         return classe
+
+
+# ---------------------------------------------------------------------------
+# Calendrier
+# ---------------------------------------------------------------------------
 
 
 @blp.route("/calendrier")

@@ -63,11 +63,21 @@ def register_error_handlers(app) -> None:
         }
         status = err.code or 500
         err_code = code_map.get(status, "HTTP_ERROR")
-        # Préférer un message FR stable ; ne pas renvoyer la prose Werkzeug
-        message = _SAFE_HTTP_MESSAGES.get(status) or err.name or "Erreur HTTP"
+        safe = _SAFE_HTTP_MESSAGES.get(status)
+        description = (err.description or "").strip()
+        # Ne pas renvoyer la prose Werkzeug anglaise par défaut
+        werkzeug_default = getattr(type(err), "description", None)
+        if (
+            description
+            and description != err.name
+            and description != werkzeug_default
+            and description != safe
+        ):
+            message = description
+        else:
+            message = safe or err.name or "Erreur HTTP"
 
         details = None
-        # flask-smorest place souvent les erreurs de schéma ici
         data = getattr(err, "data", None)
         if isinstance(data, dict) and data.get("messages") is not None:
             details = data["messages"]

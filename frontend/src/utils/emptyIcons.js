@@ -42,6 +42,8 @@ export const emptyIcons = {
   niveaux: Layers,
   notifications: Bell,
   paiements: Receipt,
+  periodes: Calendar,
+  programmes: GraduationCap,
   salles: Building2,
   seances: NotebookPen,
   trimestres: Calendar,

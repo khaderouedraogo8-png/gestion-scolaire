@@ -14,6 +14,7 @@ from app.models import (
     NiveauEtude,
     Utilisateur,
 )
+from app.services.academic import get_or_create_general_program
 
 
 def _admin_headers(client, db, default_school):
@@ -39,6 +40,7 @@ def _admin_headers(client, db, default_school):
 def eleve_for_upload(db, default_school):
     suffix = uuid.uuid4().hex[:8]
     sid = default_school.id
+    program = get_or_create_general_program(db, sid)
     annee = AnneeScolaire(
         id=uuid.uuid4(),
         school_id=sid,
@@ -48,7 +50,12 @@ def eleve_for_upload(db, default_school):
         est_active=True,
     )
     niveau = NiveauEtude(
-        id=uuid.uuid4(), libelle=f"5ème-{suffix}", cycle="premier", ordre=2, school_id=sid
+        id=uuid.uuid4(),
+        libelle=f"5ème-{suffix}",
+        cycle="premier",
+        ordre=2,
+        school_id=sid,
+        id_program=program.id,
     )
     db.add_all([annee, niveau])
     db.flush()
@@ -56,6 +63,7 @@ def eleve_for_upload(db, default_school):
         id=uuid.uuid4(),
         id_niveau=niveau.id,
         id_annee=annee.id,
+        id_program=program.id,
         libelle=f"5A-{suffix}",
         school_id=sid,
     )

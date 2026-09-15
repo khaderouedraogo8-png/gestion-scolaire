@@ -15,9 +15,9 @@ from app.models import (
     Inscription,
     Matiere,
     NiveauEtude,
-    Trimestre,
     Utilisateur,
 )
+from app.services.academic import build_legacy_period, get_or_create_general_program
 
 
 def _auth(client, email, password):
@@ -31,6 +31,7 @@ def teacher_idor_setup(db, default_school):
     """Deux classes : enseignant affecté seulement à la classe A."""
     suffix = uuid.uuid4().hex[:8]
     sid = default_school.id
+    program = get_or_create_general_program(db, sid)
     annee = AnneeScolaire(
         id=uuid.uuid4(),
         school_id=sid,
@@ -41,7 +42,12 @@ def teacher_idor_setup(db, default_school):
     )
     db.add(annee)
     niveau = NiveauEtude(
-        id=uuid.uuid4(), libelle=f"6ème-{suffix}", cycle="premier", ordre=1, school_id=sid
+        id=uuid.uuid4(),
+        libelle=f"6ème-{suffix}",
+        cycle="premier",
+        ordre=1,
+        school_id=sid,
+        id_program=program.id,
     )
     db.add(niveau)
     db.flush()
@@ -50,6 +56,7 @@ def teacher_idor_setup(db, default_school):
         id=uuid.uuid4(),
         id_niveau=niveau.id,
         id_annee=annee.id,
+        id_program=program.id,
         libelle=f"6A-{suffix}",
         school_id=sid,
     )
@@ -57,6 +64,7 @@ def teacher_idor_setup(db, default_school):
         id=uuid.uuid4(),
         id_niveau=niveau.id,
         id_annee=annee.id,
+        id_program=program.id,
         libelle=f"6B-{suffix}",
         school_id=sid,
     )
@@ -139,10 +147,11 @@ def teacher_idor_setup(db, default_school):
         ]
     )
 
-    trim = Trimestre(
-        id=uuid.uuid4(),
+    trim = build_legacy_period(
         id_annee=annee.id,
-        numero=1,
+        school_id=sid,
+        id_program=program.id,
+        sequence=1,
         date_debut=date(2025, 9, 1),
         date_fin=date(2025, 12, 15),
     )
