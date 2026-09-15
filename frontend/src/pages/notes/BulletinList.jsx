@@ -8,6 +8,7 @@ import FormField from '../../components/FormField';
 import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
+import { formatBulletinRulesets } from '../../utils/bulletinRulesets';
 
 const STATUT_MAP = {
   brouillon: { class: 'badge-neutral', label: 'Brouillon' },
@@ -170,6 +171,18 @@ export default function BulletinList() {
       key: 'moyenne',
       header: 'Moyenne',
       render: (r) => (r.moyenne != null ? `${Number(r.moyenne).toFixed(2)}/20` : '—'),
+    },
+    {
+      key: 'rulesets',
+      header: 'Règles',
+      render: (r) => {
+        const { label, title } = formatBulletinRulesets(r.rulesets_snapshot);
+        return (
+          <span className="text-xs text-texte-secondaire" title={title}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: 'rang',

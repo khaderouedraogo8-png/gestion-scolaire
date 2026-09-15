@@ -1083,3 +1083,22 @@ Pas de calcul FE ; calc n’appelle pas resolve ; resolve n’appelle pas calc.
 ### Verdict
 **PR12 FINAL AUDIT COMPLETE — READY TO MERGE WITH NON-BLOCKING RISKS**
 
+
+---
+
+## PR #13 — Persistance résultats académiques + consommation bulletin
+
+**Branche :** `cursor/academic-results-persist-8bcc`  
+**Objectif :** stocker les sorties du Calculation Engine (PR12) et faire du bulletin une lecture de ces résultats (recalc si stale), avec traçabilité ruleset.
+
+### Livré
+1. Table `academic_subject_result` (élève×classe×matière×période, ruleset_id/version, source rules_engine|legacy, `is_stale`)
+2. Colonnes bulletin `rulesets_snapshot` + `results_calculated_at`
+3. Service `academic_results.py` — persist / ensure / mark_stale
+4. Bulletin lit le store (fallback legacy uniquement dans le service de persist)
+5. API `GET /notes/resultats`, `POST /notes/resultats/recalculer` ; invalidation à la saisie notes
+6. FE : colonne « Règles » sur la liste bulletins (`formatBulletinRulesets`)
+
+### Hors scope (volontaire)
+Import Excel, redesign PDF, suppression MV `moyenne_matiere_eleve`, dashboard rewrite, axes Class/Period ruleset V2.
+

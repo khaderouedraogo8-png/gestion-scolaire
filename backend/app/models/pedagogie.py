@@ -18,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import Base
@@ -190,3 +190,6 @@ class Bulletin(Base):
     valide_par: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("utilisateur.id"))
     date_generation: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     pdf_url: Mapped[str | None] = mapped_column(Text)
+    # PR #13 — provenance calcul (rulesets utilisés au moment de la génération)
+    rulesets_snapshot: Mapped[list | dict | None] = mapped_column(JSONB)
+    results_calculated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
