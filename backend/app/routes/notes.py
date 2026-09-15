@@ -347,7 +347,11 @@ class EvaluationsResource(MethodView):
 
         evaluation = Evaluation(
             id=uuid.uuid4(),
-            statut_publication="brouillon" if data["type_evaluation"] == "examen" else "publie",
+            statut_publication=(
+                "brouillon"
+                if data["type_evaluation"] in ("examen", "composition", "exam_blanc")
+                else "publie"
+            ),
             statut_saisie="en_cours",
             **data,
         )
@@ -381,8 +385,8 @@ class PublierEvaluation(MethodView):
         db = get_db()
         user = get_current_user()
         evaluation = get_or_404_tenant(Evaluation, id_evaluation)
-        if evaluation.type_evaluation != "examen":
-            return jsonify({"message": "Seules les compositions peuvent être publiées"}), 400
+        if evaluation.type_evaluation not in ("examen", "composition", "exam_blanc"):
+            return jsonify({"message": "Seules les compositions / examens peuvent être publiés"}), 400
         if user.role == "enseignant" and not teacher_has_matiere_classe_access(
             user, evaluation.id_classe, evaluation.id_matiere
         ):

@@ -367,7 +367,8 @@ class TestLegacyTrimestresFacade:
         assert body["id"] in ids
 
         periods = client.get(
-            f"/api/etablissement/periodes?id_annee={a['annee'].id}&id_program={a['program'].id}",
+            f"/api/etablissement/periodes?id_annee={a['annee'].id}"
+            f"&id_program={a['program'].id}&per_page=100",
             headers=ha,
         )
         assert periods.status_code == 200

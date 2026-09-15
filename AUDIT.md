@@ -972,3 +972,29 @@ API CRUD rulesets, calcul moyennes, frontend, bulletins, cache Redis.
 
 ### Hors scope Step 3
 Calcul moyennes, frontend configuration, bulletins, Excel, AI.
+
+---
+
+## PR #12 — Step 4 — Academic Calculation Engine
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Services :**
+- `app/services/academic_calculation.py` — moteur pur (Decimal, arrondi ruleset)
+- `app/services/academic_calculation_service.py` — orchestration DB + `resolve_grading_rules` + cache
+
+### Décisions
+1. **Flux** — ResolutionContext → Step 2 → `ResolvedGradingRules` → `calculate_subject_result` → moyenne matière → `calculate_general_average`
+2. **Agrégation** — moyenne arithmétique des notes par `evaluation_type_code`, puis × poids % du composant (jamais hardcodé)
+3. **missing ≠ 0** — `absent` / `None` exclus ; `0` explicite compte ; composante **requise** manquante → moyenne matière `None`
+4. **Optionnelles manquantes** — omises + renormalisation sur poids présents
+5. **Coefficient matière** — appliqué **après** la moyenne matière (`weighted_score`)
+6. **Arrondi** — un seul arrondi final (mode/précision du ruleset) ; pas de double rounding composante
+7. **scale_max** — porté par le résultat ; notes interprétées dans l'échelle du ruleset (pas de `/20` hardcodé)
+8. **Bulletin** — `_get_moyennes_eleve` utilise le moteur si ruleset ACTIVE, sinon vue matérialisée legacy
+9. **Types Evaluation** — CHECK élargi aux codes catalogue (`composition`, `tp`, …) — migration `grading_calc_pr12_step4`
+10. **Mentions / rangs** — inchangés (hors Rules Engine) ; toujours dans `calcul_moyennes.py`
+11. **Traçabilité** — `SubjectResult` porte `ruleset_id` + `version` ; **gap** : table `bulletin` ne persiste pas encore ces IDs
+12. **MV `moyenne_matiere_eleve`** — reste formule plate legacy (dashboard) ; peut diverger du moteur rules — risque non bloquant
+
+### Hors scope Step 4
+Frontend, BulletinTemplate, PDF layout, class council, mentions configurables, persistance historique ruleset sur bulletin.
