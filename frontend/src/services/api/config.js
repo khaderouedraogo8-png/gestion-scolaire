@@ -63,6 +63,58 @@ export const configApi = {
     return data;
   },
 
+  // --- Programmes (PR11) ---
+  listPrograms: async (params = {}) => {
+    const { data } = await apiClient.get('/etablissement/programs', { params });
+    return data;
+  },
+
+  getProgram: async (id) => {
+    const { data } = await apiClient.get(`/etablissement/programs/${id}`);
+    return data;
+  },
+
+  createProgram: async (payload) => {
+    const { data } = await apiClient.post('/etablissement/programs', payload);
+    return data;
+  },
+
+  updateProgram: async (id, payload) => {
+    const { data } = await apiClient.patch(`/etablissement/programs/${id}`, payload);
+    return data;
+  },
+
+  deactivateProgram: async (id) => {
+    const { data } = await apiClient.post(`/etablissement/programs/${id}/deactivate`);
+    return data;
+  },
+
+  // --- Périodes (canonique, même service que /trimestres) ---
+  listPeriodes: async (params = {}) => {
+    const { data } = await apiClient.get('/etablissement/periodes', { params });
+    return data;
+  },
+
+  getPeriode: async (id) => {
+    const { data } = await apiClient.get(`/etablissement/periodes/${id}`);
+    return data;
+  },
+
+  createPeriode: async (payload) => {
+    const { data } = await apiClient.post('/etablissement/periodes', payload);
+    return data;
+  },
+
+  updatePeriode: async (id, payload) => {
+    const { data } = await apiClient.patch(`/etablissement/periodes/${id}`, payload);
+    return data;
+  },
+
+  deactivatePeriode: async (id) => {
+    const { data } = await apiClient.post(`/etablissement/periodes/${id}/deactivate`);
+    return data;
+  },
+
   listClasses: async (params = {}) => {
     const { data } = await apiClient.get('/etablissement/classes', { params });
     return data;
@@ -85,13 +137,18 @@ export const configApi = {
     return data;
   },
 
-  listNiveaux: async () => {
-    const { data } = await apiClient.get('/etablissement/niveaux');
+  listNiveaux: async (params = {}) => {
+    const { data } = await apiClient.get('/etablissement/niveaux', { params });
     return data;
   },
 
   createNiveau: async (payload) => {
     const { data } = await apiClient.post('/etablissement/niveaux', payload);
+    return data;
+  },
+
+  updateNiveau: async (id, payload) => {
+    const { data } = await apiClient.put(`/etablissement/niveaux/${id}`, payload);
     return data;
   },
 

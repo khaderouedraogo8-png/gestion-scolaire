@@ -409,6 +409,42 @@ class TestNiveauClasseProgram:
         assert n2.status_code == 201, n2.get_json()
         assert n1.get_json()["id"] != n2.get_json()["id"]
 
+    def test_niveau_update_program(self, client, api_school_pair):
+        a = api_school_pair["a"]
+        ha = _auth(client, a["email"])
+        tech = client.post(
+            "/api/etablissement/programs",
+            headers=ha,
+            json={"code": f"UPD-{uuid.uuid4().hex[:6]}", "name": "UpdateProg"},
+        ).get_json()
+        created = client.post(
+            "/api/etablissement/niveaux",
+            headers=ha,
+            json={
+                "libelle": f"NivU-{uuid.uuid4().hex[:4]}",
+                "ordre": 2,
+                "cycle": "premier",
+                "id_program": str(a["program"].id),
+            },
+        )
+        assert created.status_code == 201, created.get_json()
+        nid = created.get_json()["id"]
+        updated = client.put(
+            f"/api/etablissement/niveaux/{nid}",
+            headers=ha,
+            json={
+                "libelle": "2nde",
+                "ordre": 3,
+                "cycle": "second",
+                "id_program": tech["id"],
+            },
+        )
+        assert updated.status_code == 200, updated.get_json()
+        body = updated.get_json()
+        assert body["libelle"] == "2nde"
+        assert body["id_program"] == tech["id"]
+        assert body["cycle"] == "second"
+
     def test_level_wrong_tenant_program_rejected(self, client, api_school_pair):
         a, b = api_school_pair["a"], api_school_pair["b"]
         ha = _auth(client, a["email"])

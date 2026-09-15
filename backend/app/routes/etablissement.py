@@ -363,6 +363,27 @@ class NiveauxResource(MethodView):
         return niveau, 201
 
 
+@blp.route("/niveaux/<uuid:id_niveau>")
+class NiveauDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(NiveauEtudeSchema)
+    @blp.response(200, NiveauEtudeSchema)
+    def put(self, data, id_niveau):
+        db = get_db()
+        reject_client_school_id(data)
+        niveau = get_or_404_tenant(NiveauEtude, id_niveau)
+        payload = dict(data)
+        payload["id_program"] = academic_service.resolve_niveau_program_id(
+            db, payload, get_current_school_id()
+        )
+        for key in ("libelle", "ordre", "cycle", "id_program"):
+            if key in payload:
+                setattr(niveau, key, payload[key])
+        db.commit()
+        return niveau
+
+
 @blp.route("/classes")
 class ClassesResource(MethodView):
     @jwt_required()
