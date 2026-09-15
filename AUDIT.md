@@ -663,3 +663,76 @@ SUPER_ADMIN, billing, onboarding multi-école UI, Mobile Money, landing marketin
 - Downgrade UNIQUE global impossible si données multi-écoles peuplées (documenté)  
 - Tables parent-only sans `school_id` : isolation via jointure parent (Trimestre, etc.) — à surveiller sur nouveaux endpoints  
 
+---
+
+# PR #10 — SUPER_ADMIN + School Onboarding
+
+**Date :** 2026-09-15  
+**Branche :** `cursor/saas-super-admin-onboarding-8bcc`  
+**Gate 0 :** SAFE TO PLAN  
+**Gate 1 :** APPROVED — implementation livrée  
+
+## Objectif
+
+Plateforme SaaS : `super_admin` global, gestion centralisée des écoles, onboarding atomique du premier admin, RBAC strict, écoles actives/inactives, audit hybride — **sans billing**.
+
+## Décisions
+
+| Sujet | Décision |
+|-------|----------|
+| Rôle DB | `super_admin` (`school_id IS NULL`) |
+| École users | `school_id NOT NULL` + CHECK cohérence |
+| Métier SUPER_ADMIN | **403** sans `acting_school_id` ; OK avec switch JWT |
+| Suppression école | **Désactivation seulement** (`is_active`) |
+| Onboarding | `POST /api/platform/schools/onboard` atomique (School + Etablissement 1:1 + admin) |
+| Promotion `super_admin` | **Interdite** via `/api/users` ; bootstrap CLI `flask create-super-admin` |
+| Billing | Hors scope |
+
+## Schéma
+
+Migration `platform_super_admin` (après `tenant_school_id_not_null`) :
+
+1. `utilisateur.school_id` nullable + CHECK `(super_admin ∧ NULL) ∨ (¬super_admin ∧ NOT NULL)`  
+2. Extension `utilisateur_role_check` → inclut `super_admin`  
+3. `schools.created_by` (FK utilisateur SET NULL)  
+4. `journal_audit.school_id` nullable (événements plateforme)
+
+## API platform
+
+```
+POST   /api/platform/schools/onboard
+GET    /api/platform/schools
+GET    /api/platform/schools/<id>
+PATCH  /api/platform/schools/<id>
+POST   /api/platform/schools/<id>/activate
+POST   /api/platform/schools/<id>/deactivate
+GET    /api/platform/schools/<id>/users
+POST   /api/platform/schools/<id>/admins
+PUT    /api/platform/context/school
+DELETE /api/platform/context/school
+```
+
+## Sécurité
+
+- Source de vérité : DB user (+ claim `acting_school_id` **uniquement** si `role=super_admin` vérifié en DB)  
+- Spoof `school_id` client → 400  
+- École inactive → login users bloqué + refresh bloqué + métier 403  
+- Dernier `administrateur` actif non désactivable (409)  
+- Isolation PR #9 préservée (`tenant_query` / 404 cross-tenant)
+
+## Frontend
+
+- `/platform/schools`, `/platform/onboarding`  
+- `authStore` : `enterSchoolContext` / `exitSchoolContext`  
+- Navigation SUPER_ADMIN + menus école si contexte actif  
+
+## Tests
+
+- `backend/tests/integration/test_platform_super_admin.py`  
+- Régression `test_true_tenant_isolation.py`  
+- Suite : **99 passed**
+
+## Hors scope (volontaire)
+
+Billing, Stripe, Mobile Money, permissions granulaires table, hard delete school, soft-delete RGPD.
+

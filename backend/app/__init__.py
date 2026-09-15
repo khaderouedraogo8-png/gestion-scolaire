@@ -51,6 +51,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
     from app.routes.pedagogie import blp as pedagogie_blp
+    from app.routes.platform import blp as platform_blp
     from app.routes.schools import blp as schools_blp
     from app.routes.users import blp as users_blp
 
@@ -58,6 +59,7 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(auth_blp, url_prefix="/api")
     api.register_blueprint(users_blp, url_prefix="/api/users")
     api.register_blueprint(schools_blp, url_prefix="/api/schools")
+    api.register_blueprint(platform_blp, url_prefix="/api/platform")
     # Modules : préfixe explicite pour éviter les collisions sur /api/
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
@@ -82,6 +84,64 @@ def create_app(config_name: str | None = None) -> Flask:
 
         run_seed()
         print("Seed terminé.")
+
+    @application.cli.command("create-super-admin")
+    def create_super_admin_command():
+        """Bootstrap ops : crée (ou réactive) le premier SUPER_ADMIN plateforme."""
+        import uuid as uuid_mod
+
+        import click
+
+        from app.auth.jwt_handler import hash_password
+        from app.extensions import get_db
+        from app.models import Utilisateur
+        from app.models.utilisateur import PLATFORM_ROLE_SUPER_ADMIN
+        from app.utils.audit_logger import log_audit
+
+        email = click.prompt("Email", type=str).strip().lower()
+        nom = click.prompt("Nom", type=str, default="Super")
+        prenom = click.prompt("Prénom", type=str, default="Admin")
+        password = click.prompt("Mot de passe", hide_input=True, confirmation_prompt=True)
+
+        db = get_db()
+        existing = db.query(Utilisateur).filter(Utilisateur.email == email).first()
+        if existing:
+            if existing.role == PLATFORM_ROLE_SUPER_ADMIN and existing.school_id is None:
+                existing.mot_de_passe_hash = hash_password(password)
+                existing.actif = True
+                existing.nom = nom
+                existing.prenom = prenom
+                db.commit()
+                click.echo(f"SUPER_ADMIN existant mis à jour : {email}")
+                return
+            click.echo(
+                f"Erreur : un utilisateur existe déjà avec cet email (rôle={existing.role}).",
+                err=True,
+            )
+            raise SystemExit(1)
+
+        user = Utilisateur(
+            id=uuid_mod.uuid4(),
+            nom=nom,
+            prenom=prenom,
+            email=email,
+            role=PLATFORM_ROLE_SUPER_ADMIN,
+            mot_de_passe_hash=hash_password(password),
+            actif=True,
+            doit_changer_mdp=True,
+            school_id=None,
+        )
+        db.add(user)
+        db.commit()
+        log_audit(
+            "SUPER_ADMIN_BOOTSTRAP",
+            user.id,
+            "utilisateur",
+            user.id,
+            details={"email": email},
+            allow_null_school=True,
+        )
+        click.echo(f"SUPER_ADMIN créé : {email}")
 
     @application.cli.command("relancer-arrieres")
     def relancer_arrieres_command():

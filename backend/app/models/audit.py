@@ -15,10 +15,11 @@ class JournalAudit(Base):
     __tablename__ = "journal_audit"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    school_id: Mapped[uuid.UUID] = mapped_column(
+    # Nullable pour événements plateforme purs (bootstrap super_admin, exit context global)
+    school_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("schools.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     id_utilisateur: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

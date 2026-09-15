@@ -62,13 +62,29 @@ class Login(MethodView):
         if not user.actif:
             return jsonify({"message": "Compte désactivé"}), 403
 
+        # École inactive : login refusé (super_admin exempt — school_id NULL)
+        from app.models import School
+        from app.models.utilisateur import PLATFORM_ROLE_SUPER_ADMIN
+
+        if user.role != PLATFORM_ROLE_SUPER_ADMIN:
+            if not user.school_id:
+                return jsonify({"message": "Aucune école associée à cet utilisateur"}), 403
+            school = db.query(School).filter(School.id == user.school_id).first()
+            if not school or not school.is_active:
+                return jsonify({"message": "École inactive — connexion refusée"}), 403
+
         user.tentatives_echouees = 0
         user.verrouille_jusqu_a = None
         user.derniere_connexion = datetime.now(UTC)
         db.commit()
 
         access_token, raw_refresh, _ = create_tokens_for_user(user)
-        log_audit("CONNEXION", user.id)
+        log_audit(
+            "CONNEXION",
+            user.id,
+            school_id=user.school_id,
+            allow_null_school=(user.role == PLATFORM_ROLE_SUPER_ADMIN),
+        )
 
         response = jsonify({
             "access_token": access_token,

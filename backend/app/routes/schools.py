@@ -1,4 +1,4 @@
-"""Routes école (tenant) — fondation Phase 1, pas de CRUD public."""
+"""Routes école (tenant) — lecture du contexte courant."""
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -27,5 +27,10 @@ class CurrentSchool(MethodView):
     @jwt_required()
     @blp.response(200, SchoolSchema)
     def get(self):
-        """Retourne l'école du contexte authentifié (pas un id client)."""
+        """
+        Retourne l'école du contexte authentifié.
+
+        - User école : son school_id (école active).
+        - super_admin : uniquement avec acting_school_id (sinon 403).
+        """
         return get_current_school()

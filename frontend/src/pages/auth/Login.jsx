@@ -19,10 +19,10 @@ export default function Login() {
       .catch(() => setServerOk(false));
   }, []);
 
-  const from = location.state?.from?.pathname || (user?.role === 'parent' ? '/parent' : '/dashboard');
+  const from = location.state?.from?.pathname || (user?.role === 'parent' ? '/parent' : user?.role === 'super_admin' ? '/platform/schools' : '/dashboard');
 
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'parent' ? '/parent' : from} replace />;
+    return <Navigate to={user?.role === 'parent' ? '/parent' : user?.role === 'super_admin' ? '/platform/schools' : from} replace />;
   }
 
   const validate = () => {
@@ -48,6 +48,8 @@ export default function Login() {
       const data = await login(form.email, form.password);
       if (data.doit_changer_mdp || data.user?.doit_changer_mdp) {
         navigate('/change-password', { replace: true });
+      } else if (data.user?.role === 'super_admin') {
+        navigate('/platform/schools', { replace: true });
       } else if (data.user?.role === 'parent') {
         navigate('/parent', { replace: true });
       } else {
