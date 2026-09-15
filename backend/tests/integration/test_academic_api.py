@@ -201,7 +201,11 @@ class TestProgramApi:
 
     def test_cannot_deactivate_general(self, client, api_school_pair):
         ha = _auth(client, api_school_pair["a"]["email"])
-        listed = client.get("/api/etablissement/programs", headers=ha)
+        listed = client.get(
+            "/api/etablissement/programs",
+            headers=ha,
+            query_string={"per_page": 100},
+        )
         assert listed.status_code == 200
         general = next(p for p in listed.get_json()["items"] if p["code"] == PROGRAM_CODE_GENERAL)
         resp = client.post(

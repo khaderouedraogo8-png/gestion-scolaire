@@ -1056,3 +1056,30 @@ Calculation Engine FE, bulletins, PDF, Excel, AI, class council, promotion, abse
 
 Risques non bloquants documentés : pas de `missing_grade_policy` API ; axes classe/période absents V1 ; fallback bulletin legacy sur conflit (maintenant loggé) ; pas d’endpoint history dédié ; `evaluation_context` non utilisé au calcul ; MV dashboard legacy peut diverger.
 
+---
+
+## PR #12 — Step 7 — Final Audit / Cleanup / Merge Readiness
+
+**Branche :** `cursor/grading-rules-engine-8bcc`  
+**Nature :** audit final + corrections résiduelles uniquement (pas de feature).
+
+### Corrections Step 7
+1. **Parent publication gate** — aligner filtres parent liste/notes sur `_PUBLICATION_GATED_EVAL_TYPES` (`examen|composition|exam_blanc`) après élargissement Step 4 (évite fuite composition non publiée).
+2. **Regression** — `test_parent_cannot_see_unpublished_composition_notes`.
+3. **Flake PR11** — `test_cannot_deactivate_general` : `per_page=100` (pagination).
+
+### Preuves finales
+- Backend `pytest` : **237 passed**
+- Frontend Vitest : **35 passed**
+- Ruff modules PR12 : OK
+- ESLint : 0 errors
+- Vite build : OK
+- Déterminisme calc : 5× même input → même Decimal
+
+### Architecture confirmée
+Frontend config → API → Rulesets service → Resolution → Calculation (pur) → résultats.  
+Pas de calcul FE ; calc n’appelle pas resolve ; resolve n’appelle pas calc.
+
+### Verdict
+**PR12 FINAL AUDIT COMPLETE — READY TO MERGE WITH NON-BLOCKING RISKS**
+

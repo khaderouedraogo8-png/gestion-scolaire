@@ -65,6 +65,9 @@ from app.utils.pagination import empty_pagination, paginate_query, pagination_pa
 
 blp = Blueprint("notes", __name__, url_prefix="/notes", description="Notes et bulletins")
 
+# Types nécessitant une publication explicite avant visibilité parent (PR #12 catalogue)
+_PUBLICATION_GATED_EVAL_TYPES = ("examen", "composition", "exam_blanc")
+
 
 def _get_trimestre_or_404(db, id_trimestre):
     """Trimestre parent-only : isolation via AnneeScolaire.school_id."""
@@ -290,11 +293,11 @@ class EvaluationsResource(MethodView):
                 return jsonify(empty_pagination())
             q = q.filter(Evaluation.id_classe.in_(classe_ids))
             q = q.filter(
-                (Evaluation.type_evaluation != "examen")
+                (~Evaluation.type_evaluation.in_(_PUBLICATION_GATED_EVAL_TYPES))
                 | (Evaluation.statut_publication == "publie")
             )
             q = q.filter(
-                (Evaluation.type_evaluation == "examen")
+                (Evaluation.type_evaluation.in_(_PUBLICATION_GATED_EVAL_TYPES))
                 | (Evaluation.statut_saisie == "cloturee")
             )
         page, per_page = parse_pagination()
@@ -349,7 +352,7 @@ class EvaluationsResource(MethodView):
             id=uuid.uuid4(),
             statut_publication=(
                 "brouillon"
-                if data["type_evaluation"] in ("examen", "composition", "exam_blanc")
+                if data["type_evaluation"] in _PUBLICATION_GATED_EVAL_TYPES
                 else "publie"
             ),
             statut_saisie="en_cours",
@@ -385,7 +388,7 @@ class PublierEvaluation(MethodView):
         db = get_db()
         user = get_current_user()
         evaluation = get_or_404_tenant(Evaluation, id_evaluation)
-        if evaluation.type_evaluation not in ("examen", "composition", "exam_blanc"):
+        if evaluation.type_evaluation not in _PUBLICATION_GATED_EVAL_TYPES:
             return jsonify({"message": "Seules les compositions / examens peuvent être publiés"}), 400
         if user.role == "enseignant" and not teacher_has_matiere_classe_access(
             user, evaluation.id_classe, evaluation.id_matiere
@@ -481,7 +484,10 @@ class NotesEvaluation(MethodView):
         if user.role == "parent":
             if evaluation.statut_saisie != "cloturee":
                 return jsonify({"message": "Notes non publiées"}), 403
-            if evaluation.type_evaluation == "examen" and evaluation.statut_publication != "publie":
+            if (
+                evaluation.type_evaluation in _PUBLICATION_GATED_EVAL_TYPES
+                and evaluation.statut_publication != "publie"
+            ):
                 return jsonify({"message": "Composition non publiée"}), 403
             eleve_ids = get_parent_eleve_ids(user)
             inscriptions = (
