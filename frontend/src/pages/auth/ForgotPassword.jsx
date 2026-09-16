@@ -20,9 +20,11 @@ export default function ForgotPassword() {
     try {
       const res = await usersApi.forgotPassword(email);
       if (res.reset_token) {
+        // Token exposé uniquement si l'API le renvoie (mode non-production).
         setToken(res.reset_token);
-        toast.success('Lien généré (mode développement).');
+        toast.success('Jeton de développement reçu — ne jamais activer en production.');
       } else {
+        setToken('');
         toast.success(
           res.message ||
             'Si le compte existe, un lien a été envoyé. Saisissez le jeton reçu par email.'

@@ -153,20 +153,46 @@ def create_app(config_name: str | None = None) -> Flask:
         from app.services.relance_arrieres import relancer_arrieres
 
         db = get_db()
-        annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
-        if not annee:
+        annees = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).all()
+        if not annees:
             print("Aucune année active.")
             return
-        result = relancer_arrieres(db, annee.id, auto_envoyer=True, school_id=annee.school_id)
-        print(result)
+        for annee in annees:
+            result = relancer_arrieres(db, annee.id, auto_envoyer=True, school_id=annee.school_id)
+            print(f"school={annee.school_id} {result}")
+
+    @application.cli.command("digest-absences-hebdo")
+    def digest_absences_hebdo_command():
+        """Génère le digest hebdomadaire des absences (idempotent) pour chaque école active."""
+        from app.extensions import get_db
+        from app.models import School
+        from app.services.digest_absences import digest_absences_hebdo
+
+        db = get_db()
+        schools = db.query(School).filter(School.is_active.is_(True)).all()
+        if not schools:
+            print("Aucune école active.")
+            return
+        for school in schools:
+            result = digest_absences_hebdo(db, school.id, canal="email", auto_envoyer=True)
+            print(f"school={school.code} {result}")
 
     @application.cli.command("traiter-notifications")
     def traiter_notifications_command():
-        """Traite la file d'attente des notifications."""
+        """Traite la file d'attente des notifications (toutes écoles)."""
+        from app.extensions import get_db
+        from app.models import School
         from app.services.envoi_notification import traiter_file_notifications
 
-        sent = traiter_file_notifications()
-        print(f"{sent} notification(s) envoyée(s).")
+        db = get_db()
+        schools = db.query(School).filter(School.is_active.is_(True)).all()
+        total = 0
+        if not schools:
+            total = traiter_file_notifications()
+        else:
+            for school in schools:
+                total += traiter_file_notifications(school_id=school.id)
+        print(f"{total} notification(s) envoyée(s).")
 
     @application.route("/api/health")
     def health():

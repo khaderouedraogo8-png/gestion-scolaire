@@ -259,7 +259,17 @@ def filter_eleves_by_role(query, user):
         class_ids = get_teacher_class_ids(user)
         if not class_ids:
             return query.filter(Eleve.id.is_(None))
-        return query.join(Inscription).filter(Inscription.id_classe.in_(class_ids))
+        # Sous-requête (évite double JOIN inscription si déjà joint sur id_classe/id_annee)
+        db = get_db()
+        allowed_eleves = (
+            db.query(Inscription.id_eleve)
+            .filter(
+                Inscription.id_classe.in_(class_ids),
+                Inscription.statut.in_(("inscrit", "reinscrit")),
+            )
+            .distinct()
+        )
+        return query.filter(Eleve.id.in_(allowed_eleves))
     if user.role == "parent":
         eleve_ids = get_parent_eleve_ids(user)
         if not eleve_ids:

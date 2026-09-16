@@ -168,9 +168,14 @@ export default function EleveList() {
               </Link>
             )}
             {canWrite && (
-              <Link to="/eleves/nouveau" className="btn-primary">
-                + Nouvel élève
-              </Link>
+              <>
+                <Link to="/eleves/import" className="btn-secondary">
+                  Import Excel
+                </Link>
+                <Link to="/eleves/nouveau" className="btn-primary">
+                  + Nouvel élève
+                </Link>
+              </>
             )}
           </>
         }

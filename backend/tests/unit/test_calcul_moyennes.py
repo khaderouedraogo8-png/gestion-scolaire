@@ -62,3 +62,9 @@ class TestCalculMoyennes:
         assert determiner_mention(10.0) == "Passable"
         assert determiner_mention(8.0) == "Insuffisant"
         assert determiner_mention(None) is None
+
+    def test_determiner_mention_scale_100(self):
+        assert determiner_mention(85, scale_max=100) == "Très Bien"
+        assert determiner_mention(70, scale_max=100) == "Bien"
+        assert determiner_mention(50, scale_max=100) == "Passable"
+        assert determiner_mention(49, scale_max=100) == "Insuffisant"

@@ -512,8 +512,8 @@ CREATE TABLE note (
     school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_evaluation        UUID NOT NULL,
     id_eleve             UUID NOT NULL,
-    valeur_note          NUMERIC(4,2) CHECK (valeur_note BETWEEN 0 AND 20),
-    absent               BOOLEAN DEFAULT false,     -- distinct d'une note à 0/20
+    valeur_note          NUMERIC(6,2) CHECK (valeur_note IS NULL OR valeur_note >= 0),
+    absent               BOOLEAN DEFAULT false,     -- distinct d'une note à 0
     appreciation         VARCHAR(255),
     saisi_par            UUID REFERENCES utilisateur(id),
     modifie_par          UUID REFERENCES utilisateur(id),
@@ -590,10 +590,10 @@ CREATE TABLE bulletin (
     school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_eleve               UUID NOT NULL,
     id_trimestre           UUID NOT NULL REFERENCES academic_period(id) ON DELETE CASCADE,
-    moyenne_generale       NUMERIC(4,2),
+    moyenne_generale       NUMERIC(6,2),
     rang                   INTEGER,
     effectif_classe        INTEGER,
-    moyenne_classe         NUMERIC(4,2),
+    moyenne_classe         NUMERIC(6,2),
     mention                VARCHAR(50),
     appreciation_generale  TEXT,
     statut                 VARCHAR(20) DEFAULT 'brouillon' CHECK (statut IN ('brouillon', 'valide', 'publie')),
@@ -716,12 +716,14 @@ CREATE TABLE notification (
     school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_eleve             UUID,
     id_parent            UUID REFERENCES parent_tuteur(id) ON DELETE CASCADE,
-    canal                VARCHAR(10) CHECK (canal IN ('sms', 'email')),
-    type_notification    VARCHAR(30),   -- absence, bulletin, paiement, relance
+    canal                VARCHAR(10) CHECK (canal IS NULL OR canal IN ('sms', 'email', 'interne')),
+    type_notification    VARCHAR(30),   -- absence, bulletin, paiement, relance, digest_absences
     contenu              TEXT,
     statut               VARCHAR(20) DEFAULT 'en_attente' CHECK (statut IN ('en_attente', 'envoye', 'echec')),
     tentative_count       SMALLINT DEFAULT 0,
     envoye_le            TIMESTAMPTZ,
+    lu_le                TIMESTAMPTZ,           -- inbox parent : marquage lu
+    idempotency_key      VARCHAR(120),          -- digest / jobs idempotents
     created_at            TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT fk_notification_eleve_school FOREIGN KEY (id_eleve, school_id)
         REFERENCES eleve(id, school_id) ON DELETE CASCADE
@@ -771,6 +773,9 @@ CREATE INDEX ix_absence_school_id ON absence (school_id);
 CREATE INDEX ix_incident_disciplinaire_school_id ON incident_disciplinaire (school_id);
 CREATE INDEX ix_document_administratif_school_id ON document_administratif (school_id);
 CREATE INDEX ix_notification_school_id ON notification (school_id);
+CREATE UNIQUE INDEX ix_notification_idempotency_key ON notification (school_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+CREATE INDEX ix_notification_id_parent_created ON notification (id_parent, created_at);
 CREATE INDEX ix_journal_audit_school_id ON journal_audit (school_id);
 CREATE INDEX ix_bulletin_school_id ON bulletin (school_id);
 CREATE INDEX ix_inscription_school_id ON inscription (school_id);

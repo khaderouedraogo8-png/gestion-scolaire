@@ -61,4 +61,27 @@ export const elevesApi = {
     const { data } = await apiClient.get(`/eleves/${id}/photo`, { responseType: 'blob' });
     return data;
   },
+
+  importTemplate: async () => {
+    const { data } = await apiClient.get('/eleves/import/template', {
+      responseType: 'blob',
+    });
+    return data;
+  },
+
+  importPreview: async (file, { id_annee, id_classe } = {}) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('id_annee', id_annee);
+    if (id_classe) formData.append('id_classe', id_classe);
+    const { data } = await apiClient.post('/eleves/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  importConfirm: async (payload) => {
+    const { data } = await apiClient.post('/eleves/import/confirm', payload);
+    return data;
+  },
 };

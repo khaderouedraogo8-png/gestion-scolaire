@@ -10,6 +10,21 @@ export const gradingApi = {
     return data;
   },
 
+  createEvaluationType: async (payload) => {
+    const { data } = await apiClient.post('/evaluation-types', payload);
+    return data;
+  },
+
+  activateEvaluationType: async (id) => {
+    const { data } = await apiClient.post(`/evaluation-types/${id}/activate`);
+    return data;
+  },
+
+  deactivateEvaluationType: async (id) => {
+    const { data } = await apiClient.post(`/evaluation-types/${id}/deactivate`);
+    return data;
+  },
+
   listRulesets: async (params = {}) => {
     const { data } = await apiClient.get('/grading-rulesets', { params });
     return data;

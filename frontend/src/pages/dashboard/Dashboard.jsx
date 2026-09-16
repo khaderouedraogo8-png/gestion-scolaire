@@ -11,6 +11,9 @@ import {
   Clock,
   BarChart3,
   PieChart,
+  BookOpen,
+  Users,
+  FileText,
 } from 'lucide-react';
 import { dashboardApi } from '../../services/api/dashboard';
 import { configApi } from '../../services/api/config';
@@ -21,6 +24,7 @@ import PageHeader from '../../components/PageHeader';
 import EmptyState from '../../components/EmptyState';
 import AbsenceFormModal from '../../components/AbsenceFormModal';
 import { cycleLabel, toClassSlug } from '../../utils/classNavigation';
+import useAuth from '../../hooks/useAuth';
 
 function AbsencesParClasseBlock({ title, cycles, emptyMessage, emptyIcon: EmptyIcon }) {
   if (!cycles?.length) {
@@ -47,7 +51,10 @@ function AbsencesParClasseBlock({ title, cycles, emptyMessage, emptyIcon: EmptyI
             <ul className="mt-3 flex flex-wrap gap-2">
               {block.classes.map((cl) => (
                 <li key={cl.id_classe}>
-                  <Link to={`/classes/${block.cycle}/${toClassSlug(cl.libelle)}?onglet=absences`} className="nav-pill">
+                  <Link
+                    to={`/classes/${block.cycle}/${toClassSlug(cl.libelle)}?onglet=absences`}
+                    className="nav-pill"
+                  >
                     {cl.libelle}: {cl.count}
                   </Link>
                 </li>
@@ -159,8 +166,140 @@ function DonutChart({ data, title }) {
   );
 }
 
+function TeacherDashboard({ idAnnee }) {
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [absencesData, setAbsencesData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [ens, abs] = await Promise.all([
+          dashboardApi.getEnseignant(idAnnee ? { id_annee: idAnnee } : {}),
+          dashboardApi.getAbsencesParClasse(idAnnee ? { id_annee: idAnnee } : {}),
+        ]);
+        if (!cancelled) {
+          setData(ens);
+          setAbsencesData(abs);
+        }
+      } catch {
+        if (!cancelled) toast.error('Impossible de charger le tableau de bord enseignant.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [idAnnee, toast]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Espace enseignant"
+        title="Tableau de bord"
+        subtitle="Vos classes, matières et évaluations"
+      />
+
+      <section>
+        <h2 className="dashboard-section-label">Indicateurs</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard title="Classes" value={data?.classes?.length ?? 0} icon={Users} tone="neutral" />
+          <StatCard title="Matières" value={data?.matieres?.length ?? 0} icon={BookOpen} tone="neutral" />
+          <StatCard
+            title="Élèves suivis"
+            value={data?.eleves_suivis ?? 0}
+            icon={GraduationCap}
+            tone="neutral"
+          />
+          <StatCard
+            title="Absences (7 j)"
+            value={data?.total_absences_7j ?? 0}
+            icon={ClipboardList}
+            tone="negative"
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <Card premium>
+          <h3 className="section-title mb-4 !text-base">Mes classes</h3>
+          {!data?.classes?.length ? (
+            <EmptyState icon={Users} message="Aucune affectation de classe." />
+          ) : (
+            <ul className="space-y-2">
+              {data.classes.map((c) => (
+                <li key={c.id}>
+                  <Link to="/classes" className="text-sm font-medium text-or-cachet hover:underline">
+                    {c.libelle}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card premium>
+          <h3 className="section-title mb-4 !text-base">Évaluations en cours</h3>
+          {!data?.evaluations_ouvertes?.length ? (
+            <EmptyState icon={FileText} message="Aucune évaluation ouverte." />
+          ) : (
+            <ul className="space-y-2">
+              {data.evaluations_ouvertes.map((e) => (
+                <li key={e.id}>
+                  <Link
+                    to={`/notes/saisie/${e.id}`}
+                    className="text-sm font-medium text-or-cachet hover:underline"
+                  >
+                    {e.libelle || e.type_evaluation}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </section>
+
+      <section>
+        <h2 className="dashboard-section-label">Absences de mes classes</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AbsencesParClasseBlock
+            title="Absences du jour"
+            cycles={absencesData?.absences_jour}
+            emptyMessage="Aucune absence aujourd'hui."
+            emptyIcon={CalendarCheck}
+          />
+          <AbsencesParClasseBlock
+            title="Non justifiées (7 jours)"
+            cycles={absencesData?.non_justifiees_en_attente}
+            emptyMessage="Aucune absence non justifiée."
+            emptyIcon={Clock}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const toast = useToast();
+  const { user } = useAuth();
+  const role = user?.role;
+  const isTeacher = role === 'enseignant';
+  const isComptable = role === 'agent_comptable';
+  const isDirection = role === 'administrateur' || role === 'directeur' || role === 'super_admin';
+  const isSecretariat = role === 'secretariat';
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [absencesData, setAbsencesData] = useState(null);
@@ -169,7 +308,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-
     const loadAnnees = async () => {
       try {
         const a = await configApi.listAnnees();
@@ -191,15 +329,17 @@ export default function Dashboard() {
   }, [toast]);
 
   useEffect(() => {
+    if (isTeacher) return undefined;
     let cancelled = false;
-
     const load = async () => {
       if (!idAnnee) return;
       setLoading(true);
       try {
         const [data, absences] = await Promise.all([
           dashboardApi.getStats({ id_annee: idAnnee }),
-          dashboardApi.getAbsencesParClasse({ id_annee: idAnnee }),
+          isComptable
+            ? Promise.resolve({ absences_jour: [], non_justifiees_en_attente: [] })
+            : dashboardApi.getAbsencesParClasse({ id_annee: idAnnee }),
         ]);
         if (!cancelled) {
           setStats(data);
@@ -211,19 +351,22 @@ export default function Dashboard() {
         if (!cancelled) setLoading(false);
       }
     };
-
     load();
     return () => {
       cancelled = true;
     };
-  }, [idAnnee, toast]);
+  }, [idAnnee, toast, isTeacher, isComptable]);
 
   useEffect(() => {
-    if (!idAnnee) {
+    if (!idAnnee && !isTeacher) {
       const t = setTimeout(() => setLoading(false), 0);
       return () => clearTimeout(t);
     }
-  }, [idAnnee]);
+  }, [idAnnee, isTeacher]);
+
+  if (isTeacher) {
+    return <TeacherDashboard idAnnee={idAnnee} />;
+  }
 
   if (loading) {
     return (
@@ -246,115 +389,189 @@ export default function Dashboard() {
     taux: r.taux,
   }));
 
+  const eyebrow = isComptable
+    ? 'Espace comptable'
+    : isSecretariat
+      ? 'Espace secrétariat'
+      : role === 'directeur'
+        ? 'Direction'
+        : 'Administration';
+
+  const title = isComptable
+    ? 'Tableau de bord finance'
+    : role === 'directeur'
+      ? 'Tableau de bord direction'
+      : 'Tableau de bord';
+
   return (
     <div className="space-y-10">
       <PageHeader
-        eyebrow="Administration"
-        title="Tableau de bord"
-        subtitle="Vue d'ensemble de votre établissement scolaire"
+        eyebrow={eyebrow}
+        title={title}
+        subtitle={
+          isComptable
+            ? 'Trésorerie, recouvrement et arriérés'
+            : 'Vue d’ensemble de votre établissement scolaire'
+        }
         actions={
-          <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            Signaler une absence
-          </button>
+          !isComptable ? (
+            <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Signaler une absence
+            </button>
+          ) : (
+            <Link to="/finance/encaissement" className="btn-primary">
+              Encaissement
+            </Link>
+          )
         }
       />
 
       <section>
         <h2 className="dashboard-section-label">Indicateurs clés</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard
-            title="Effectif total"
-            value={stats?.total_eleves_inscrits ?? stats?.effectif_total ?? 0}
-            subtitle="Élèves inscrits"
-            tone="neutral"
-            icon={GraduationCap}
-            delay={0}
-          />
-          <StatCard
-            title="Taux de recouvrement"
-            value={stats?.taux_recouvrement != null ? `${stats.taux_recouvrement}%` : '—'}
-            subtitle="Paiements encaissés"
-            tone="positive"
-            icon={TrendingUp}
-            delay={60}
-          />
-          <StatCard
-            title="Trésorerie"
-            value={
-              stats?.tresorerie != null
-                ? `${Number(stats.tresorerie).toLocaleString('fr-FR')} FCFA`
-                : '—'
+          {(isDirection || isSecretariat) && (
+            <StatCard
+              title="Effectif total"
+              value={stats?.total_eleves_inscrits ?? 0}
+              subtitle="Élèves inscrits"
+              tone="neutral"
+              icon={GraduationCap}
+              delay={0}
+            />
+          )}
+          {(isDirection || isComptable) && (
+            <>
+              <StatCard
+                title="Taux de recouvrement"
+                value={stats?.taux_recouvrement != null ? `${stats.taux_recouvrement}%` : '—'}
+                subtitle="Paiements encaissés"
+                tone="positive"
+                icon={TrendingUp}
+                delay={60}
+              />
+              <StatCard
+                title="Trésorerie"
+                value={
+                  stats?.tresorerie != null
+                    ? `${Number(stats.tresorerie).toLocaleString('fr-FR')} FCFA`
+                    : '—'
+                }
+                subtitle="Total encaissé"
+                tone="neutral"
+                icon={Wallet}
+                delay={120}
+              />
+              <StatCard
+                title="Montant dû"
+                value={
+                  stats?.total_du != null
+                    ? `${Number(stats.total_du).toLocaleString('fr-FR')} FCFA`
+                    : '—'
+                }
+                subtitle="Échéances scolaires"
+                tone="warning"
+                icon={AlertCircle}
+                delay={180}
+              />
+            </>
+          )}
+          {!isComptable && (
+            <StatCard
+              title="Absences"
+              value={stats?.total_absences ?? 0}
+              subtitle="Total enregistrées"
+              tone="negative"
+              icon={ClipboardList}
+              delay={240}
+            />
+          )}
+          {isDirection && stats?.total_classes != null && (
+            <StatCard
+              title="Classes"
+              value={stats.total_classes}
+              subtitle="Année active"
+              tone="neutral"
+              icon={Users}
+            />
+          )}
+          {isDirection && stats?.bulletins_publies != null && (
+            <StatCard
+              title="Bulletins publiés"
+              value={stats.bulletins_publies}
+              tone="neutral"
+              icon={FileText}
+            />
+          )}
+        </div>
+      </section>
+
+      {!isComptable && (
+        <section>
+          <h2 className="dashboard-section-label">Suivi des absences</h2>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <AbsencesParClasseBlock
+              title="Absences du jour"
+              cycles={absencesData?.absences_jour}
+              emptyMessage="Aucune absence signalée aujourd'hui."
+              emptyIcon={CalendarCheck}
+            />
+            <AbsencesParClasseBlock
+              title="Non justifiées en attente (7 jours)"
+              cycles={absencesData?.non_justifiees_en_attente}
+              emptyMessage="Aucune absence non justifiée en attente."
+              emptyIcon={Clock}
+            />
+          </div>
+        </section>
+      )}
+
+      {(isDirection || isSecretariat) && (
+        <section>
+          <h2 className="dashboard-section-label">Analyses pédagogiques</h2>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <DonutChart data={effectifData} title="Effectifs par niveau" />
+            {isDirection && (
+              <BarChart
+                data={reussiteData}
+                labelKey="matiere"
+                valueKey="taux"
+                title="Taux de réussite par matière (%)"
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      {isComptable && (
+        <section>
+          <h2 className="dashboard-section-label">Accès rapides</h2>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/finance/frais" className="btn-secondary">
+              Frais scolaires
+            </Link>
+            <Link to="/finance/arrieres" className="btn-secondary">
+              Arriérés
+            </Link>
+            <Link to="/finance/recus" className="btn-secondary">
+              Reçus
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {!isComptable && (
+        <AbsenceFormModal
+          isOpen={absenceModalOpen}
+          onClose={() => setAbsenceModalOpen(false)}
+          onCreated={async () => {
+            if (idAnnee) {
+              const absences = await dashboardApi.getAbsencesParClasse({ id_annee: idAnnee });
+              setAbsencesData(absences);
             }
-            subtitle="Total encaissé"
-            tone="neutral"
-            icon={Wallet}
-            delay={120}
-          />
-          <StatCard
-            title="Montant dû"
-            value={
-              stats?.total_du != null
-                ? `${Number(stats.total_du).toLocaleString('fr-FR')} FCFA`
-                : '—'
-            }
-            subtitle="Échéances scolaires"
-            tone="warning"
-            icon={AlertCircle}
-            delay={180}
-          />
-          <StatCard
-            title="Absences"
-            value={stats?.total_absences ?? 0}
-            subtitle="Total enregistrées"
-            tone="negative"
-            icon={ClipboardList}
-            delay={240}
-          />
-        </div>
-      </section>
-
-      <section>
-        <h2 className="dashboard-section-label">Suivi des absences</h2>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <AbsencesParClasseBlock
-            title="Absences du jour"
-            cycles={absencesData?.absences_jour}
-            emptyMessage="Aucune absence signalée aujourd'hui."
-            emptyIcon={CalendarCheck}
-          />
-          <AbsencesParClasseBlock
-            title="Non justifiées en attente (7 jours)"
-            cycles={absencesData?.non_justifiees_en_attente}
-            emptyMessage="Aucune absence non justifiée en attente."
-            emptyIcon={Clock}
-          />
-        </div>
-      </section>
-
-      <section>
-        <h2 className="dashboard-section-label">Analyses pédagogiques</h2>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <DonutChart data={effectifData} title="Effectifs par niveau" />
-          <BarChart
-            data={reussiteData}
-            labelKey="matiere"
-            valueKey="taux"
-            title="Taux de réussite par matière (%)"
-          />
-        </div>
-      </section>
-
-      <AbsenceFormModal
-        isOpen={absenceModalOpen}
-        onClose={() => setAbsenceModalOpen(false)}
-        onCreated={async () => {
-          if (idAnnee) {
-            const absences = await dashboardApi.getAbsencesParClasse({ id_annee: idAnnee });
-            setAbsencesData(absences);
-          }
-        }}
-      />
+          }}
+        />
+      )}
     </div>
   );
 }

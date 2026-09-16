@@ -87,7 +87,7 @@ def _serialize_paiement(db, paiement):
 @blp.route("/frais")
 class FraisResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
         db = get_db()
         q = tenant_query(FraisScolaire)
@@ -118,7 +118,7 @@ class FraisResource(MethodView):
 @blp.route("/echeances")
 class EcheancesResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     @blp.response(200, EcheancePaiementSchema(many=True))
     def get(self):
         db = get_db()
@@ -146,7 +146,7 @@ class EcheancesResource(MethodView):
 @blp.route("/paiements")
 class PaiementsResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat", "parent")
+    @require_role("administrateur", "directeur", "agent_comptable", "parent")
     def get(self):
         db = get_db()
         user = get_current_user()
@@ -243,7 +243,7 @@ class AnnulerPaiement(MethodView):
 @blp.route("/paiements/<uuid:id_paiement>/recu")
 class RecuPaiement(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat", "parent")
+    @require_role("administrateur", "directeur", "agent_comptable", "parent")
     def get(self, id_paiement):
         user = get_current_user()
         paiement = get_or_404_tenant(Paiement, id_paiement)
@@ -264,7 +264,7 @@ class RecuPaiement(MethodView):
 @blp.route("/arrieres")
 class ArrieresResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
         """Calcule les arriérés par élève : Σ(échéances dues) − Σ(paiements non annulés)."""
         db = get_db()
@@ -322,7 +322,7 @@ class ArrieresRelancer(MethodView):
 @blp.route("/arrieres/export")
 class ArrieresExport(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
         from io import BytesIO
 

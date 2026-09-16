@@ -61,6 +61,7 @@ def relancer_arrieres(
             type_notification="retard_paiement",
             contenu=contenu,
             id_eleve=id_eleve,
+            school_id=school_id,
         )
         crees += 1
 

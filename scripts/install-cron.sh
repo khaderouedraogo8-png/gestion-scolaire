@@ -16,6 +16,7 @@ cat > "$TMP" <<EOF
 ${MARKER}
 0 2 * * * cd ${ROOT} && ${COMPOSE} --profile backup run --rm backup >> ${ROOT}/backups/cron.log 2>&1
 0 8 * * 1 cd ${ROOT} && ${COMPOSE} exec -T backend flask --app run.py relancer-arrieres >> ${ROOT}/backups/relances.log 2>&1
+0 9 * * 1 cd ${ROOT} && ${COMPOSE} exec -T backend flask --app run.py digest-absences-hebdo >> ${ROOT}/backups/digest-absences.log 2>&1
 */15 * * * * cd ${ROOT} && ${COMPOSE} exec -T backend flask --app run.py traiter-notifications >> ${ROOT}/backups/notifications.log 2>&1
 0 3 * * * certbot renew --quiet && cd ${ROOT} && ${COMPOSE_TLS} restart nginx >> ${ROOT}/backups/certbot.log 2>&1
 EOF
