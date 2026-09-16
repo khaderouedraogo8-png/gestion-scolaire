@@ -44,6 +44,7 @@ export const emptyIcons = {
   paiements: Receipt,
   periodes: Calendar,
   programmes: GraduationCap,
+  config: Layers,
   salles: Building2,
   seances: NotebookPen,
   trimestres: Calendar,
