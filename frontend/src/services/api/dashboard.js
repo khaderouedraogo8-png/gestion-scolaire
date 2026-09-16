@@ -10,4 +10,14 @@ export const dashboardApi = {
     const { data } = await apiClient.get('/dashboard/absences-par-classe', { params });
     return data;
   },
+
+  getEnseignant: async (params = {}) => {
+    const { data } = await apiClient.get('/dashboard/enseignant', { params });
+    return data;
+  },
+
+  getParentEvolution: async (params = {}) => {
+    const { data } = await apiClient.get('/dashboard/parent-evolution', { params });
+    return data;
+  },
 };

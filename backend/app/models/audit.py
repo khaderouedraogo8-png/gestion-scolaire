@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +15,13 @@ class JournalAudit(Base):
     __tablename__ = "journal_audit"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Nullable pour événements plateforme purs (bootstrap super_admin, exit context global)
+    school_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     id_utilisateur: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     table_cible: Mapped[str | None] = mapped_column(String(50))

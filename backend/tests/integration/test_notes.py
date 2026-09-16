@@ -17,28 +17,37 @@ class TestNotes:
         assert response.status_code == 201
         assert response.get_json()["libelle"] == "Mathématiques"
 
-    def test_saisie_notes_absent_vs_zero(self, client, auth_headers, db, annee_classe):
+    def test_saisie_notes_absent_vs_zero(self, client, auth_headers, db, annee_classe, default_school):
         from app.models import Enseignant, Matiere, Trimestre
 
-        matiere = Matiere(id=uuid.uuid4(), libelle="Français", code="FR")
+        sid = default_school.id
+        matiere = Matiere(id=uuid.uuid4(), libelle="Français", code="FR", school_id=sid)
         db.add(matiere)
         enseignant = Enseignant(
-            id=uuid.uuid4(), nom="Dupont", prenom="Jean", email="jean@test.local"
+            id=uuid.uuid4(),
+            nom="Dupont",
+            prenom="Jean",
+            email="jean@test.local",
+            school_id=sid,
         )
         db.add(enseignant)
         trimestre = (
             db.query(Trimestre)
             .filter(
                 Trimestre.id_annee == annee_classe["annee"].id,
-                Trimestre.numero == 1,
+                Trimestre.sequence == 1,
             )
             .first()
         )
         if not trimestre:
-            trimestre = Trimestre(
-                id=uuid.uuid4(),
+            from app.services.academic import build_legacy_period, get_or_create_general_program
+
+            program = get_or_create_general_program(db, sid)
+            trimestre = build_legacy_period(
                 id_annee=annee_classe["annee"].id,
-                numero=1,
+                school_id=sid,
+                id_program=program.id,
+                sequence=1,
                 date_debut=date(2025, 9, 1),
                 date_fin=date(2025, 12, 20),
             )
@@ -101,3 +110,130 @@ class TestNotes:
         assert grid[id_eleve_absent]["valeur_note"] is None
         assert grid[id_eleve_zero]["absent"] is False
         assert grid[id_eleve_zero]["valeur_note"] == 0.0
+
+    def test_create_evaluation_rejects_unknown_type(self, client, auth_headers, db, annee_classe, default_school):
+        from app.models import Enseignant, Matiere, Trimestre
+        from app.services.evaluation_types import ensure_system_evaluation_types
+
+        ensure_system_evaluation_types(db, default_school.id)
+        db.commit()
+        sid = default_school.id
+        matiere = Matiere(id=uuid.uuid4(), libelle="Histoire", code="HIST", school_id=sid)
+        enseignant = Enseignant(
+            id=uuid.uuid4(), nom="X", prenom="Y", email=f"xy-{uuid.uuid4().hex[:6]}@t.local", school_id=sid
+        )
+        db.add_all([matiere, enseignant])
+        trimestre = (
+            db.query(Trimestre).filter(Trimestre.id_annee == annee_classe["annee"].id).first()
+        )
+        db.commit()
+        resp = client.post(
+            "/api/notes/evaluations",
+            headers=auth_headers,
+            json={
+                "id_classe": str(annee_classe["classe"].id),
+                "id_matiere": str(matiere.id),
+                "id_trimestre": str(trimestre.id),
+                "id_enseignant": str(enseignant.id),
+                "type_evaluation": "type-inconnu-xyz",
+                "coefficient": 1,
+                "date_evaluation": "2025-10-15",
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()["error"]["code"] == "INVALID_EVALUATION_TYPE"
+
+    def test_create_evaluation_accepts_custom_catalogue_type(
+        self, client, auth_headers, db, annee_classe, default_school
+    ):
+        from app.models import Enseignant, Matiere, Trimestre
+        from app.models.grading import EvaluationType
+        from app.services.evaluation_types import ensure_system_evaluation_types
+
+        ensure_system_evaluation_types(db, default_school.id)
+        custom_code = f"atelier{uuid.uuid4().hex[:6]}"
+        custom = EvaluationType(
+            id=uuid.uuid4(),
+            school_id=default_school.id,
+            code=custom_code,
+            label="Atelier",
+            is_system=False,
+            is_active=True,
+        )
+        sid = default_school.id
+        matiere = Matiere(id=uuid.uuid4(), libelle="Arts", code="ART", school_id=sid)
+        enseignant = Enseignant(
+            id=uuid.uuid4(),
+            nom="Art",
+            prenom="Prof",
+            email=f"art-{uuid.uuid4().hex[:6]}@t.local",
+            school_id=sid,
+        )
+        db.add_all([custom, matiere, enseignant])
+        trimestre = (
+            db.query(Trimestre).filter(Trimestre.id_annee == annee_classe["annee"].id).first()
+        )
+        db.commit()
+        resp = client.post(
+            "/api/notes/evaluations",
+            headers=auth_headers,
+            json={
+                "id_classe": str(annee_classe["classe"].id),
+                "id_matiere": str(matiere.id),
+                "id_trimestre": str(trimestre.id),
+                "id_enseignant": str(enseignant.id),
+                "type_evaluation": custom_code,
+                "coefficient": 1,
+                "date_evaluation": "2025-10-15",
+                "libelle": "Atelier 1",
+            },
+        )
+        assert resp.status_code == 201, resp.get_json()
+        assert resp.get_json()["type_evaluation"] == custom_code
+
+    def test_create_evaluation_rejects_inactive_type(
+        self, client, auth_headers, db, annee_classe, default_school
+    ):
+        from app.models import Enseignant, Matiere, Trimestre
+        from app.models.grading import EvaluationType
+        from app.services.evaluation_types import ensure_system_evaluation_types
+
+        ensure_system_evaluation_types(db, default_school.id)
+        mute_code = f"mute{uuid.uuid4().hex[:6]}"
+        custom = EvaluationType(
+            id=uuid.uuid4(),
+            school_id=default_school.id,
+            code=mute_code,
+            label="Mute",
+            is_system=False,
+            is_active=False,
+        )
+        sid = default_school.id
+        matiere = Matiere(id=uuid.uuid4(), libelle="Sport", code="EPS", school_id=sid)
+        enseignant = Enseignant(
+            id=uuid.uuid4(),
+            nom="Sp",
+            prenom="Ort",
+            email=f"eps-{uuid.uuid4().hex[:6]}@t.local",
+            school_id=sid,
+        )
+        db.add_all([custom, matiere, enseignant])
+        trimestre = (
+            db.query(Trimestre).filter(Trimestre.id_annee == annee_classe["annee"].id).first()
+        )
+        db.commit()
+        resp = client.post(
+            "/api/notes/evaluations",
+            headers=auth_headers,
+            json={
+                "id_classe": str(annee_classe["classe"].id),
+                "id_matiere": str(matiere.id),
+                "id_trimestre": str(trimestre.id),
+                "id_enseignant": str(enseignant.id),
+                "type_evaluation": mute_code,
+                "coefficient": 1,
+                "date_evaluation": "2025-10-15",
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()["error"]["code"] == "INVALID_EVALUATION_TYPE"

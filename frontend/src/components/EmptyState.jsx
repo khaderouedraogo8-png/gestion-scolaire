@@ -1,4 +1,4 @@
-export default function EmptyState({ icon: Icon, title, message }) {
+export default function EmptyState({ icon: Icon, title, message, action }) {
   return (
     <div className="empty-state">
       {Icon && (
@@ -7,7 +7,8 @@ export default function EmptyState({ icon: Icon, title, message }) {
         </div>
       )}
       {title && <p className="empty-state-title">{title}</p>}
-      <p className="empty-state-message">{message}</p>
+      {message && <p className="empty-state-message">{message}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }

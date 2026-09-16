@@ -1,5 +1,11 @@
 """Export centralisé de tous les modèles SQLAlchemy."""
 from app.models.absence_discipline import Absence, IncidentDisciplinaire
+from app.models.academic_results import (
+    RESULT_SOURCE_LEGACY,
+    RESULT_SOURCE_RULES_ENGINE,
+    RESULT_SOURCES,
+    AcademicSubjectResult,
+)
 from app.models.audit import JournalAudit
 from app.models.document import DocumentAdministratif
 from app.models.eleve import Eleve, EleveParent, Inscription, ParentTuteur
@@ -10,11 +16,15 @@ from app.models.emploi_temps import (
     Salle,
 )
 from app.models.etablissement import (
+    PROGRAM_CODE_GENERAL,
+    PROGRAM_NAME_GENERAL,
+    AcademicPeriod,
     AnneeScolaire,
     Classe,
     Etablissement,
     EvenementCalendrier,
     NiveauEtude,
+    Program,
     Trimestre,
 )
 from app.models.finance import (
@@ -22,6 +32,24 @@ from app.models.finance import (
     FraisScolaire,
     Paiement,
     seq_numero_recu,
+)
+from app.models.grading import (
+    AUDIT_GRADING_RULE_COMPONENT_CREATED,
+    AUDIT_GRADING_RULE_COMPONENT_DELETED,
+    AUDIT_GRADING_RULE_COMPONENT_UPDATED,
+    AUDIT_GRADING_RULESET_ACTIVATED,
+    AUDIT_GRADING_RULESET_ARCHIVED,
+    AUDIT_GRADING_RULESET_CREATED,
+    AUDIT_GRADING_RULESET_UPDATED,
+    DEFAULT_SCALE_MAX,
+    EVALUATION_CONTEXTS,
+    GRADING_ROUNDING_MODES,
+    GRADING_RULESET_STATUSES,
+    SYSTEM_EVALUATION_TYPE_CODES,
+    WEIGHT_PERCENT_SCALE,
+    EvaluationType,
+    GradingRuleComponent,
+    GradingRuleset,
 )
 from app.models.notification import Notification
 from app.models.pedagogie import (
@@ -33,16 +61,43 @@ from app.models.pedagogie import (
     ProgrammeDevoir,
     SeanceCours,
 )
+from app.models.school import School
 from app.models.utilisateur import (
+    PLATFORM_ROLE_SUPER_ADMIN,
+    PLATFORM_ROLES,
     ROLES,
+    SCHOOL_ROLES,
     RefreshToken,
     ReinitialisationMdp,
     Utilisateur,
 )
 
 __all__ = [
+    "AUDIT_GRADING_RULESET_ACTIVATED",
+    "AUDIT_GRADING_RULESET_ARCHIVED",
+    "AUDIT_GRADING_RULESET_CREATED",
+    "AUDIT_GRADING_RULESET_UPDATED",
+    "AUDIT_GRADING_RULE_COMPONENT_CREATED",
+    "AUDIT_GRADING_RULE_COMPONENT_DELETED",
+    "AUDIT_GRADING_RULE_COMPONENT_UPDATED",
+    "DEFAULT_SCALE_MAX",
+    "EVALUATION_CONTEXTS",
+    "GRADING_ROUNDING_MODES",
+    "GRADING_RULESET_STATUSES",
+    "PLATFORM_ROLES",
+    "PLATFORM_ROLE_SUPER_ADMIN",
+    "PROGRAM_CODE_GENERAL",
+    "PROGRAM_NAME_GENERAL",
+    "RESULT_SOURCES",
+    "RESULT_SOURCE_LEGACY",
+    "RESULT_SOURCE_RULES_ENGINE",
     "ROLES",
+    "SCHOOL_ROLES",
+    "SYSTEM_EVALUATION_TYPE_CODES",
+    "WEIGHT_PERCENT_SCALE",
     "Absence",
+    "AcademicPeriod",
+    "AcademicSubjectResult",
     "AffectationEnseignant",
     "AnneeScolaire",
     "Bulletin",
@@ -56,8 +111,11 @@ __all__ = [
     "Enseignant",
     "Etablissement",
     "Evaluation",
+    "EvaluationType",
     "EvenementCalendrier",
     "FraisScolaire",
+    "GradingRuleComponent",
+    "GradingRuleset",
     "IncidentDisciplinaire",
     "Inscription",
     "JournalAudit",
@@ -67,10 +125,12 @@ __all__ = [
     "Notification",
     "Paiement",
     "ParentTuteur",
+    "Program",
     "ProgrammeDevoir",
     "RefreshToken",
     "ReinitialisationMdp",
     "Salle",
+    "School",
     "SeanceCours",
     "Trimestre",
     "Utilisateur",

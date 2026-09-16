@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import UTC, date, datetime
 
-from flask import current_app, render_template
+from flask import abort, current_app, render_template
 
 from app.extensions import get_db
 from app.models import (
@@ -21,6 +21,7 @@ from app.models import (
     Trimestre,
 )
 from app.services.pdf_render import html_to_pdf
+from app.services.tenant import get_current_school_id, get_or_404_tenant, tenant_query
 
 JOURS = {1: "Lundi", 2: "Mardi", 3: "Mercredi", 4: "Jeudi", 5: "Vendredi", 6: "Samedi", 7: "Dimanche"}
 
@@ -32,12 +33,13 @@ def _pdf_path(prefix: str) -> str:
 
 
 def _etablissement(db):
-    return db.query(Etablissement).first()
+    return tenant_query(Etablissement).first()
 
 
 def _eleves_classe(db, id_classe: uuid.UUID):
+    get_or_404_tenant(Classe, id_classe)
     inscriptions = (
-        db.query(Inscription)
+        tenant_query(Inscription)
         .filter(
             Inscription.id_classe == id_classe,
             Inscription.statut.in_(("inscrit", "reinscrit")),
@@ -46,7 +48,7 @@ def _eleves_classe(db, id_classe: uuid.UUID):
     )
     eleves = []
     for ins in inscriptions:
-        eleve = db.query(Eleve).filter(Eleve.id == ins.id_eleve).first()
+        eleve = tenant_query(Eleve).filter(Eleve.id == ins.id_eleve).first()
         if eleve:
             eleves.append(eleve)
     return sorted(eleves, key=lambda e: (e.nom, e.prenom))
@@ -54,17 +56,22 @@ def _eleves_classe(db, id_classe: uuid.UUID):
 
 def generer_pdf_programme_devoirs(id_classe: uuid.UUID, id_annee: uuid.UUID) -> str:
     db = get_db()
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
+    classe = get_or_404_tenant(Classe, id_classe)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
     rows = (
         db.query(ProgrammeDevoir)
-        .filter(ProgrammeDevoir.id_classe == id_classe, ProgrammeDevoir.id_annee == id_annee)
+        .join(Classe, ProgrammeDevoir.id_classe == Classe.id)
+        .filter(
+            ProgrammeDevoir.id_classe == id_classe,
+            ProgrammeDevoir.id_annee == id_annee,
+            Classe.school_id == get_current_school_id(),
+        )
         .order_by(ProgrammeDevoir.jour_semaine, ProgrammeDevoir.id_matiere)
         .all()
     )
     items = []
     for row in rows:
-        matiere = db.query(Matiere).filter(Matiere.id == row.id_matiere).first()
+        matiere = tenant_query(Matiere).filter(Matiere.id == row.id_matiere).first()
         items.append({
             "jour": JOURS.get(row.jour_semaine, str(row.jour_semaine)),
             "matiere": matiere.libelle if matiere else "—",
@@ -88,14 +95,20 @@ def generer_pdf_calendrier_compositions(
     id_classe: uuid.UUID, id_trimestre: uuid.UUID, include_brouillon: bool = False
 ) -> str:
     db = get_db()
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
-    trimestre = db.query(Trimestre).filter(Trimestre.id == id_trimestre).first()
-    annee = (
-        db.query(AnneeScolaire).filter(AnneeScolaire.id == trimestre.id_annee).first()
-        if trimestre
-        else None
+    classe = get_or_404_tenant(Classe, id_classe)
+    trimestre = (
+        db.query(Trimestre)
+        .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
+        .filter(
+            Trimestre.id == id_trimestre,
+            AnneeScolaire.school_id == get_current_school_id(),
+        )
+        .first()
     )
-    q = db.query(Evaluation).filter(
+    if not trimestre:
+        abort(404)
+    annee = get_or_404_tenant(AnneeScolaire, trimestre.id_annee)
+    q = tenant_query(Evaluation).filter(
         Evaluation.id_classe == id_classe,
         Evaluation.id_trimestre == id_trimestre,
         Evaluation.type_evaluation == "examen",
@@ -105,7 +118,7 @@ def generer_pdf_calendrier_compositions(
     evaluations = q.order_by(Evaluation.date_evaluation).all()
     items = []
     for ev in evaluations:
-        matiere = db.query(Matiere).filter(Matiere.id == ev.id_matiere).first()
+        matiere = tenant_query(Matiere).filter(Matiere.id == ev.id_matiere).first()
         items.append({
             "date": ev.date_evaluation.strftime("%d/%m/%Y"),
             "matiere": matiere.libelle if matiere else "—",
@@ -129,10 +142,10 @@ def generer_pdf_calendrier_compositions(
 
 def generer_pdf_fiche_enseignant(id_enseignant: uuid.UUID, id_annee: uuid.UUID) -> str:
     db = get_db()
-    enseignant = db.query(Enseignant).filter(Enseignant.id == id_enseignant).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
+    enseignant = get_or_404_tenant(Enseignant, id_enseignant)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
     affectations = (
-        db.query(AffectationEnseignant)
+        tenant_query(AffectationEnseignant)
         .filter(
             AffectationEnseignant.id_enseignant == id_enseignant,
             AffectationEnseignant.id_annee == id_annee,
@@ -142,8 +155,8 @@ def generer_pdf_fiche_enseignant(id_enseignant: uuid.UUID, id_annee: uuid.UUID) 
     aff_rows = []
     volume_total = 0.0
     for aff in affectations:
-        cls = db.query(Classe).filter(Classe.id == aff.id_classe).first()
-        mat = db.query(Matiere).filter(Matiere.id == aff.id_matiere).first()
+        cls = tenant_query(Classe).filter(Classe.id == aff.id_classe).first()
+        mat = tenant_query(Matiere).filter(Matiere.id == aff.id_matiere).first()
         vol = float(aff.volume_horaire_hebdo or 0)
         volume_total += vol
         aff_rows.append({
@@ -153,9 +166,17 @@ def generer_pdf_fiche_enseignant(id_enseignant: uuid.UUID, id_annee: uuid.UUID) 
         })
     creneaux = []
     for aff in affectations:
-        cls = db.query(Classe).filter(Classe.id == aff.id_classe).first()
-        mat = db.query(Matiere).filter(Matiere.id == aff.id_matiere).first()
-        for c in db.query(CreneauEmploiTemps).filter(CreneauEmploiTemps.id_affectation == aff.id).all():
+        cls = tenant_query(Classe).filter(Classe.id == aff.id_classe).first()
+        mat = tenant_query(Matiere).filter(Matiere.id == aff.id_matiere).first()
+        for c in (
+            db.query(CreneauEmploiTemps)
+            .join(AffectationEnseignant, CreneauEmploiTemps.id_affectation == AffectationEnseignant.id)
+            .filter(
+                CreneauEmploiTemps.id_affectation == aff.id,
+                AffectationEnseignant.school_id == get_current_school_id(),
+            )
+            .all()
+        ):
             creneaux.append({
                 "jour": JOURS.get(c.jour_semaine, str(c.jour_semaine)),
                 "debut": c.heure_debut.strftime("%H:%M"),
@@ -181,7 +202,7 @@ def generer_pdf_fiche_enseignant(id_enseignant: uuid.UUID, id_annee: uuid.UUID) 
 
 def generer_pdf_liste_eleves(id_classe: uuid.UUID) -> str:
     db = get_db()
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
+    classe = get_or_404_tenant(Classe, id_classe)
     eleves = _eleves_classe(db, id_classe)
     html = render_template(
         "liste_eleves.html",
@@ -197,12 +218,18 @@ def generer_pdf_liste_eleves(id_classe: uuid.UUID) -> str:
 
 def generer_pdf_fiche_correction(id_evaluation: uuid.UUID) -> str:
     db = get_db()
-    evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
-    if not evaluation:
-        raise ValueError("Évaluation introuvable")
-    classe = db.query(Classe).filter(Classe.id == evaluation.id_classe).first()
-    matiere = db.query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
-    trimestre = db.query(Trimestre).filter(Trimestre.id == evaluation.id_trimestre).first()
+    evaluation = get_or_404_tenant(Evaluation, id_evaluation)
+    classe = tenant_query(Classe).filter(Classe.id == evaluation.id_classe).first()
+    matiere = tenant_query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
+    trimestre = (
+        db.query(Trimestre)
+        .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
+        .filter(
+            Trimestre.id == evaluation.id_trimestre,
+            AnneeScolaire.school_id == get_current_school_id(),
+        )
+        .first()
+    )
     eleves = _eleves_classe(db, evaluation.id_classe)
     html = render_template(
         "fiche_correction.html",
@@ -221,7 +248,7 @@ def generer_pdf_fiche_correction(id_evaluation: uuid.UUID) -> str:
 
 def generer_pdf_fiche_appel(id_classe: uuid.UUID, date_appel: date | None = None) -> str:
     db = get_db()
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
+    classe = get_or_404_tenant(Classe, id_classe)
     eleves = _eleves_classe(db, id_classe)
     date_appel = date_appel or date.today()
     html = render_template(
@@ -241,8 +268,9 @@ def generer_pdf_fiche_scolarite(id_classe: uuid.UUID, id_annee: uuid.UUID) -> st
     db = get_db()
     from sqlalchemy import text
 
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
+    classe = get_or_404_tenant(Classe, id_classe)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
+    school_id = get_current_school_id()
     rows = db.execute(
         text("""
             SELECT
@@ -252,6 +280,7 @@ def generer_pdf_fiche_scolarite(id_classe: uuid.UUID, id_annee: uuid.UUID) -> st
                     SELECT SUM(p.montant_verse)
                     FROM paiement p
                     WHERE p.id_eleve = i.id_eleve AND p.id_annee = :id_annee AND p.annule = false
+                      AND p.school_id = CAST(:school_id AS UUID)
                 ), 0) AS total_paye
             FROM inscription i
             JOIN eleve e ON e.id = i.id_eleve
@@ -259,11 +288,12 @@ def generer_pdf_fiche_scolarite(id_classe: uuid.UUID, id_annee: uuid.UUID) -> st
             JOIN frais_scolaire fs ON fs.id_niveau = c.id_niveau AND fs.id_annee = i.id_annee
             JOIN echeance_paiement ec ON ec.id_frais = fs.id
             WHERE i.id_annee = :id_annee AND i.id_classe = :id_classe
+              AND i.school_id = CAST(:school_id AS UUID)
               AND i.statut IN ('inscrit', 'reinscrit')
             GROUP BY e.matricule, e.nom, e.prenom, i.id_eleve
             ORDER BY e.nom, e.prenom
         """),
-        {"id_annee": id_annee, "id_classe": id_classe},
+        {"id_annee": id_annee, "id_classe": id_classe, "school_id": str(school_id)},
     ).fetchall()
     eleves = [
         {
@@ -291,11 +321,9 @@ def generer_pdf_fiche_scolarite(id_classe: uuid.UUID, id_annee: uuid.UUID) -> st
 
 def generer_pdf_emargement_composition(id_evaluation: uuid.UUID) -> str:
     db = get_db()
-    evaluation = db.query(Evaluation).filter(Evaluation.id == id_evaluation).first()
-    if not evaluation:
-        raise ValueError("Évaluation introuvable")
-    classe = db.query(Classe).filter(Classe.id == evaluation.id_classe).first()
-    matiere = db.query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
+    evaluation = get_or_404_tenant(Evaluation, id_evaluation)
+    classe = tenant_query(Classe).filter(Classe.id == evaluation.id_classe).first()
+    matiere = tenant_query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
     eleves = _eleves_classe(db, evaluation.id_classe)
     html = render_template(
         "emargement_composition.html",
@@ -316,19 +344,34 @@ def generer_pdf_programme_trimestriel(
 ) -> str:
     """Export combiné devoirs + compositions + emploi du temps pour une classe."""
     db = get_db()
-    classe = db.query(Classe).filter(Classe.id == id_classe).first()
-    trimestre = db.query(Trimestre).filter(Trimestre.id == id_trimestre).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == id_annee).first()
+    classe = get_or_404_tenant(Classe, id_classe)
+    annee = get_or_404_tenant(AnneeScolaire, id_annee)
+    trimestre = (
+        db.query(Trimestre)
+        .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
+        .filter(
+            Trimestre.id == id_trimestre,
+            AnneeScolaire.school_id == get_current_school_id(),
+        )
+        .first()
+    )
+    if not trimestre:
+        abort(404)
 
     devoirs_rows = (
         db.query(ProgrammeDevoir)
-        .filter(ProgrammeDevoir.id_classe == id_classe, ProgrammeDevoir.id_annee == id_annee)
+        .join(Classe, ProgrammeDevoir.id_classe == Classe.id)
+        .filter(
+            ProgrammeDevoir.id_classe == id_classe,
+            ProgrammeDevoir.id_annee == id_annee,
+            Classe.school_id == get_current_school_id(),
+        )
         .order_by(ProgrammeDevoir.jour_semaine)
         .all()
     )
     devoirs = []
     for row in devoirs_rows:
-        matiere = db.query(Matiere).filter(Matiere.id == row.id_matiere).first()
+        matiere = tenant_query(Matiere).filter(Matiere.id == row.id_matiere).first()
         devoirs.append({
             "jour": JOURS.get(row.jour_semaine, str(row.jour_semaine)),
             "matiere": matiere.libelle if matiere else "—",
@@ -336,7 +379,7 @@ def generer_pdf_programme_trimestriel(
         })
 
     compositions = (
-        db.query(Evaluation)
+        tenant_query(Evaluation)
         .filter(
             Evaluation.id_classe == id_classe,
             Evaluation.id_trimestre == id_trimestre,
@@ -348,7 +391,7 @@ def generer_pdf_programme_trimestriel(
     )
     comp_items = []
     for ev in compositions:
-        matiere = db.query(Matiere).filter(Matiere.id == ev.id_matiere).first()
+        matiere = tenant_query(Matiere).filter(Matiere.id == ev.id_matiere).first()
         comp_items.append({
             "date": ev.date_evaluation.strftime("%d/%m/%Y"),
             "matiere": matiere.libelle if matiere else "—",
@@ -357,15 +400,23 @@ def generer_pdf_programme_trimestriel(
         })
 
     affectations = (
-        db.query(AffectationEnseignant)
+        tenant_query(AffectationEnseignant)
         .filter(AffectationEnseignant.id_classe == id_classe, AffectationEnseignant.id_annee == id_annee)
         .all()
     )
     creneaux = []
     for aff in affectations:
-        mat = db.query(Matiere).filter(Matiere.id == aff.id_matiere).first()
-        ens = db.query(Enseignant).filter(Enseignant.id == aff.id_enseignant).first()
-        for c in db.query(CreneauEmploiTemps).filter(CreneauEmploiTemps.id_affectation == aff.id).all():
+        mat = tenant_query(Matiere).filter(Matiere.id == aff.id_matiere).first()
+        ens = tenant_query(Enseignant).filter(Enseignant.id == aff.id_enseignant).first()
+        for c in (
+            db.query(CreneauEmploiTemps)
+            .join(AffectationEnseignant, CreneauEmploiTemps.id_affectation == AffectationEnseignant.id)
+            .filter(
+                CreneauEmploiTemps.id_affectation == aff.id,
+                AffectationEnseignant.school_id == get_current_school_id(),
+            )
+            .all()
+        ):
             creneaux.append({
                 "jour": JOURS.get(c.jour_semaine, str(c.jour_semaine)),
                 "debut": c.heure_debut.strftime("%H:%M"),

@@ -48,14 +48,19 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.emploi_temps import blp as emploi_temps_blp
     from app.routes.etablissement import blp as etablissement_blp
     from app.routes.finance import blp as finance_blp
+    from app.routes.grading import blp as grading_blp
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
     from app.routes.pedagogie import blp as pedagogie_blp
+    from app.routes.platform import blp as platform_blp
+    from app.routes.schools import blp as schools_blp
     from app.routes.users import blp as users_blp
 
     # Auth : routes plates (/api/login, /api/me, …)
     api.register_blueprint(auth_blp, url_prefix="/api")
-    api.register_blueprint(users_blp, url_prefix="/api")
+    api.register_blueprint(users_blp, url_prefix="/api/users")
+    api.register_blueprint(schools_blp, url_prefix="/api/schools")
+    api.register_blueprint(platform_blp, url_prefix="/api/platform")
     # Modules : préfixe explicite pour éviter les collisions sur /api/
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
@@ -68,6 +73,11 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(notifications_blp, url_prefix="/api/notifications")
     api.register_blueprint(dashboard_blp, url_prefix="/api/dashboard")
     api.register_blueprint(audit_blp, url_prefix="/api/audit")
+    api.register_blueprint(grading_blp, url_prefix="/api")
+
+    from app.utils.errors import register_error_handlers
+
+    register_error_handlers(application)
 
     @application.cli.command("seed")
     def seed_command():
@@ -77,6 +87,64 @@ def create_app(config_name: str | None = None) -> Flask:
         run_seed()
         print("Seed terminé.")
 
+    @application.cli.command("create-super-admin")
+    def create_super_admin_command():
+        """Bootstrap ops : crée (ou réactive) le premier SUPER_ADMIN plateforme."""
+        import uuid as uuid_mod
+
+        import click
+
+        from app.auth.jwt_handler import hash_password
+        from app.extensions import get_db
+        from app.models import Utilisateur
+        from app.models.utilisateur import PLATFORM_ROLE_SUPER_ADMIN
+        from app.utils.audit_logger import log_audit
+
+        email = click.prompt("Email", type=str).strip().lower()
+        nom = click.prompt("Nom", type=str, default="Super")
+        prenom = click.prompt("Prénom", type=str, default="Admin")
+        password = click.prompt("Mot de passe", hide_input=True, confirmation_prompt=True)
+
+        db = get_db()
+        existing = db.query(Utilisateur).filter(Utilisateur.email == email).first()
+        if existing:
+            if existing.role == PLATFORM_ROLE_SUPER_ADMIN and existing.school_id is None:
+                existing.mot_de_passe_hash = hash_password(password)
+                existing.actif = True
+                existing.nom = nom
+                existing.prenom = prenom
+                db.commit()
+                click.echo(f"SUPER_ADMIN existant mis à jour : {email}")
+                return
+            click.echo(
+                f"Erreur : un utilisateur existe déjà avec cet email (rôle={existing.role}).",
+                err=True,
+            )
+            raise SystemExit(1)
+
+        user = Utilisateur(
+            id=uuid_mod.uuid4(),
+            nom=nom,
+            prenom=prenom,
+            email=email,
+            role=PLATFORM_ROLE_SUPER_ADMIN,
+            mot_de_passe_hash=hash_password(password),
+            actif=True,
+            doit_changer_mdp=True,
+            school_id=None,
+        )
+        db.add(user)
+        db.commit()
+        log_audit(
+            "SUPER_ADMIN_BOOTSTRAP",
+            user.id,
+            "utilisateur",
+            user.id,
+            details={"email": email},
+            allow_null_school=True,
+        )
+        click.echo(f"SUPER_ADMIN créé : {email}")
+
     @application.cli.command("relancer-arrieres")
     def relancer_arrieres_command():
         """Relance les parents pour les arriérés de l'année active."""
@@ -85,20 +153,46 @@ def create_app(config_name: str | None = None) -> Flask:
         from app.services.relance_arrieres import relancer_arrieres
 
         db = get_db()
-        annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
-        if not annee:
+        annees = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).all()
+        if not annees:
             print("Aucune année active.")
             return
-        result = relancer_arrieres(db, annee.id, auto_envoyer=True)
-        print(result)
+        for annee in annees:
+            result = relancer_arrieres(db, annee.id, auto_envoyer=True, school_id=annee.school_id)
+            print(f"school={annee.school_id} {result}")
+
+    @application.cli.command("digest-absences-hebdo")
+    def digest_absences_hebdo_command():
+        """Génère le digest hebdomadaire des absences (idempotent) pour chaque école active."""
+        from app.extensions import get_db
+        from app.models import School
+        from app.services.digest_absences import digest_absences_hebdo
+
+        db = get_db()
+        schools = db.query(School).filter(School.is_active.is_(True)).all()
+        if not schools:
+            print("Aucune école active.")
+            return
+        for school in schools:
+            result = digest_absences_hebdo(db, school.id, canal="email", auto_envoyer=True)
+            print(f"school={school.code} {result}")
 
     @application.cli.command("traiter-notifications")
     def traiter_notifications_command():
-        """Traite la file d'attente des notifications."""
+        """Traite la file d'attente des notifications (toutes écoles)."""
+        from app.extensions import get_db
+        from app.models import School
         from app.services.envoi_notification import traiter_file_notifications
 
-        sent = traiter_file_notifications()
-        print(f"{sent} notification(s) envoyée(s).")
+        db = get_db()
+        schools = db.query(School).filter(School.is_active.is_(True)).all()
+        total = 0
+        if not schools:
+            total = traiter_file_notifications()
+        else:
+            for school in schools:
+                total += traiter_file_notifications(school_id=school.id)
+        print(f"{total} notification(s) envoyée(s).")
 
     @application.route("/api/health")
     def health():

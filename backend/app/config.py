@@ -54,9 +54,16 @@ class Config:
     RATELIMIT_ENABLED = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
     RATELIMIT_STORAGE_URI = _rate_limit_storage_uri("memory://")
 
-    # Uploads
-    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
+    # Uploads — chemin absolu obligatoire (send_file résout sinon sous app/)
+    _BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    _upload = os.getenv("UPLOAD_FOLDER", os.path.join(_BACKEND_ROOT, "uploads"))
+    UPLOAD_FOLDER = (
+        _upload if os.path.isabs(_upload) else os.path.abspath(os.path.join(_BACKEND_ROOT, _upload))
+    )
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
+
+    # Dev only : exposer reset_token dans la réponse forgot-password (jamais en prod)
+    EXPOSE_RESET_TOKEN = os.getenv("EXPOSE_RESET_TOKEN", "").strip().lower() in ("1", "true", "yes")
 
     # Flask-Smorest / OpenAPI
     API_TITLE = "Gestion Scolaire API"

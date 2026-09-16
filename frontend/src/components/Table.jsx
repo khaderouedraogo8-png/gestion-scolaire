@@ -51,11 +51,11 @@ export default function Table({
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-bordure/60 bg-craie/40">
+              <tr className="border-b border-bordure bg-craie/70">
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.03em] text-texte-secondaire ${
+                    className={`px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-table-header text-texte-secondaire ${
                       col.align === 'right' ? 'text-right' : ''
                     }`}
                     style={{ width: col.width }}
@@ -86,8 +86,8 @@ export default function Table({
                   <tr
                     key={row[keyField]}
                     onClick={() => onRowClick?.(row)}
-                    className={`border-b border-bordure/50 last:border-b-0 transition-colors ${
-                      onRowClick ? 'cursor-pointer hover:bg-craie/60' : ''
+                    className={`border-b border-bordure/40 last:border-b-0 ${
+                      onRowClick ? 'table-row-interactive cursor-pointer' : ''
                     }`}
                   >
                     {columns.map((col) => (

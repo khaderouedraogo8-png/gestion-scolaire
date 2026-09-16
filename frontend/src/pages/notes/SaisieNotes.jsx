@@ -4,6 +4,7 @@ import { notesApi } from '../../services/api/notes';
 import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import Badge from '../../components/Badge';
+import { apiErrorMessage } from '../../utils/academicLabels';
 
 export default function SaisieNotes() {
   const { evaluationId } = useParams();
@@ -16,6 +17,11 @@ export default function SaisieNotes() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
+
+  const scaleMax =
+    evaluation?.scale_max != null && !Number.isNaN(Number(evaluation.scale_max))
+      ? Number(evaluation.scale_max)
+      : 20;
 
   useEffect(() => {
     notesApi
@@ -54,10 +60,14 @@ export default function SaisieNotes() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await notesApi.saveNotes(selectedId, notes);
-      toast.success('Notes enregistrées — moyennes recalculées');
+      const res = await notesApi.saveNotes(selectedId, notes);
+      toast.success(
+        res?.results_stale
+          ? 'Notes enregistrées — résultats à recalculer'
+          : 'Notes enregistrées'
+      );
     } catch (err) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement");
+      toast.error(apiErrorMessage(err, "Erreur lors de l'enregistrement"));
     } finally {
       setSaving(false);
     }
@@ -137,6 +147,18 @@ export default function SaisieNotes() {
               <button type="button" onClick={handleSave} disabled={saving || evaluation.statut_saisie === 'cloturee'} className="btn-primary">
                 {saving ? 'Enregistrement...' : 'Enregistrer les notes'}
               </button>
+              {evaluation.id_classe && evaluation.id_trimestre ? (
+                <Link
+                  to={`/notes/resultats?id_classe=${evaluation.id_classe}&id_period=${evaluation.id_trimestre}`}
+                  className="btn-secondary inline-flex items-center"
+                >
+                  Voir les résultats
+                </Link>
+              ) : (
+                <Link to="/notes/resultats" className="btn-secondary inline-flex items-center">
+                  Voir les résultats
+                </Link>
+              )}
               {evaluation.statut_saisie === 'cloturee' ? (
                 <button type="button" onClick={handleRouvrir} disabled={closing} className="btn-secondary">
                   Rouvrir la saisie
@@ -161,8 +183,8 @@ export default function SaisieNotes() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-texte-secondaire">
                       Élève
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-texte-secondaire w-24">
-                      Note /20
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-texte-secondaire w-28">
+                      Note /{scaleMax}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-texte-secondaire w-20">
                       Absent
@@ -185,7 +207,7 @@ export default function SaisieNotes() {
                         <input
                           type="number"
                           min="0"
-                          max="20"
+                          max={scaleMax}
                           step="0.25"
                           value={n.valeur_note ?? ''}
                           disabled={n.absent}

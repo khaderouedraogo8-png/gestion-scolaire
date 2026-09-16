@@ -48,6 +48,16 @@ export const notesApi = {
     return data;
   },
 
+  listResultats: async (params = {}) => {
+    const { data } = await apiClient.get('/notes/resultats', { params });
+    return data;
+  },
+
+  recalculerResultats: async (payload) => {
+    const { data } = await apiClient.post('/notes/resultats/recalculer', payload);
+    return data;
+  },
+
   genererBulletinsClasse: async (payload) => {
     const { data } = await apiClient.post('/notes/bulletins/generer', payload);
     return data;

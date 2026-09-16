@@ -1,6 +1,8 @@
 """Schémas Marshmallow — authentification."""
 from marshmallow import Schema, fields, validate
 
+from app.models.utilisateur import SCHOOL_ROLES
+
 
 class LoginSchema(Schema):
     email = fields.Email(required=True)
@@ -21,9 +23,31 @@ class UserSchema(Schema):
     role = fields.String(required=True)
     actif = fields.Boolean(dump_only=True)
     doit_changer_mdp = fields.Boolean(dump_only=True)
+    school_id = fields.UUID(dump_only=True, allow_none=True)
 
 
 class TokenResponseSchema(Schema):
     access_token = fields.String()
     user = fields.Nested(UserSchema)
     doit_changer_mdp = fields.Boolean()
+
+
+class UpdateUserSchema(Schema):
+    class Meta:
+        unknown = "include"
+
+    nom = fields.String(validate=validate.Length(min=1, max=100))
+    prenom = fields.String(validate=validate.Length(min=1, max=100))
+    email = fields.Email()
+    telephone = fields.String(allow_none=True, validate=validate.Length(max=30))
+    role = fields.String(validate=validate.OneOf(list(SCHOOL_ROLES)))
+    actif = fields.Boolean()
+
+
+class ForgotPasswordSchema(Schema):
+    email = fields.Email(required=True)
+
+
+class ResetPasswordSchema(Schema):
+    token = fields.String(required=True, validate=validate.Length(min=10))
+    nouveau_mot_de_passe = fields.String(required=True, validate=validate.Length(min=8))

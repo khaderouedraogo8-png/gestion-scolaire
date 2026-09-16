@@ -1,7 +1,7 @@
 """Module 3 — Routes finance : frais, échéances, paiements."""
 import uuid
 
-from flask import jsonify, request, send_file
+from flask import abort, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
@@ -16,6 +16,7 @@ from app.auth.permissions import (
 from app.extensions import get_db
 from app.models import (
     AnneeScolaire,
+    Classe,
     EcheancePaiement,
     Eleve,
     FraisScolaire,
@@ -28,21 +29,40 @@ from app.schemas.finance import (
     FraisScolaireSchema,
     PaiementCreateSchema,
     PaiementSchema,
+    RelanceArrieresSchema,
 )
 from app.services.finance_arrieres import list_arrieres
 from app.services.generation_recu import generer_recu_pdf
 from app.services.relance_arrieres import relancer_arrieres
+from app.services.tenant import (
+    apply_tenant_school,
+    assert_same_school,
+    get_current_school_id,
+    get_or_404_tenant,
+    reject_client_school_id,
+    tenant_query,
+)
 from app.utils.audit_logger import log_audit
+from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("finance", __name__, url_prefix="/finance", description="Finance et comptabilité")
 
 
+def _tenant_echeance_query(db):
+    """Échéances isolées via FraisScolaire.school_id (parent-only)."""
+    return (
+        db.query(EcheancePaiement)
+        .join(FraisScolaire, EcheancePaiement.id_frais == FraisScolaire.id)
+        .filter(FraisScolaire.school_id == get_current_school_id())
+    )
+
+
 def _serialize_frais(db, frais):
     data = FraisScolaireSchema().dump(frais)
-    niveau = db.query(NiveauEtude).filter(NiveauEtude.id == frais.id_niveau).first()
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.id == frais.id_annee).first()
+    niveau = tenant_query(NiveauEtude).filter(NiveauEtude.id == frais.id_niveau).first()
+    annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == frais.id_annee).first()
     echeances = (
-        db.query(EcheancePaiement)
+        _tenant_echeance_query(db)
         .filter(EcheancePaiement.id_frais == frais.id)
         .order_by(EcheancePaiement.date_echeance)
         .all()
@@ -56,7 +76,7 @@ def _serialize_frais(db, frais):
 
 def _serialize_paiement(db, paiement):
     data = PaiementSchema().dump(paiement)
-    eleve = db.query(Eleve).filter(Eleve.id == paiement.id_eleve).first()
+    eleve = tenant_query(Eleve).filter(Eleve.id == paiement.id_eleve).first()
     data["montant_verse"] = float(paiement.montant_verse)
     if eleve:
         data["eleve_nom"] = f"{eleve.prenom} {eleve.nom}"
@@ -67,12 +87,13 @@ def _serialize_paiement(db, paiement):
 @blp.route("/frais")
 class FraisResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
         db = get_db()
-        q = db.query(FraisScolaire)
+        q = tenant_query(FraisScolaire)
         id_annee = request.args.get("id_annee")
         if id_annee:
+            get_or_404_tenant(AnneeScolaire, id_annee)
             q = q.filter(FraisScolaire.id_annee == uuid.UUID(id_annee))
         frais_list = q.all()
         return jsonify([_serialize_frais(db, f) for f in frais_list])
@@ -82,8 +103,13 @@ class FraisResource(MethodView):
     @blp.arguments(FraisScolaireSchema)
     @blp.response(201, FraisScolaireSchema)
     def post(self, data):
+        reject_client_school_id(request.get_json(silent=True))
         db = get_db()
+        niveau = get_or_404_tenant(NiveauEtude, data["id_niveau"])
+        annee = get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        assert_same_school(niveau, annee)
         frais = FraisScolaire(id=uuid.uuid4(), **data)
+        apply_tenant_school(frais)
         db.add(frais)
         db.commit()
         return frais, 201
@@ -92,13 +118,14 @@ class FraisResource(MethodView):
 @blp.route("/echeances")
 class EcheancesResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     @blp.response(200, EcheancePaiementSchema(many=True))
     def get(self):
         db = get_db()
         id_frais = request.args.get("id_frais")
-        q = db.query(EcheancePaiement)
+        q = _tenant_echeance_query(db)
         if id_frais:
+            get_or_404_tenant(FraisScolaire, id_frais)
             q = q.filter(EcheancePaiement.id_frais == uuid.UUID(id_frais))
         return q.all()
 
@@ -107,7 +134,9 @@ class EcheancesResource(MethodView):
     @blp.arguments(EcheancePaiementSchema)
     @blp.response(201, EcheancePaiementSchema)
     def post(self, data):
+        reject_client_school_id(request.get_json(silent=True))
         db = get_db()
+        get_or_404_tenant(FraisScolaire, data["id_frais"])
         echeance = EcheancePaiement(id=uuid.uuid4(), **data)
         db.add(echeance)
         db.commit()
@@ -117,35 +146,64 @@ class EcheancesResource(MethodView):
 @blp.route("/paiements")
 class PaiementsResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat", "parent")
+    @require_role("administrateur", "directeur", "agent_comptable", "parent")
     def get(self):
         db = get_db()
         user = get_current_user()
-        q = db.query(Paiement)
+        q = tenant_query(Paiement)
         id_eleve = request.args.get("id_eleve")
         id_annee = request.args.get("id_annee")
+        if id_annee:
+            get_or_404_tenant(AnneeScolaire, id_annee)
         if user.role == "parent":
             eleve_ids = get_parent_eleve_ids(user)
             if not eleve_ids:
-                return jsonify([])
+                return jsonify(empty_pagination())
             q = q.filter(Paiement.id_eleve.in_(eleve_ids))
         if id_eleve:
             eid = uuid.UUID(id_eleve)
+            get_or_404_tenant(Eleve, eid)
             if user.role == "parent" and not parent_has_eleve_access(user, eid):
                 return jsonify({"message": "Accès refusé"}), 403
             q = q.filter(Paiement.id_eleve == eid)
         if id_annee:
             q = q.filter(Paiement.id_annee == uuid.UUID(id_annee))
-        paiements = q.order_by(Paiement.date_paiement.desc()).all()
-        return jsonify([_serialize_paiement(db, p) for p in paiements])
+        page, per_page = parse_pagination()
+        items, total, pages = paginate_query(
+            q.order_by(Paiement.date_paiement.desc()), page, per_page
+        )
+        return jsonify(
+            pagination_payload(
+                [_serialize_paiement(db, p) for p in items],
+                page=page,
+                per_page=per_page,
+                total=total,
+                pages=pages,
+            )
+        )
 
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
     @blp.arguments(PaiementCreateSchema)
     @blp.response(201, PaiementSchema)
     def post(self, data):
+        reject_client_school_id(request.get_json(silent=True))
         db = get_db()
         user = get_current_user()
+
+        eleve = get_or_404_tenant(Eleve, data["id_eleve"])
+        annee = get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        assert_same_school(eleve, annee)
+        if data.get("id_echeance"):
+            echeance = (
+                _tenant_echeance_query(db)
+                .filter(EcheancePaiement.id == data["id_echeance"])
+                .first()
+            )
+            if echeance is None:
+                abort(404)
+            frais = get_or_404_tenant(FraisScolaire, echeance.id_frais)
+            assert_same_school(eleve, annee, frais)
 
         # Générer numéro de reçu via séquence PostgreSQL
         numero_recu = db.execute(text("SELECT 'REC-' || nextval('seq_numero_recu')")).scalar()
@@ -156,6 +214,7 @@ class PaiementsResource(MethodView):
             encaisse_par=user.id,
             **data,
         )
+        apply_tenant_school(paiement)
         db.add(paiement)
         db.commit()
         log_audit("PAIEMENT_ENCAISSE", user.id, "paiement", paiement.id, {"montant": str(data["montant_verse"])})
@@ -170,9 +229,7 @@ class AnnulerPaiement(MethodView):
     def post(self, data, id_paiement):
         db = get_db()
         user = get_current_user()
-        paiement = db.query(Paiement).filter(Paiement.id == id_paiement).first()
-        if not paiement:
-            return jsonify({"message": "Paiement introuvable"}), 404
+        paiement = get_or_404_tenant(Paiement, id_paiement)
         if paiement.annule:
             return jsonify({"message": "Paiement déjà annulé"}), 400
         # Jamais de DELETE — annulation traçable uniquement
@@ -186,13 +243,10 @@ class AnnulerPaiement(MethodView):
 @blp.route("/paiements/<uuid:id_paiement>/recu")
 class RecuPaiement(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat", "parent")
+    @require_role("administrateur", "directeur", "agent_comptable", "parent")
     def get(self, id_paiement):
-        db = get_db()
         user = get_current_user()
-        paiement = db.query(Paiement).filter(Paiement.id == id_paiement).first()
-        if not paiement:
-            return jsonify({"message": "Paiement introuvable"}), 404
+        paiement = get_or_404_tenant(Paiement, id_paiement)
         if user.role == "parent" and not parent_has_eleve_access(user, paiement.id_eleve):
             return jsonify({"message": "Accès refusé"}), 403
         try:
@@ -210,7 +264,7 @@ class RecuPaiement(MethodView):
 @blp.route("/arrieres")
 class ArrieresResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
         """Calcule les arriérés par élève : Σ(échéances dues) − Σ(paiements non annulés)."""
         db = get_db()
@@ -218,9 +272,17 @@ class ArrieresResource(MethodView):
         if not id_annee:
             return jsonify({"message": "id_annee requis"}), 400
 
+        get_or_404_tenant(AnneeScolaire, id_annee)
         id_classe = request.args.get("id_classe")
         classe_uuid = uuid.UUID(id_classe) if id_classe else None
-        arrieres = list_arrieres(db, uuid.UUID(id_annee), id_classe=classe_uuid)
+        if classe_uuid:
+            get_or_404_tenant(Classe, classe_uuid)
+        arrieres = list_arrieres(
+            db,
+            uuid.UUID(id_annee),
+            id_classe=classe_uuid,
+            school_id=get_current_school_id(),
+        )
         return jsonify([
             {**a, "id_eleve": str(a["id_eleve"])} for a in arrieres
         ])
@@ -230,22 +292,21 @@ class ArrieresResource(MethodView):
 class ArrieresRelancer(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
-    def post(self):
+    @blp.arguments(RelanceArrieresSchema)
+    def post(self, data):
         db = get_db()
         user = get_current_user()
-        data = request.json or {}
-        id_annee = data.get("id_annee") or request.args.get("id_annee")
-        if not id_annee:
-            return jsonify({"message": "id_annee requis"}), 400
+        id_annee = data["id_annee"]
+        id_annee_uuid = id_annee if not isinstance(id_annee, str) else uuid.UUID(str(id_annee))
+        get_or_404_tenant(AnneeScolaire, id_annee_uuid)
         canal = data.get("canal", "email")
-        if canal not in ("email", "sms"):
-            return jsonify({"message": "canal invalide (email ou sms)"}), 400
         auto_envoyer = bool(data.get("auto_envoyer", True))
         result = relancer_arrieres(
             db,
-            uuid.UUID(id_annee),
+            id_annee_uuid,
             canal=canal,
             auto_envoyer=auto_envoyer,
+            school_id=get_current_school_id(),
         )
         log_audit(
             "RELANCE_ARRIERES",
@@ -261,7 +322,7 @@ class ArrieresRelancer(MethodView):
 @blp.route("/arrieres/export")
 class ArrieresExport(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
         from io import BytesIO
 
@@ -271,35 +332,27 @@ class ArrieresExport(MethodView):
         if not id_annee:
             return jsonify({"message": "id_annee requis"}), 400
 
+        get_or_404_tenant(AnneeScolaire, id_annee)
         db = get_db()
-        rows = db.execute(
-            text("""
-                SELECT e.matricule, e.nom, e.prenom,
-                       COALESCE(SUM(ec.montant), 0) AS total_du,
-                       COALESCE((
-                           SELECT SUM(p.montant_verse)
-                           FROM paiement p
-                           WHERE p.id_eleve = i.id_eleve AND p.id_annee = :id_annee AND p.annule = false
-                       ), 0) AS total_paye
-                FROM inscription i
-                JOIN eleve e ON e.id = i.id_eleve
-                JOIN classe c ON c.id = i.id_classe
-                JOIN frais_scolaire fs ON fs.id_niveau = c.id_niveau AND fs.id_annee = i.id_annee
-                JOIN echeance_paiement ec ON ec.id_frais = fs.id
-                WHERE i.id_annee = :id_annee AND i.statut IN ('inscrit', 'reinscrit')
-                GROUP BY i.id_eleve, e.matricule, e.nom, e.prenom
-            """),
-            {"id_annee": id_annee},
-        ).fetchall()
+        rows = list_arrieres(
+            db,
+            uuid.UUID(id_annee),
+            school_id=get_current_school_id(),
+        )
 
         wb = Workbook()
         ws = wb.active
         ws.title = "Arriérés"
         ws.append(["Matricule", "Nom", "Prénom", "Total dû", "Total payé", "Arriéré"])
         for r in rows:
-            arriere = float(r[3]) - float(r[4])
-            if arriere > 0:
-                ws.append([r[0], r[1], r[2], float(r[3]), float(r[4]), round(arriere, 2)])
+            ws.append([
+                r["matricule"],
+                r["nom"],
+                r["prenom"],
+                r["total_du"],
+                r["total_paye"],
+                r["arriere"],
+            ])
 
         buf = BytesIO()
         wb.save(buf)

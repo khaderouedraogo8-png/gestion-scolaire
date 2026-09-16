@@ -16,15 +16,17 @@ class TestFinance:
         )
         assert response.status_code == 201
 
-    def test_encaissement_et_annulation(self, client, auth_headers, db, annee_classe):
+    def test_encaissement_et_annulation(self, client, auth_headers, db, annee_classe, default_school):
         from app.models import Eleve, Inscription
 
+        sid = default_school.id
         matricule = f"2025M-{uuid.uuid4().hex[:6].upper()}"
         eleve = Eleve(
             id=uuid.uuid4(),
             matricule=matricule,
             nom="Test",
             prenom="Finance",
+            school_id=sid,
         )
         db.add(eleve)
         inscription = Inscription(
@@ -32,6 +34,7 @@ class TestFinance:
             id_eleve=eleve.id,
             id_classe=annee_classe["classe"].id,
             id_annee=annee_classe["annee"].id,
+            school_id=sid,
         )
         db.add(inscription)
         db.commit()

@@ -11,11 +11,12 @@ from app.models import (
 )
 
 
-def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe):
+def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe, default_school):
     """Un parent authentifié reçoit 403 sur un élève qui n'est pas le sien."""
     annee = annee_classe["annee"]
     classe = annee_classe["classe"]
     suffix = uuid.uuid4().hex[:8]
+    sid = default_school.id
 
     eleve_mien = Eleve(
         id=uuid.uuid4(),
@@ -23,6 +24,7 @@ def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe):
         nom="ParentTest",
         prenom="Enfant",
         sexe="M",
+        school_id=sid,
     )
     eleve_autre = Eleve(
         id=uuid.uuid4(),
@@ -30,6 +32,7 @@ def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe):
         nom="Autre",
         prenom="Eleve",
         sexe="F",
+        school_id=sid,
     )
     db.add_all([eleve_mien, eleve_autre])
     db.flush()
@@ -42,6 +45,7 @@ def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe):
                 id_classe=classe.id,
                 id_annee=annee.id,
                 statut="inscrit",
+                school_id=sid,
             )
         )
 
@@ -54,6 +58,7 @@ def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe):
         role="parent",
         actif=True,
         doit_changer_mdp=False,
+        school_id=sid,
     )
     db.add(parent_user)
     db.flush()
@@ -64,6 +69,7 @@ def test_parent_cannot_access_unlinked_eleve(client, db, annee_classe):
         prenom="Demo",
         telephone="70000000",
         id_utilisateur=parent_user.id,
+        school_id=sid,
     )
     db.add(parent_tuteur)
     db.flush()

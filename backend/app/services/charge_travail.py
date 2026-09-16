@@ -5,7 +5,8 @@ from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
-from app.models import Evaluation, Matiere, ProgrammeDevoir, Trimestre
+from app.models import AnneeScolaire, Classe, Evaluation, Matiere, ProgrammeDevoir, Trimestre
+from app.services.tenant import get_current_school_id, get_or_404_tenant, tenant_query
 
 JOURS = {1: "Lundi", 2: "Mardi", 3: "Mercredi", 4: "Jeudi", 5: "Vendredi", 6: "Samedi", 7: "Dimanche"}
 
@@ -17,14 +18,21 @@ def stats_charge_classe(
     id_trimestre: uuid.UUID | None = None,
 ) -> dict:
     """Agrège devoirs récurrents (par jour) et compositions (par semaine)."""
+    get_or_404_tenant(Classe, id_classe)
+    get_or_404_tenant(AnneeScolaire, id_annee)
     devoirs = (
         db.query(ProgrammeDevoir)
-        .filter(ProgrammeDevoir.id_classe == id_classe, ProgrammeDevoir.id_annee == id_annee)
+        .join(Classe, ProgrammeDevoir.id_classe == Classe.id)
+        .filter(
+            ProgrammeDevoir.id_classe == id_classe,
+            ProgrammeDevoir.id_annee == id_annee,
+            Classe.school_id == get_current_school_id(),
+        )
         .all()
     )
     par_jour = defaultdict(list)
     for d in devoirs:
-        mat = db.query(Matiere).filter(Matiere.id == d.id_matiere).first()
+        mat = tenant_query(Matiere).filter(Matiere.id == d.id_matiere).first()
         par_jour[d.jour_semaine].append({
             "matiere": mat.libelle if mat else "—",
             "frequence": d.frequence,
@@ -38,7 +46,7 @@ def stats_charge_classe(
         if len(items) >= 3:
             alertes.append(f"{entry['jour']} : {len(items)} matières avec devoir prévu")
 
-    comp_q = db.query(Evaluation).filter(
+    comp_q = tenant_query(Evaluation).filter(
         Evaluation.id_classe == id_classe,
         Evaluation.type_evaluation == "examen",
     )
@@ -50,7 +58,7 @@ def stats_charge_classe(
     for ev in compositions:
         iso = ev.date_evaluation.isocalendar()
         key = f"{iso.year}-S{iso.week:02d}"
-        mat = db.query(Matiere).filter(Matiere.id == ev.id_matiere).first()
+        mat = tenant_query(Matiere).filter(Matiere.id == ev.id_matiere).first()
         par_semaine[key].append({
             "date": ev.date_evaluation.isoformat(),
             "matiere": mat.libelle if mat else "—",
@@ -64,7 +72,17 @@ def stats_charge_classe(
         if len(items) >= 3:
             alertes.append(f"Semaine {semaine} : {len(items)} compositions programmées")
 
-    trimestre = db.query(Trimestre).filter(Trimestre.id == id_trimestre).first() if id_trimestre else None
+    trimestre = None
+    if id_trimestre:
+        trimestre = (
+            db.query(Trimestre)
+            .join(AnneeScolaire, Trimestre.id_annee == AnneeScolaire.id)
+            .filter(
+                Trimestre.id == id_trimestre,
+                AnneeScolaire.school_id == get_current_school_id(),
+            )
+            .first()
+        )
     if trimestre:
         for d in range((trimestre.date_fin - trimestre.date_debut).days + 1):
             jour_date = trimestre.date_debut + timedelta(days=d)

@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 from flask import current_app
 
 from app.extensions import get_db
-from app.models import Notification
+from app.models import Eleve, Notification
+from app.services.tenant import apply_tenant_school, get_or_404_tenant
 
 
 class NotificationProvider(ABC):
@@ -127,19 +128,43 @@ def creer_notification(
     contenu: str,
     id_eleve: uuid.UUID | None = None,
     id_parent: uuid.UUID | None = None,
+    school_id: uuid.UUID | None = None,
+    idempotency_key: str | None = None,
 ) -> Notification:
-    """Crée une notification en file d'attente."""
+    """Crée une notification en file d'attente (ou disponible si canal=interne)."""
     db = get_db()
+    if id_eleve and school_id is None:
+        get_or_404_tenant(Eleve, id_eleve)
+    elif id_eleve and school_id is not None:
+        eleve = (
+            db.query(Eleve)
+            .filter(Eleve.id == id_eleve, Eleve.school_id == school_id)
+            .first()
+        )
+        if not eleve:
+            from flask import abort
+
+            abort(404)
     if id_eleve and not id_parent:
         id_parent = _resolve_parent_id(db, id_eleve)
-    notif = Notification(
-        id=uuid.uuid4(),
-        id_eleve=id_eleve,
-        id_parent=id_parent,
-        canal=canal,
-        type_notification=type_notification,
-        contenu=contenu,
-        statut="en_attente",
+
+    # Canal interne : notification inbox uniquement (pas d'envoi SMTP/SMS).
+    statut = "envoye" if canal == "interne" else "en_attente"
+    envoye_le = datetime.now(UTC) if canal == "interne" else None
+
+    notif = apply_tenant_school(
+        Notification(
+            id=uuid.uuid4(),
+            id_eleve=id_eleve,
+            id_parent=id_parent,
+            canal=canal,
+            type_notification=type_notification,
+            contenu=contenu,
+            statut=statut,
+            envoye_le=envoye_le,
+            idempotency_key=idempotency_key,
+        ),
+        school_id=school_id,
     )
     db.add(notif)
     db.commit()
@@ -148,6 +173,8 @@ def creer_notification(
 
 def envoyer_notification(notif: Notification, destinataire: str) -> bool:
     """Tente l'envoi d'une notification avec retry."""
+    if notif.canal == "interne":
+        return True
     provider = get_provider(notif.canal)
     sujet = f"Notification — {notif.type_notification}"
     success = provider.envoyer(destinataire, notif.contenu or "", sujet)
@@ -163,15 +190,34 @@ def envoyer_notification(notif: Notification, destinataire: str) -> bool:
     return success
 
 
-def traiter_file_notifications(limit: int = 50) -> int:
-    """Traite les notifications en attente. Retourne le nombre envoyées."""
+def traiter_file_notifications(
+    limit: int = 50,
+    school_id: uuid.UUID | None = None,
+) -> int:
+    """Traite les notifications en attente. Retourne le nombre envoyées.
+
+    Sans JWT (cron) : passer school_id, ou traiter toutes les écoles actives.
+    """
     db = get_db()
-    pending = (
+    if school_id is None:
+        try:
+            from app.services.tenant import get_current_school_id
+
+            school_id = get_current_school_id()
+        except Exception:
+            school_id = None
+
+    q = (
         db.query(Notification)
-        .filter(Notification.statut == "en_attente", Notification.tentative_count < 3)
-        .limit(limit)
-        .all()
+        .filter(
+            Notification.statut == "en_attente",
+            Notification.tentative_count < 3,
+            Notification.canal != "interne",
+        )
     )
+    if school_id is not None:
+        q = q.filter(Notification.school_id == school_id)
+    pending = q.limit(limit).all()
     sent = 0
     for notif in pending:
         from app.models import ParentTuteur
@@ -184,7 +230,14 @@ def traiter_file_notifications(limit: int = 50) -> int:
                 notif.id_parent = id_parent
                 db.commit()
         if id_parent:
-            parent = db.query(ParentTuteur).filter(ParentTuteur.id == id_parent).first()
+            parent = (
+                db.query(ParentTuteur)
+                .filter(
+                    ParentTuteur.id == id_parent,
+                    ParentTuteur.school_id == notif.school_id,
+                )
+                .first()
+            )
             if parent:
                 destinataire = parent.email if notif.canal == "email" else parent.telephone
         if destinataire and envoyer_notification(notif, destinataire):

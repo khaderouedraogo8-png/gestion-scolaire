@@ -24,7 +24,7 @@ from app.models import (
 )
 
 
-def _ensure_user(db, email, nom, prenom, role, password):
+def _ensure_user(db, school_id, email, nom, prenom, role, password):
     user = db.query(Utilisateur).filter(Utilisateur.email == email).first()
     if user:
         return user
@@ -37,40 +37,52 @@ def _ensure_user(db, email, nom, prenom, role, password):
         role=role,
         actif=True,
         doit_changer_mdp=False,
+        school_id=school_id,
     )
     db.add(user)
     db.flush()
     return user
 
 
-def run_extended_seed(db):
+def run_extended_seed(db, school):
     """Complète le seed de base (idempotent)."""
-    annee = db.query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+    school_id = school.id
+    annee = db.query(AnneeScolaire).filter(
+        AnneeScolaire.est_active.is_(True),
+        AnneeScolaire.school_id == school_id,
+    ).first()
     if not annee:
         return
 
     trimestre_1 = db.query(Trimestre).filter(
-        Trimestre.id_annee == annee.id, Trimestre.numero == 1
+        Trimestre.id_annee == annee.id, Trimestre.sequence == 1
     ).first()
 
     # --- Comptes tous rôles ---
-    _ensure_user(db, "directeur@ecole.local", "Ouédraogo", "Jean", "directeur", "Directeur123!")
-    _ensure_user(db, "secretariat@ecole.local", "Sawadogo", "Marie", "secretariat", "Secret123!")
+    _ensure_user(db, school_id, "directeur@ecole.local", "Ouédraogo", "Jean", "directeur", "Directeur123!")
+    _ensure_user(db, school_id, "secretariat@ecole.local", "Sawadogo", "Marie", "secretariat", "Secret123!")
     enseignant_user = _ensure_user(
-        db, "enseignant@ecole.local", "Koné", "Amadou", "enseignant", "Enseignant123!"
+        db, school_id, "enseignant@ecole.local", "Koné", "Amadou", "enseignant", "Enseignant123!"
     )
 
-    enseignant = db.query(Enseignant).filter(Enseignant.email == "enseignant@ecole.local").first()
+    enseignant = db.query(Enseignant).filter(
+        Enseignant.email == "enseignant@ecole.local",
+        Enseignant.school_id == school_id,
+    ).first()
     if not enseignant:
-        enseignant = db.query(Enseignant).first()
+        enseignant = db.query(Enseignant).filter(Enseignant.school_id == school_id).first()
     if enseignant:
         enseignant.email = "enseignant@ecole.local"
         enseignant.id_utilisateur = enseignant_user.id
 
-    enseignant_fr = db.query(Enseignant).filter(Enseignant.email == "francais@ecole.local").first()
+    enseignant_fr = db.query(Enseignant).filter(
+        Enseignant.email == "francais@ecole.local",
+        Enseignant.school_id == school_id,
+    ).first()
     if not enseignant_fr:
         enseignant_fr = Enseignant(
             id=uuid.uuid4(),
+            school_id=school_id,
             nom="Diabaté",
             prenom="Awa",
             email="francais@ecole.local",
@@ -99,17 +111,23 @@ def run_extended_seed(db):
     seq = 10
     for cls_libelle, prefix in classes_cibles:
         classe = db.query(Classe).filter(
-            Classe.libelle == cls_libelle, Classe.id_annee == annee.id
+            Classe.libelle == cls_libelle,
+            Classe.id_annee == annee.id,
+            Classe.school_id == school_id,
         ).first()
         if not classe:
             continue
         for nom, prenom, sexe in prenoms_extra[:4] if "6ème" in cls_libelle else prenoms_extra[4:8]:
             matricule = f"{prefix}{seq:02d}"
             seq += 1
-            if db.query(Eleve).filter(Eleve.matricule == matricule).first():
+            if db.query(Eleve).filter(
+                Eleve.matricule == matricule,
+                Eleve.school_id == school_id,
+            ).first():
                 continue
             eleve = Eleve(
                 id=uuid.uuid4(),
+                school_id=school_id,
                 matricule=matricule,
                 nom=nom,
                 prenom=prenom,
@@ -121,6 +139,7 @@ def run_extended_seed(db):
             db.add(
                 Inscription(
                     id=uuid.uuid4(),
+                    school_id=school_id,
                     id_eleve=eleve.id,
                     id_classe=classe.id,
                     id_annee=annee.id,
@@ -129,6 +148,7 @@ def run_extended_seed(db):
             )
             parent = ParentTuteur(
                 id=uuid.uuid4(),
+                school_id=school_id,
                 nom=nom,
                 prenom=f"Tuteur {prenom}",
                 lien_parente="tuteur",
@@ -140,10 +160,23 @@ def run_extended_seed(db):
             db.add(EleveParent(id_eleve=eleve.id, id_parent=parent.id, tuteur_legal=True))
 
     # --- Affectations + créneaux supplémentaires ---
-    matiere_math = db.query(Matiere).filter(Matiere.code == "MATH").first()
-    matiere_fr = db.query(Matiere).filter(Matiere.code == "FR").first()
-    classe_6b = db.query(Classe).filter(Classe.libelle == "6ème B", Classe.id_annee == annee.id).first()
-    salle = db.query(Salle).filter(Salle.libelle == "Salle 102").first()
+    matiere_math = db.query(Matiere).filter(
+        Matiere.code == "MATH",
+        Matiere.school_id == school_id,
+    ).first()
+    matiere_fr = db.query(Matiere).filter(
+        Matiere.code == "FR",
+        Matiere.school_id == school_id,
+    ).first()
+    classe_6b = db.query(Classe).filter(
+        Classe.libelle == "6ème B",
+        Classe.id_annee == annee.id,
+        Classe.school_id == school_id,
+    ).first()
+    salle = db.query(Salle).filter(
+        Salle.libelle == "Salle 102",
+        Salle.school_id == school_id,
+    ).first()
 
     if classe_6b and enseignant and matiere_math and salle:
         aff = db.query(AffectationEnseignant).filter(
@@ -153,6 +186,7 @@ def run_extended_seed(db):
         if not aff:
             aff = AffectationEnseignant(
                 id=uuid.uuid4(),
+                school_id=school_id,
                 id_enseignant=enseignant.id,
                 id_classe=classe_6b.id,
                 id_matiere=matiere_math.id,
@@ -173,7 +207,11 @@ def run_extended_seed(db):
                     )
                 )
 
-    classe_6a = db.query(Classe).filter(Classe.libelle == "6ème A", Classe.id_annee == annee.id).first()
+    classe_6a = db.query(Classe).filter(
+        Classe.libelle == "6ème A",
+        Classe.id_annee == annee.id,
+        Classe.school_id == school_id,
+    ).first()
     if classe_6a and enseignant_fr and matiere_fr and salle:
         aff_fr = db.query(AffectationEnseignant).filter(
             AffectationEnseignant.id_classe == classe_6a.id,
@@ -182,6 +220,7 @@ def run_extended_seed(db):
         if not aff_fr:
             aff_fr = AffectationEnseignant(
                 id=uuid.uuid4(),
+                school_id=school_id,
                 id_enseignant=enseignant_fr.id,
                 id_classe=classe_6a.id,
                 id_matiere=matiere_fr.id,
@@ -191,9 +230,13 @@ def run_extended_seed(db):
             db.add(aff_fr)
             db.flush()
 
-        if trimestre_1 and not db.query(Evaluation).filter(Evaluation.libelle == "Devoir 1 — Français").first():
+        if trimestre_1 and not db.query(Evaluation).filter(
+            Evaluation.libelle == "Devoir 1 — Français",
+            Evaluation.school_id == school_id,
+        ).first():
             eval_fr = Evaluation(
                 id=uuid.uuid4(),
+                school_id=school_id,
                 id_classe=classe_6a.id,
                 id_matiere=matiere_fr.id,
                 id_trimestre=trimestre_1.id,
@@ -208,7 +251,11 @@ def run_extended_seed(db):
             inscrits = (
                 db.query(Eleve)
                 .join(Inscription, Inscription.id_eleve == Eleve.id)
-                .filter(Inscription.id_classe == classe_6a.id, Inscription.id_annee == annee.id)
+                .filter(
+                    Inscription.id_classe == classe_6a.id,
+                    Inscription.id_annee == annee.id,
+                    Eleve.school_id == school_id,
+                )
                 .all()
             )
             for i, eleve in enumerate(inscrits):
@@ -216,6 +263,7 @@ def run_extended_seed(db):
                     db.add(
                         Note(
                             id=uuid.uuid4(),
+                            school_id=school_id,
                             id_evaluation=eval_fr.id,
                             id_eleve=eleve.id,
                             valeur_note=Decimal(str(10 + (i % 8))),
@@ -224,14 +272,19 @@ def run_extended_seed(db):
                     )
 
     # --- Notification email de démo (file d'attente) ---
-    first_eleve = db.query(Eleve).filter(Eleve.matricule == "2025M-001").first()
+    first_eleve = db.query(Eleve).filter(
+        Eleve.matricule == "2025M-001",
+        Eleve.school_id == school_id,
+    ).first()
     if first_eleve and not db.query(Notification).filter(
-        Notification.type_notification == "demo_bienvenue"
+        Notification.type_notification == "demo_bienvenue",
+        Notification.school_id == school_id,
     ).first():
         link = db.query(EleveParent).filter(EleveParent.id_eleve == first_eleve.id).first()
         db.add(
             Notification(
                 id=uuid.uuid4(),
+                school_id=school_id,
                 id_eleve=first_eleve.id,
                 id_parent=link.id_parent if link else None,
                 canal="email",

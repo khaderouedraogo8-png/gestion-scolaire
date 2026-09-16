@@ -69,17 +69,28 @@ def calculer_rangs(moyennes_eleves: dict) -> dict:
     return rangs
 
 
-def determiner_mention(moyenne: float | None) -> str | None:
-    """Détermine la mention selon la moyenne générale."""
+def determiner_mention(
+    moyenne: float | None,
+    *,
+    scale_max: float | Decimal | None = None,
+) -> str | None:
+    """Mention proportionnelle à l'échelle (défaut produit /20).
+
+    Seuils relatifs : 80% / 70% / 60% / 50% de scale_max.
+    """
     if moyenne is None:
         return None
-    if moyenne >= 16:
+    scale = Decimal(str(scale_max if scale_max is not None else 20))
+    if scale <= 0:
+        scale = Decimal(20)
+    m = Decimal(str(moyenne))
+    if m >= scale * Decimal("0.80"):
         return "Très Bien"
-    if moyenne >= 14:
+    if m >= scale * Decimal("0.70"):
         return "Bien"
-    if moyenne >= 12:
+    if m >= scale * Decimal("0.60"):
         return "Assez Bien"
-    if moyenne >= 10:
+    if m >= scale * Decimal("0.50"):
         return "Passable"
     return "Insuffisant"
 

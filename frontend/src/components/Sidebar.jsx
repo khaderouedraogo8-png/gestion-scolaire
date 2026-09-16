@@ -13,11 +13,13 @@ import {
   Receipt,
   BookOpen,
   X,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import SealMedallion from './SealMedallion';
 
 const ADMIN_ROLES = ['administrateur', 'directeur'];
+const PLATFORM_ROLES = ['super_admin'];
 
 const ICONS = {
   home: Home,
@@ -32,70 +34,106 @@ const ICONS = {
   notifications: Bell,
   config: Settings,
   pedagogie: BookOpen,
+  evolution: TrendingUp,
 };
 
+/**
+ * section: groupe visuel sidebar (n’affecte pas le RBAC)
+ * — principal | academique | administration | finance | parent | plateforme | config
+ */
 const menuItems = [
-  { label: 'Accueil', path: '/parent', icon: 'home', roles: ['parent'] },
+  {
+    label: 'Écoles plateforme',
+    path: '/platform/schools',
+    icon: 'dashboard',
+    roles: PLATFORM_ROLES,
+    section: 'plateforme',
+  },
+  {
+    label: 'Onboarding',
+    path: '/platform/onboarding',
+    icon: 'config',
+    roles: PLATFORM_ROLES,
+    section: 'plateforme',
+  },
+  { label: 'Accueil', path: '/parent', icon: 'home', roles: ['parent'], section: 'parent' },
   {
     label: 'Programme pédagogique',
     path: '/parent/pedagogie',
     icon: 'pedagogie',
     roles: ['parent'],
+    section: 'parent',
   },
-  { label: 'Bulletins', path: '/notes/bulletins', icon: 'notes', roles: ['parent'] },
-  { label: 'Absences', path: '/absences', icon: 'absences', roles: ['parent'] },
+  { label: 'Notes & résultats', path: '/parent/notes', icon: 'notes', roles: ['parent'], section: 'parent' },
+  { label: 'Évolution', path: '/parent/evolution', icon: 'evolution', roles: ['parent'], section: 'parent' },
+  { label: 'Bulletins', path: '/notes/bulletins', icon: 'notes', roles: ['parent'], section: 'parent' },
+  { label: 'Absences', path: '/absences', icon: 'absences', roles: ['parent'], section: 'parent' },
+  {
+    label: 'Notifications',
+    path: '/parent/notifications',
+    icon: 'notifications',
+    roles: ['parent'],
+    section: 'parent',
+  },
+  { label: 'Paiements', path: '/finance/paiements', icon: 'paiements', roles: ['parent'], section: 'parent' },
+  {
+    label: 'Élèves',
+    path: '/eleves',
+    icon: 'eleves',
+    roles: ['parent'],
+    section: 'parent',
+  },
   {
     label: 'Tableau de bord',
     path: '/dashboard',
     icon: 'dashboard',
-    roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat'],
+    roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant'],
+    section: 'principal',
   },
   {
     label: 'Élèves',
     path: '/classes',
     icon: 'eleves',
     roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant'],
-  },
-  {
-    label: 'Élèves',
-    path: '/eleves',
-    icon: 'eleves',
-    roles: ['parent'],
+    section: 'principal',
   },
   {
     label: 'Notes & Bulletins',
     path: '/notes/evaluations',
     icon: 'notes',
     roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'],
+    section: 'academique',
     children: [
-      { label: 'Évaluations', path: '/notes/evaluations' },
-      { label: 'Saisie des notes', path: '/notes/saisie' },
-      { label: 'Bulletins', path: '/notes/bulletins' },
+      { label: 'Évaluations', path: '/notes/evaluations', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Saisie des notes', path: '/notes/saisie', roles: [...ADMIN_ROLES, 'enseignant'] },
+      { label: 'Résultats', path: '/notes/resultats', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Bulletins', path: '/notes/bulletins', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+    ],
+  },
+  {
+    label: 'Emploi du temps',
+    path: '/emploi/temps',
+    icon: 'emploi',
+    roles: [...ADMIN_ROLES, 'enseignant'],
+    section: 'academique',
+    children: [
+      { label: 'Enseignants', path: '/emploi/enseignants', roles: [...ADMIN_ROLES, 'enseignant'] },
+      { label: 'Emploi du temps', path: '/emploi/temps', roles: [...ADMIN_ROLES, 'enseignant'] },
+      { label: 'Affectations', path: '/emploi/affectations', roles: ADMIN_ROLES },
+      { label: 'Salles', path: '/emploi/salles', roles: [...ADMIN_ROLES, 'enseignant'] },
     ],
   },
   {
     label: 'Finance',
     path: '/finance/frais',
     icon: 'finance',
-    roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat'],
+    roles: [...ADMIN_ROLES, 'agent_comptable'],
+    section: 'finance',
     children: [
-      { label: 'Frais scolaires', path: '/finance/frais' },
-      { label: 'Encaissement', path: '/finance/encaissement' },
-      { label: 'Arriérés', path: '/finance/arrieres' },
-      { label: 'Reçus', path: '/finance/recus' },
-    ],
-  },
-  { label: 'Paiements', path: '/finance/paiements', icon: 'paiements', roles: ['parent'] },
-  {
-    label: 'Emploi du temps',
-    path: '/emploi/temps',
-    icon: 'emploi',
-    roles: [...ADMIN_ROLES, 'enseignant'],
-    children: [
-      { label: 'Enseignants', path: '/emploi/enseignants' },
-      { label: 'Emploi du temps', path: '/emploi/temps' },
-      { label: 'Affectations', path: '/emploi/affectations' },
-      { label: 'Salles', path: '/emploi/salles' },
+      { label: 'Frais scolaires', path: '/finance/frais', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Encaissement', path: '/finance/encaissement', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Arriérés', path: '/finance/arrieres', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Reçus', path: '/finance/recus', roles: [...ADMIN_ROLES, 'agent_comptable'] },
     ],
   },
   {
@@ -103,9 +141,10 @@ const menuItems = [
     path: '/absences',
     icon: 'absences',
     roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'],
+    section: 'administration',
     children: [
-      { label: 'Absences', path: '/absences' },
-      { label: 'Discipline', path: '/absences/discipline' },
+      { label: 'Absences', path: '/absences', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Discipline', path: '/absences/discipline', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
     ],
   },
   {
@@ -113,9 +152,10 @@ const menuItems = [
     path: '/documents',
     icon: 'documents',
     roles: [...ADMIN_ROLES, 'secretariat'],
+    section: 'administration',
     children: [
-      { label: 'Génération', path: '/documents' },
-      { label: 'Vérifier QR', path: '/documents/verifier-qr' },
+      { label: 'Génération', path: '/documents', roles: [...ADMIN_ROLES, 'secretariat'] },
+      { label: 'Vérifier QR', path: '/documents/verifier-qr', roles: [...ADMIN_ROLES, 'secretariat'] },
     ],
   },
   {
@@ -123,25 +163,51 @@ const menuItems = [
     path: '/notifications',
     icon: 'notifications',
     roles: [...ADMIN_ROLES, 'secretariat'],
+    section: 'administration',
   },
   {
     label: 'Configuration',
     path: '/config/etablissement',
     icon: 'config',
     roles: ADMIN_ROLES,
+    section: 'config',
     children: [
-      { label: 'Établissement', path: '/config/etablissement' },
-      { label: 'Années scolaires', path: '/config/annees' },
-      { label: 'Trimestres', path: '/config/trimestres' },
-      { label: 'Calendrier scolaire', path: '/config/calendrier' },
-      { label: 'Niveaux', path: '/config/niveaux' },
-      { label: 'Classes', path: '/config/classes' },
-      { label: 'Matières', path: '/config/matieres' },
-      { label: 'Coefficients', path: '/config/coefficients' },
-      { label: 'Utilisateurs', path: '/config/utilisateurs' },
-      { label: 'Journal audit', path: '/config/audit' },
+      { label: 'Établissement', path: '/config/etablissement', roles: ADMIN_ROLES },
+      { label: 'Années scolaires', path: '/config/annees', roles: ADMIN_ROLES },
+      { label: 'Programmes', path: '/etablissement/programmes', roles: ADMIN_ROLES },
+      { label: 'Périodes', path: '/etablissement/periodes', roles: ADMIN_ROLES },
+      { label: 'Niveaux', path: '/etablissement/niveaux', roles: ADMIN_ROLES },
+      { label: 'Classes', path: '/etablissement/classes', roles: ADMIN_ROLES },
+      { label: 'Trimestres (legacy)', path: '/config/trimestres', roles: ADMIN_ROLES },
+      { label: 'Calendrier scolaire', path: '/config/calendrier', roles: ADMIN_ROLES },
+      { label: 'Matières', path: '/config/matieres', roles: ADMIN_ROLES },
+      { label: 'Coefficients', path: '/config/coefficients', roles: ADMIN_ROLES },
+      { label: 'Types d’évaluation', path: '/config/types-evaluation', roles: ADMIN_ROLES },
+      { label: 'Règles de notation', path: '/config/regles-notation', roles: ADMIN_ROLES },
+      { label: 'Utilisateurs', path: '/config/utilisateurs', roles: ADMIN_ROLES },
+      { label: 'Journal audit', path: '/config/audit', roles: ADMIN_ROLES },
     ],
   },
+];
+
+const SECTION_LABELS = {
+  plateforme: 'Plateforme',
+  principal: 'Principal',
+  academique: 'Académique',
+  finance: 'Finance',
+  administration: 'Administration',
+  config: 'Paramètres',
+  parent: 'Mon espace',
+};
+
+const SECTION_ORDER = [
+  'plateforme',
+  'parent',
+  'principal',
+  'academique',
+  'finance',
+  'administration',
+  'config',
 ];
 
 function NavIcon({ name }) {
@@ -149,43 +215,60 @@ function NavIcon({ name }) {
   return <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden="true" />;
 }
 
-function NavItem({ item, collapsed, onNavigate }) {
+function NavItem({ item, collapsed, onNavigate, role }) {
   const location = useLocation();
   const isActive =
     location.pathname === item.path ||
     item.children?.some((c) => location.pathname.startsWith(c.path));
 
   const linkClass = isActive
-    ? 'border-l-2 border-or-cachet bg-or-cachet-clair text-craie rounded-r-lg'
-    : 'text-craie/70 hover:bg-or-cachet-clair/40 hover:text-craie rounded-lg';
+    ? 'bg-blanc/10 text-blanc shadow-sm ring-1 ring-inset ring-blanc/10'
+    : 'text-blanc/65 hover:bg-blanc/[0.06] hover:text-blanc';
+
+  const childVisible = (child) => {
+    if (!child.roles) return true;
+    if (!role) return false;
+    if (child.roles.includes(role)) return true;
+    if (role === 'super_admin') {
+      return child.roles.some((r) => ADMIN_ROLES.includes(r));
+    }
+    return false;
+  };
 
   if (item.children) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Link
           to={item.path}
           onClick={onNavigate}
-          className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${linkClass} ${
+            isActive ? '[&_svg]:text-or-cachet' : ''
+          }`}
         >
           <NavIcon name={item.icon} />
-          {!collapsed && <span>{item.label}</span>}
+          {!collapsed && <span className="truncate">{item.label}</span>}
         </Link>
         {!collapsed && isActive && (
-          <div className="ml-9 space-y-1 border-l border-craie/20 pl-3">
-            {item.children.map((child) => (
-              <Link
-                key={child.path}
-                to={child.path}
-                onClick={onNavigate}
-                className={`block rounded-md px-2 py-1.5 text-xs transition-colors ${
-                  location.pathname === child.path || location.pathname.startsWith(child.path + '/')
-                    ? 'font-medium text-or-cachet'
-                    : 'text-craie/60 hover:text-craie'
-                }`}
-              >
-                {child.label}
-              </Link>
-            ))}
+          <div className="ml-4 space-y-0.5 border-l border-blanc/10 pl-3">
+            {item.children.filter(childVisible).map((child) => {
+              const childActive =
+                location.pathname === child.path ||
+                location.pathname.startsWith(`${child.path}/`);
+              return (
+                <Link
+                  key={child.path}
+                  to={child.path}
+                  onClick={onNavigate}
+                  className={`block rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                    childActive
+                      ? 'font-semibold text-or-cachet'
+                      : 'text-blanc/50 hover:text-blanc/90'
+                  }`}
+                >
+                  {child.label}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
@@ -196,57 +279,114 @@ function NavItem({ item, collapsed, onNavigate }) {
     <Link
       to={item.path}
       onClick={onNavigate}
-      className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${linkClass} ${isActive ? '[&_svg]:text-or-cachet' : ''}`}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${linkClass} ${
+        isActive ? '[&_svg]:text-or-cachet' : ''
+      }`}
     >
       <NavIcon name={item.icon} />
-      {!collapsed && <span>{item.label}</span>}
+      {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
 }
 
+function groupBySection(items) {
+  const groups = {};
+  for (const item of items) {
+    const key = item.section || 'principal';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  }
+  return SECTION_ORDER.filter((k) => groups[k]?.length).map((k) => ({
+    key: k,
+    label: SECTION_LABELS[k],
+    items: groups[k],
+  }));
+}
+
 export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }) {
   const user = useAuthStore((s) => s.user);
+  const currentSchool = useAuthStore((s) => s.currentSchool);
+  const actingSchoolId = useAuthStore((s) => s.actingSchoolId);
   const role = user?.role;
-  const visibleItems = menuItems.filter((item) => role && item.roles.includes(role));
+  const visibleItems = menuItems.filter((item) => {
+    if (!role) return false;
+    if (item.roles.includes(role)) return true;
+    if (role === 'super_admin' && actingSchoolId) {
+      return item.roles.some((r) => ADMIN_ROLES.includes(r));
+    }
+    return false;
+  });
+  const sections = groupBySection(visibleItems);
+  const schoolLabel =
+    currentSchool?.name || currentSchool?.nom || currentSchool?.code || null;
 
   return (
     <aside
-      className={`sidebar-premium fixed inset-y-0 left-0 z-50 w-64 transform shadow-[4px_0_24px_rgba(13,22,40,0.15)] transition-transform duration-300 lg:static lg:translate-x-0 ${
+      className={`sidebar-premium fixed inset-y-0 left-0 z-50 flex w-[16.5rem] transform flex-col transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
-      } ${collapsed ? 'lg:w-20' : 'lg:w-64'}`}
+      } ${collapsed ? 'lg:w-[4.5rem]' : 'lg:w-[16.5rem]'}`}
+      style={{ boxShadow: '4px 0 24px rgba(6, 21, 37, 0.18)' }}
     >
-      <div className="flex h-full flex-col">
-        <div
-          className={`flex items-center border-b border-white/[0.08] px-4 py-5 ${collapsed ? 'justify-center' : 'gap-3'}`}
-        >
-          <SealMedallion size="md" />
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <h1 className="font-display text-sm font-medium tracking-tight text-craie">
-                Gestion Scolaire
-              </h1>
-              <p className="text-[11px] capitalize tracking-wide text-craie/50">
-                {role?.replace('_', ' ')}
-              </p>
-            </div>
-          )}
-          {mobileOpen && (
-            <button
-              type="button"
-              onClick={onCloseMobile}
-              className="rounded-input p-2 text-craie/70 hover:bg-encre-clair hover:text-craie lg:hidden"
-              aria-label="Fermer le menu"
-            >
-              <X className="h-5 w-5" strokeWidth={1.75} />
-            </button>
-          )}
-        </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-          {visibleItems.map((item) => (
-            <NavItem key={item.path} item={item} collapsed={collapsed} onNavigate={onCloseMobile} />
-          ))}
-        </nav>
+      <div
+        className={`flex items-center border-b border-blanc/[0.08] px-4 py-4 ${
+          collapsed ? 'justify-center' : 'gap-3'
+        }`}
+      >
+        <SealMedallion size="md" />
+        {!collapsed && (
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-[0.9375rem] font-semibold tracking-tight text-blanc">
+              Gestion Scolaire
+            </h1>
+            <p className="truncate text-[11px] text-blanc/45">
+              {schoolLabel || role?.replace('_', ' ') || 'Établissement'}
+            </p>
+          </div>
+        )}
+        {mobileOpen && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="rounded-input p-2 text-blanc/60 transition-colors hover:bg-blanc/10 hover:text-blanc lg:hidden"
+            aria-label="Fermer le menu"
+          >
+            <X className="h-5 w-5" strokeWidth={1.75} />
+          </button>
+        )}
       </div>
+
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3" aria-label="Navigation principale">
+        {sections.map((section) => (
+          <div key={section.key}>
+            {!collapsed && section.label && (
+              <p className="sidebar-section-label">{section.label}</p>
+            )}
+            {collapsed && <div className="my-2 border-t border-blanc/[0.06] first:hidden" />}
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <NavItem
+                  key={`${item.path}-${item.label}`}
+                  item={item}
+                  collapsed={collapsed}
+                  onNavigate={onCloseMobile}
+                  role={role}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {!collapsed && user && (
+        <div className="border-t border-blanc/[0.08] px-4 py-3">
+          <p className="truncate text-xs font-medium text-blanc/80">
+            {user.prenom} {user.nom}
+          </p>
+          <p className="truncate text-[11px] capitalize text-blanc/40">
+            {user.role?.replace('_', ' ')}
+          </p>
+        </div>
+      )}
     </aside>
   );
 }

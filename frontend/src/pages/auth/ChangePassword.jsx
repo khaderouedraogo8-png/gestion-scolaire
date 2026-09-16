@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
+import { homePathForRole } from '../../utils/homePath';
 import AuthShell from '../../components/AuthShell';
 import FormField from '../../components/FormField';
 import { useToast } from '../../components/Toast';
@@ -41,7 +42,7 @@ export default function ChangePassword() {
     try {
       await changePassword(form.currentPassword, form.newPassword);
       toast.success('Mot de passe modifié avec succès');
-      navigate(user?.role === 'parent' ? '/parent' : '/dashboard');
+      navigate(homePathForRole(user?.role));
     } catch {
       /* handled in store */
     }
