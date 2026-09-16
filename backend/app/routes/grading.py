@@ -48,6 +48,36 @@ class EvaluationTypesResource(MethodView):
         active_only = request.args.get("active_only", "true").lower() not in ("0", "false", "no")
         return jsonify({"items": svc.list_evaluation_types(db, active_only=active_only)})
 
+    @jwt_required()
+    @require_role(*_WRITE_ROLES)
+    def post(self):
+        db = get_db()
+        body = request.get_json(silent=True) or {}
+        reject_client_school_id(body)
+        return jsonify(
+            svc.create_evaluation_type(
+                db, code=body.get("code", ""), label=body.get("label", "")
+            )
+        ), 201
+
+
+@blp.route("/evaluation-types/<uuid:type_id>/activate")
+class EvaluationTypeActivate(MethodView):
+    @jwt_required()
+    @require_role(*_WRITE_ROLES)
+    def post(self, type_id):
+        db = get_db()
+        return jsonify(svc.set_evaluation_type_active(db, type_id, is_active=True))
+
+
+@blp.route("/evaluation-types/<uuid:type_id>/deactivate")
+class EvaluationTypeDeactivate(MethodView):
+    @jwt_required()
+    @require_role(*_WRITE_ROLES)
+    def post(self, type_id):
+        db = get_db()
+        return jsonify(svc.set_evaluation_type_active(db, type_id, is_active=False))
+
 
 @blp.route("/grading-rulesets/resolve")
 class GradingRulesetsResolve(MethodView):

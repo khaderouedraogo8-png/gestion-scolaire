@@ -154,6 +154,7 @@ const menuItems = [
       { label: 'Calendrier scolaire', path: '/config/calendrier', roles: ADMIN_ROLES },
       { label: 'Matières', path: '/config/matieres', roles: ADMIN_ROLES },
       { label: 'Coefficients', path: '/config/coefficients', roles: ADMIN_ROLES },
+      { label: 'Types d’évaluation', path: '/config/types-evaluation', roles: ADMIN_ROLES },
       { label: 'Règles de notation', path: '/config/regles-notation', roles: ADMIN_ROLES },
       { label: 'Utilisateurs', path: '/config/utilisateurs', roles: ADMIN_ROLES },
       { label: 'Journal audit', path: '/config/audit', roles: ADMIN_ROLES },

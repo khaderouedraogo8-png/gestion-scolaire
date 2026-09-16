@@ -1,4 +1,5 @@
 """Module 1 — Routes élèves, inscriptions, parents."""
+import io
 import os
 import uuid
 from datetime import date
@@ -37,6 +38,11 @@ from app.schemas.eleve import (
     InscriptionSchema,
     InscriptionStatutSchema,
     ParentTuteurSchema,
+)
+from app.services.eleves_import import (
+    build_import_template,
+    confirm_eleves_import,
+    preview_eleves_import,
 )
 from app.services.tenant import (
     apply_tenant_school,
@@ -455,3 +461,76 @@ class ElevePhoto(MethodView):
         eleve.photo_url = filepath
         db.commit()
         return jsonify({"message": "Photo enregistrée", "photo_url": f"/api/eleves/{id_eleve}/photo"}), 201
+
+
+@blp.route("/import/template")
+class ElevesImportTemplate(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        payload = build_import_template()
+        return send_file(
+            io.BytesIO(payload),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name="modele_import_eleves.xlsx",
+        )
+
+
+@blp.route("/import/preview")
+class ElevesImportPreview(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def post(self):
+        db = get_db()
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return jsonify({"message": "Fichier requis"}), 400
+        try:
+            id_annee = uuid.UUID(request.form.get("id_annee") or request.args.get("id_annee"))
+        except (TypeError, ValueError):
+            return jsonify({"message": "id_annee requis"}), 400
+        default_classe = request.form.get("id_classe") or request.args.get("id_classe")
+        default_id_classe = None
+        if default_classe:
+            try:
+                default_id_classe = uuid.UUID(default_classe)
+            except ValueError:
+                return jsonify({"message": "id_classe invalide"}), 400
+        result = preview_eleves_import(
+            db, file, id_annee=id_annee, default_id_classe=default_id_classe
+        )
+        return jsonify(result), 200
+
+
+@blp.route("/import/confirm")
+class ElevesImportConfirm(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def post(self):
+        db = get_db()
+        user = get_current_user()
+        body = request.get_json(silent=True) or {}
+        reject_client_school_id(body)
+        try:
+            id_annee = uuid.UUID(str(body.get("id_annee")))
+        except (TypeError, ValueError):
+            return jsonify({"message": "id_annee requis"}), 400
+        rows = body.get("rows") or []
+        if not isinstance(rows, list):
+            return jsonify({"message": "rows doit être une liste"}), 400
+        # N'importer que les lignes OK envoyées par le client (revalidées serveur)
+        ok_rows = [r for r in rows if (r.get("status") == "ok" or not r.get("status"))]
+        # Flatten: accept either {data: {...}} or flat row
+        normalized = []
+        for r in ok_rows:
+            if "data" in r and isinstance(r["data"], dict):
+                item = dict(r["data"])
+                item["line"] = r.get("line")
+                normalized.append(item)
+            else:
+                normalized.append(r)
+        result = confirm_eleves_import(
+            db, id_annee=id_annee, rows=normalized, user_id=user.id
+        )
+        return jsonify(result), 201

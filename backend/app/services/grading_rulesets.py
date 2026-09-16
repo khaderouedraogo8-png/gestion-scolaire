@@ -5,6 +5,7 @@ Ne calcule aucune note / moyenne / bulletin.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -444,6 +445,56 @@ def list_evaluation_types(db: Session, *, active_only: bool = True) -> list[dict
         }
         for et in q.all()
     ]
+
+
+def create_evaluation_type(db: Session, *, code: str, label: str) -> dict:
+    """Crée un type custom (non système) pour le tenant courant."""
+    normalized = (code or "").strip().lower()
+    lab = (label or "").strip()
+    if not normalized or not re.match(r"^[a-z0-9_]{2,20}$", normalized):
+        abort_api(
+            400,
+            "INVALID_EVALUATION_TYPE",
+            "code invalide (2–20 car. : a-z, 0-9, underscore).",
+        )
+    if not lab or len(lab) > 100:
+        abort_api(400, "INVALID_EVALUATION_TYPE", "label obligatoire (max 100).")
+    existing = (
+        tenant_query(EvaluationType).filter(EvaluationType.code == normalized).first()
+    )
+    if existing:
+        abort_api(409, "DUPLICATE_EVALUATION_TYPE", f"Le code « {normalized} » existe déjà.")
+
+    row = EvaluationType(
+        id=uuid.uuid4(),
+        code=normalized,
+        label=lab,
+        is_system=False,
+        is_active=True,
+    )
+    apply_tenant_school(row)
+    db.add(row)
+    db.commit()
+    return {
+        "id": str(row.id),
+        "code": row.code,
+        "label": row.label,
+        "is_system": row.is_system,
+        "is_active": row.is_active,
+    }
+
+
+def set_evaluation_type_active(db: Session, type_id: uuid.UUID, *, is_active: bool) -> dict:
+    row = get_or_404_tenant(EvaluationType, type_id)
+    row.is_active = bool(is_active)
+    db.commit()
+    return {
+        "id": str(row.id),
+        "code": row.code,
+        "label": row.label,
+        "is_system": row.is_system,
+        "is_active": row.is_active,
+    }
 
 
 # ---------------------------------------------------------------------------

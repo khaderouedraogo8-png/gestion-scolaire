@@ -14,6 +14,7 @@ import ClassDetail from './pages/classes/ClassDetail';
 import EleveList from './pages/eleves/EleveList';
 import EleveDetail from './pages/eleves/EleveDetail';
 import EleveForm from './pages/eleves/EleveForm';
+import EleveImport from './pages/eleves/EleveImport';
 import InscriptionForm from './pages/eleves/InscriptionForm';
 
 import EvaluationList from './pages/notes/EvaluationList';
@@ -47,6 +48,7 @@ import Matieres from './pages/config/Matieres';
 import Coefficients from './pages/config/Coefficients';
 import GradingRulesets from './pages/config/GradingRulesets';
 import GradingRulesetDetail from './pages/config/GradingRulesetDetail';
+import EvaluationTypes from './pages/config/EvaluationTypes';
 import CalendrierScolaire from './pages/config/CalendrierScolaire';
 import Trimestres from './pages/config/Trimestres';
 import AuditJournal from './pages/config/AuditJournal';
@@ -202,6 +204,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={ELEVE_WRITE}>
             <EleveForm />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'eleves/import',
+        element: (
+          <ProtectedRoute roles={ELEVE_WRITE}>
+            <EleveImport />
           </ProtectedRoute>
         ),
       },
@@ -482,6 +492,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={CONFIG}>
             <GradingRulesetDetail />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'config/types-evaluation',
+        element: (
+          <ProtectedRoute roles={CONFIG}>
+            <EvaluationTypes />
           </ProtectedRoute>
         ),
       },
