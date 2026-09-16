@@ -6,25 +6,28 @@
   body {
     @apply bg-craie font-sans text-encre antialiased;
     background-image:
-      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(184, 134, 46, 0.07), transparent 55%),
-      radial-gradient(ellipse 50% 40% at 100% 0%, rgba(20, 33, 61, 0.04), transparent),
-      radial-gradient(ellipse 40% 30% at 0% 100%, rgba(47, 110, 79, 0.04), transparent);
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(14, 116, 144, 0.06), transparent 55%),
+      radial-gradient(ellipse 40% 30% at 100% 0%, rgba(11, 31, 51, 0.03), transparent);
     background-attachment: fixed;
   }
 
   h1,
   h2,
   h3 {
-    @apply font-display font-medium;
+    @apply font-display font-semibold tracking-tight;
   }
 
   ::selection {
     @apply bg-or-cachet-clair text-encre;
   }
 
+  *:focus-visible {
+    @apply outline-none ring-2 ring-or-cachet/35 ring-offset-2 ring-offset-craie;
+  }
+
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(184, 134, 46, 0.35) transparent;
+    scrollbar-color: rgba(11, 31, 51, 0.2) transparent;
   }
 
   *::-webkit-scrollbar {
@@ -33,7 +36,7 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-or-cachet/30;
+    @apply rounded-full bg-encre/20;
   }
 
   *::-webkit-scrollbar-track {
@@ -42,76 +45,84 @@
 }
 
 @layer components {
+  /* ——— Buttons ——— */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-input px-4 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-or-cachet/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-input px-4 py-2.5 text-sm font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-or-cachet/35 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply btn bg-encre text-craie hover:bg-encre-clair active:scale-[0.98];
-    box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04), 0 4px 16px rgba(20, 33, 61, 0.03);
+    @apply btn bg-encre text-blanc hover:bg-encre-clair active:scale-[0.98];
+    box-shadow: 0 1px 2px rgba(11, 31, 51, 0.08);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 0 0 1px rgba(184, 134, 46, 0.15);
+    box-shadow: 0 2px 8px rgba(11, 31, 51, 0.12);
   }
 
   .btn-secondary {
-    @apply btn border border-bordure bg-blanc/80 text-encre hover:border-or-cachet/30 hover:bg-blanc active:scale-[0.98];
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(20, 33, 61, 0.05);
+    @apply btn border border-bordure bg-blanc text-encre hover:border-encre/20 hover:bg-craie active:scale-[0.98];
+  }
+
+  .btn-success {
+    @apply btn bg-feuille text-blanc hover:bg-feuille/90 active:scale-[0.98];
   }
 
   .btn-danger {
-    @apply btn border border-brique/40 bg-blanc text-brique hover:bg-brique-clair active:scale-[0.98];
+    @apply btn border border-brique/30 bg-blanc text-brique hover:bg-brique-clair active:scale-[0.98];
   }
 
   .btn-ghost {
-    @apply btn text-texte-secondaire hover:bg-or-cachet-clair hover:text-encre;
+    @apply btn text-texte-secondaire hover:bg-encre/[0.04] hover:text-encre;
   }
 
+  /* ——— Cards ——— */
   .card {
-    @apply rounded-card border border-bordure bg-blanc p-6 transition-colors duration-300;
+    @apply rounded-card border border-bordure bg-blanc p-5 transition-colors duration-200 sm:p-6;
+    box-shadow: 0 1px 2px rgba(11, 31, 51, 0.03);
   }
 
   .card-interactive:hover {
-    @apply border-or-cachet/30;
+    @apply border-or-cachet/25;
+    box-shadow: 0 4px 16px rgba(11, 31, 51, 0.05);
   }
 
   .card-premium {
-    @apply card relative overflow-hidden;
+    @apply card;
   }
 
   .card-premium::before {
-    content: '';
-    @apply pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-or-cachet/50 to-transparent;
+    content: none;
   }
 
+  /* ——— Forms ——— */
   .input {
-    @apply w-full rounded-input border border-bordure/80 bg-blanc px-3.5 py-2.5 text-sm transition-all duration-200 placeholder:text-texte-secondaire/50 focus:border-or-cachet focus:outline-none focus:ring-2 focus:ring-or-cachet/15 disabled:bg-craie/80;
+    @apply w-full rounded-input border border-bordure bg-blanc px-3.5 py-2.5 text-sm text-encre transition-all duration-150 placeholder:text-texte-secondaire/60 focus:border-or-cachet focus:outline-none focus:ring-2 focus:ring-or-cachet/15 disabled:cursor-not-allowed disabled:bg-craie disabled:text-texte-secondaire;
   }
 
   .label {
     @apply mb-1.5 block text-sm font-medium text-encre;
   }
 
+  /* ——— Page chrome ——— */
   .page-title {
-    @apply font-display text-3xl font-medium tracking-tight text-encre lg:text-[2.125rem];
+    @apply font-display text-2xl font-semibold tracking-tight text-encre sm:text-3xl;
   }
 
   .page-subtitle {
-    @apply mt-2 max-w-xl text-sm leading-relaxed text-texte-secondaire;
+    @apply mt-1.5 max-w-2xl text-sm leading-relaxed text-texte-secondaire;
   }
 
   .page-eyebrow {
-    @apply mb-2 text-[11px] font-medium uppercase tracking-[0.06em] text-or-cachet;
+    @apply mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-or-cachet;
   }
 
   .page-title-accent {
-    @apply mt-5 h-0.5 w-12 rounded-full bg-or-cachet;
+    @apply mt-4 h-0.5 w-10 rounded-full bg-or-cachet;
   }
 
   .page-header {
-    @apply mb-10 flex flex-wrap items-end justify-between gap-6;
-    animation: slide-up 0.45s ease-out;
+    @apply mb-8 flex flex-wrap items-end justify-between gap-4;
+    animation: slide-up 0.32s ease-out;
   }
 
   .page-header-content {
@@ -119,28 +130,31 @@
   }
 
   .dashboard-section-label {
-    @apply mb-4 text-[11px] font-medium uppercase tracking-[0.06em] text-texte-secondaire;
+    @apply mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-texte-secondaire;
   }
 
+  /* ——— Stat cards ——— */
   .stat-card {
-    @apply rounded-card border border-bordure bg-blanc p-5 transition-colors duration-300;
-    animation: slide-up 0.5s ease-out both;
+    @apply rounded-card border border-bordure bg-blanc p-5 transition-all duration-200;
+    box-shadow: 0 1px 2px rgba(11, 31, 51, 0.03);
+    animation: slide-up 0.35s ease-out both;
   }
 
   .stat-card:hover {
-    @apply border-or-cachet/35;
+    @apply border-or-cachet/20;
+    box-shadow: 0 4px 16px rgba(11, 31, 51, 0.05);
   }
 
-.stat-card-icon {
+  .stat-card-icon {
     @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-input;
   }
 
   .stat-card-label {
-    @apply mt-4 text-[11px] font-medium uppercase tracking-[0.06em] text-texte-secondaire;
+    @apply mt-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-texte-secondaire;
   }
 
   .stat-card-value {
-    @apply mt-2 font-display text-[26px] font-medium leading-none tracking-tight tabular-nums text-encre;
+    @apply mt-2 font-display text-[1.625rem] font-semibold leading-none tracking-tight tabular-nums text-encre;
   }
 
   .stat-card-bar {
@@ -148,40 +162,42 @@
   }
 
   .stat-card-sub {
-    @apply mt-2.5 text-xs leading-relaxed text-texte-secondaire;
+    @apply mt-2 text-xs leading-relaxed text-texte-secondaire;
   }
 
+  /* ——— Empty states ——— */
   .empty-state {
-    @apply flex flex-col items-center rounded-card border border-dashed border-bordure/80 bg-craie/50 px-6 py-10 text-center;
+    @apply flex flex-col items-center rounded-card border border-dashed border-bordure bg-craie/60 px-6 py-12 text-center;
   }
 
   .empty-state-icon {
-    @apply mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-or-cachet-clair text-or-cachet;
+    @apply mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-or-cachet-clair text-or-cachet;
   }
 
   .empty-state-title {
-    @apply mb-1 font-display text-base font-medium text-encre;
+    @apply mb-1 font-display text-base font-semibold text-encre;
   }
 
   .empty-state-message {
-    @apply max-w-xs text-sm leading-relaxed text-texte-secondaire;
+    @apply max-w-sm text-sm leading-relaxed text-texte-secondaire;
   }
 
   .section-title {
-    @apply mb-4 flex items-center gap-2 font-display text-lg font-medium text-encre;
+    @apply mb-4 flex items-center gap-2.5 font-display text-base font-semibold text-encre;
   }
 
   .section-title::before {
     content: '';
-    @apply h-4 w-0.5 rounded-full bg-or-cachet;
+    @apply h-4 w-0.5 shrink-0 rounded-full bg-or-cachet;
   }
 
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
 
+  /* ——— Badges ——— */
   .badge {
-    @apply inline-flex items-center rounded-badge px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-badge px-2.5 py-0.5 text-xs font-semibold;
   }
 
   .badge-success {
@@ -204,28 +220,33 @@
     @apply badge bg-craie text-texte-secondaire;
   }
 
+  /* ——— Shell ——— */
   .app-shell {
     @apply min-h-dvh bg-transparent;
   }
 
   .sidebar-premium {
-    background: linear-gradient(180deg, #14213d 0%, #0d1628 100%);
+    background: linear-gradient(180deg, #0b1f33 0%, #061525 100%);
   }
 
   .header-premium {
-    @apply border-b border-bordure/50 bg-blanc/75 backdrop-blur-xl;
+    @apply border-b border-bordure/80 bg-blanc/85 backdrop-blur-xl;
   }
 
   .nav-pill {
-    @apply inline-flex rounded-badge border border-bordure/80 bg-blanc px-2.5 py-1 text-xs font-medium text-or-cachet transition-colors hover:border-or-cachet/40 hover:bg-or-cachet-clair;
+    @apply inline-flex rounded-badge border border-bordure bg-blanc px-2.5 py-1 text-xs font-medium text-encre transition-colors hover:border-or-cachet/40 hover:bg-or-cachet-clair hover:text-or-cachet;
+  }
+
+  .sidebar-section-label {
+    @apply mb-1.5 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-blanc/35 first:mt-0;
   }
 
   .chart-bar-track {
-    @apply h-2 overflow-hidden rounded-full bg-craie/80 ring-1 ring-bordure/40;
+    @apply h-2 overflow-hidden rounded-full bg-craie ring-1 ring-bordure/50;
   }
 
   .chart-bar-fill {
-    @apply h-full rounded-full bg-gradient-to-r from-or-cachet/80 to-or-cachet transition-all duration-700 ease-out;
+    @apply h-full rounded-full bg-or-cachet transition-all duration-500 ease-out;
   }
 
   .loading-ring {
@@ -253,14 +274,28 @@
   }
 
   .auth-alert-error {
-    @apply border-brique/40 bg-brique-clair text-brique;
+    @apply border-brique/30 bg-brique-clair text-brique;
+  }
+
+  .auth-alert-success {
+    @apply border-feuille/30 bg-feuille-clair text-feuille;
+  }
+
+  /* Table row hover */
+  .table-row-interactive {
+    @apply transition-colors hover:bg-or-cachet-doux;
+  }
+
+  /* Denial / error panels */
+  .state-panel {
+    @apply mx-auto flex max-w-md flex-col items-center rounded-card border border-bordure bg-blanc px-8 py-12 text-center shadow-soft;
   }
 }
 
 @keyframes slide-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -280,5 +315,5 @@
 }
 
 .toast-enter {
-  animation: slide-in 0.3s ease-out;
+  animation: slide-in 0.25s ease-out;
 }

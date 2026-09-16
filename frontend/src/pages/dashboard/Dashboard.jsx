@@ -113,7 +113,7 @@ function DonutChart({ data, title }) {
   }
 
   const total = data.reduce((sum, d) => sum + (d.value || 0), 0);
-  const colors = ['#14213D', '#2F6E4F', '#B8862E', '#A6432E', '#1F3A5F'];
+  const colors = ['#0B1F33', '#047857', '#0E7490', '#B91C1C', '#163A56'];
 
   let cumulative = 0;
   const segments = data.map((d, i) => {
@@ -132,7 +132,7 @@ function DonutChart({ data, title }) {
         <div className="relative shrink-0">
           <div
             className="h-36 w-36 rounded-full ring-1 ring-bordure/60"
-            style={{ background: total > 0 ? `conic-gradient(${gradient})` : '#E4E2D9' }}
+            style={{ background: total > 0 ? `conic-gradient(${gradient})` : '#E2E8F0' }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex h-[4.5rem] w-[4.5rem] flex-col items-center justify-center rounded-full border border-bordure/60 bg-blanc">
