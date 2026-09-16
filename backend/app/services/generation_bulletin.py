@@ -151,7 +151,13 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     bulletin.rang = rangs.get(id_eleve)
     bulletin.effectif_classe = len(inscriptions_classe)
     bulletin.moyenne_classe = round(moy_classe, 2) if moy_classe else None
-    bulletin.mention = determiner_mention(moy_gen)
+    scales = {
+        float(r.scale_max)
+        for r in result_rows
+        if getattr(r, "scale_max", None) is not None
+    }
+    mention_scale = scales.pop() if len(scales) == 1 else 20.0
+    bulletin.mention = determiner_mention(moy_gen, scale_max=mention_scale)
     bulletin.statut = bulletin.statut or "brouillon"
     bulletin.rulesets_snapshot = build_rulesets_snapshot(result_rows)
     bulletin.results_calculated_at = datetime.now(UTC)

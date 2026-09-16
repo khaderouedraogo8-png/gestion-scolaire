@@ -69,8 +69,9 @@ const ALL_AUTHENTICATED = [...ADMIN, 'enseignant', 'agent_comptable', 'secretari
 const DASHBOARD = [...ADMIN, 'agent_comptable', 'secretariat', ...SUPER_ADMIN];
 const ELEVE_READ = [...ADMIN, 'agent_comptable', 'secretariat', 'parent', ...SUPER_ADMIN];
 const ELEVE_WRITE = [...ADMIN, 'secretariat', ...SUPER_ADMIN];
-const NOTES = [...ADMIN, 'enseignant', 'secretariat', 'parent', ...SUPER_ADMIN];
+const NOTES = [...ADMIN, 'enseignant', 'secretariat', ...SUPER_ADMIN];
 const NOTES_WRITE = [...ADMIN, 'enseignant', ...SUPER_ADMIN];
+const NOTES_BULLETINS = [...ADMIN, 'enseignant', 'secretariat', 'parent', ...SUPER_ADMIN];
 const FINANCE = [...ADMIN, 'agent_comptable', 'secretariat', ...SUPER_ADMIN];
 const FINANCE_WRITE = [...ADMIN, 'agent_comptable', ...SUPER_ADMIN];
 const EMPLOI = [...ADMIN, 'enseignant', ...SUPER_ADMIN];
@@ -255,7 +256,7 @@ export const routes = [
       {
         path: 'notes/bulletins',
         element: (
-          <ProtectedRoute roles={NOTES}>
+          <ProtectedRoute roles={NOTES_BULLETINS}>
             <BulletinList />
           </ProtectedRoute>
         ),

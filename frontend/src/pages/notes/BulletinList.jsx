@@ -9,6 +9,7 @@ import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import useAuth from '../../hooks/useAuth';
 import { formatBulletinRulesets } from '../../utils/bulletinRulesets';
+import { formatMoyenneDisplay } from '../../utils/academicResultsDisplay';
 
 const STATUT_MAP = {
   brouillon: { class: 'badge-neutral', label: 'Brouillon' },
@@ -22,10 +23,10 @@ export default function BulletinList() {
 
   const [bulletins, setBulletins] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [trimestres, setTrimestres] = useState([]);
+  const [periodes, setPeriodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classeFilter, setClasseFilter] = useState('');
-  const [trimestreFilter, setTrimestreFilter] = useState('');
+  const [periodeFilter, setPeriodeFilter] = useState('');
   const [genModal, setGenModal] = useState(false);
   const [genForm, setGenForm] = useState({ id_classe: '', id_trimestre: '' });
   const [generating, setGenerating] = useState(false);
@@ -38,7 +39,7 @@ export default function BulletinList() {
     try {
       const data = await notesApi.listBulletins({
         id_classe: classeFilter || undefined,
-        trimestre: trimestreFilter || undefined,
+        id_trimestre: periodeFilter || undefined,
       });
       setBulletins(data.items || []);
     } catch {
@@ -46,7 +47,7 @@ export default function BulletinList() {
     } finally {
       setLoading(false);
     }
-  }, [classeFilter, trimestreFilter, toast]);
+  }, [classeFilter, periodeFilter, toast]);
 
   useEffect(() => {
     load();
@@ -55,27 +56,34 @@ export default function BulletinList() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [classesData, anneesData] = await Promise.all([
+        const [classesData, anneesData, periodesData] = await Promise.all([
           configApi.listClasses(),
           configApi.listAnnees(),
+          configApi.listPeriodes({ is_active: true }),
         ]);
         setClasses(classesData.items || classesData || []);
         const anneeList = anneesData.items || anneesData || [];
         const active = anneeList.find((a) => a.est_active);
+        let periods = periodesData.items || periodesData || [];
         if (active) {
-          const trims = await configApi.listTrimestres(active.id);
-          const trimList = trims.items || trims || [];
-          setTrimestres(trimList);
-          if (trimList.length) {
-            setGenForm((f) => ({ ...f, id_trimestre: String(trimList[0].id) }));
-          }
+          const yearPeriods = periods.filter(
+            (p) => String(p.id_annee) === String(active.id) || !p.id_annee
+          );
+          if (yearPeriods.length) periods = yearPeriods;
+        }
+        setPeriodes(periods);
+        if (periods.length) {
+          setGenForm((f) => ({ ...f, id_trimestre: String(periods[0].id) }));
         }
       } catch {
-        /* ignore */
+        toast.error('Impossible de charger les filtres (classes / périodes).');
       }
     };
     init();
-  }, []);
+  }, [toast]);
+
+  const periodeLabel = (p) =>
+    p.label || p.libelle || p.code || `Période ${p.sequence ?? p.numero ?? ''}`;
 
   const handleGenerer = async (e) => {
     e.preventDefault();
@@ -166,11 +174,19 @@ export default function BulletinList() {
       ),
     },
     { key: 'classe', header: 'Classe', render: (r) => r.classe_nom || '—' },
-    { key: 'trimestre', header: 'Trimestre', render: (r) => (r.trimestre ? `T${r.trimestre}` : '—') },
+    {
+      key: 'trimestre',
+      header: 'Période',
+      render: (r) => {
+        const match = periodes.find((p) => String(p.id) === String(r.id_trimestre));
+        if (match) return periodeLabel(match);
+        return r.trimestre != null ? `T${r.trimestre}` : '—';
+      },
+    },
     {
       key: 'moyenne',
       header: 'Moyenne',
-      render: (r) => (r.moyenne != null ? `${Number(r.moyenne).toFixed(2)}/20` : '—'),
+      render: (r) => formatMoyenneDisplay(r.moyenne, r.scale_max),
     },
     {
       key: 'rulesets',
@@ -273,14 +289,16 @@ export default function BulletinList() {
               ))}
             </select>
             <select
-              value={trimestreFilter}
-              onChange={(e) => setTrimestreFilter(e.target.value)}
+              value={periodeFilter}
+              onChange={(e) => setPeriodeFilter(e.target.value)}
               className="input w-auto"
             >
-              <option value="">Tous les trimestres</option>
-              <option value="1">Trimestre 1</option>
-              <option value="2">Trimestre 2</option>
-              <option value="3">Trimestre 3</option>
+              <option value="">Toutes les périodes</option>
+              {periodes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {periodeLabel(p)}
+                </option>
+              ))}
             </select>
           </>
         }
@@ -317,15 +335,15 @@ export default function BulletinList() {
             }))}
           />
           <FormField
-            label="Trimestre"
+            label="Période"
             name="id_trimestre"
             type="select"
             value={genForm.id_trimestre}
             onChange={(e) => setGenForm({ ...genForm, id_trimestre: e.target.value })}
             required
-            options={trimestres.map((t) => ({
+            options={periodes.map((t) => ({
               value: String(t.id),
-              label: `Trimestre ${t.numero}`,
+              label: periodeLabel(t),
             }))}
           />
           <p className="text-xs text-texte-secondaire">

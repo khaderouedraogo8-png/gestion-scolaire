@@ -4,6 +4,7 @@ import { notesApi } from '../../services/api/notes';
 import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import Badge from '../../components/Badge';
+import { apiErrorMessage } from '../../utils/academicLabels';
 
 export default function SaisieNotes() {
   const { evaluationId } = useParams();
@@ -16,6 +17,11 @@ export default function SaisieNotes() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
+
+  const scaleMax =
+    evaluation?.scale_max != null && !Number.isNaN(Number(evaluation.scale_max))
+      ? Number(evaluation.scale_max)
+      : 20;
 
   useEffect(() => {
     notesApi
@@ -61,7 +67,7 @@ export default function SaisieNotes() {
           : 'Notes enregistrées'
       );
     } catch (err) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement");
+      toast.error(apiErrorMessage(err, "Erreur lors de l'enregistrement"));
     } finally {
       setSaving(false);
     }
@@ -177,8 +183,8 @@ export default function SaisieNotes() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-texte-secondaire">
                       Élève
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-texte-secondaire w-24">
-                      Note /20
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-texte-secondaire w-28">
+                      Note /{scaleMax}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-texte-secondaire w-20">
                       Absent
@@ -201,7 +207,7 @@ export default function SaisieNotes() {
                         <input
                           type="number"
                           min="0"
-                          max="20"
+                          max={scaleMax}
                           step="0.25"
                           value={n.valeur_note ?? ''}
                           disabled={n.absent}

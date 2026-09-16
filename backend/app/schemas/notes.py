@@ -31,6 +31,7 @@ class EvaluationSchema(Schema):
     libelle = fields.String(allow_none=True)
     statut_publication = fields.String(dump_only=True)
     statut_saisie = fields.String(dump_only=True)
+    scale_max = fields.Float(dump_only=True)
 
 
 class EvaluationCreateSchema(Schema):

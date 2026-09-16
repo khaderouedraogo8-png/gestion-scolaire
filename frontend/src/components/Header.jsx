@@ -10,16 +10,31 @@ export default function Header({
 }) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const currentSchool = useAuthStore((s) => s.currentSchool);
+  const actingSchoolId = useAuthStore((s) => s.actingSchoolId);
   const logout = useAuthStore((s) => s.logout);
+  const exitSchoolContext = useAuthStore((s) => s.exitSchoolContext);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
+  const handleExitContext = async () => {
+    try {
+      await exitSchoolContext();
+      navigate('/platform/schools');
+    } catch {
+      /* ignore */
+    }
+  };
+
   const initials = user
     ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}`.toUpperCase() || 'U'
     : 'U';
+
+  const schoolLabel =
+    currentSchool?.name || currentSchool?.nom || currentSchool?.code || null;
 
   return (
     <header className="header-premium sticky top-0 z-30 flex h-[4.25rem] items-center justify-between px-4 lg:px-8">
@@ -49,9 +64,24 @@ export default function Header({
             <PanelLeftClose className="h-5 w-5" strokeWidth={1.75} />
           )}
         </button>
+        {schoolLabel && (
+          <div className="hidden max-w-[14rem] truncate rounded-card border border-bordure/60 bg-blanc/70 px-3 py-1.5 text-xs text-texte-secondaire sm:block">
+            <span className="font-medium text-encre">{schoolLabel}</span>
+            {actingSchoolId ? ' · contexte plateforme' : ''}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        {actingSchoolId && (
+          <button
+            type="button"
+            onClick={handleExitContext}
+            className="btn-secondary hidden px-3 py-2 text-xs sm:inline-flex"
+          >
+            Quitter l&apos;école
+          </button>
+        )}
         <div className="hidden items-center gap-3 rounded-card border border-bordure/60 bg-blanc/70 px-3 py-1.5 sm:flex">
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-or-cachet/25 bg-or-cachet-clair text-sm font-medium text-or-cachet">
             {initials}

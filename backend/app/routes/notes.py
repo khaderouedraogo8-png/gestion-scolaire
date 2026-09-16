@@ -33,6 +33,7 @@ from app.models import (
     Note,
     Trimestre,
 )
+from app.models.academic_results import AcademicSubjectResult
 from app.schemas.notes import (
     AcademicResultsRecalcSchema,
     BulletinPatchSchema,
@@ -44,6 +45,7 @@ from app.schemas.notes import (
     MatiereSchema,
     NoteBatchSchema,
 )
+from app.services.academic_calculation_service import RulesResolutionCache
 from app.services.academic_results import (
     ensure_student_period_results,
     list_results_for_student_period,
@@ -59,6 +61,10 @@ from app.services.generation_bulletin import (
     generer_bulletin_pdf,
     publier_bulletin,
     valider_bulletin,
+)
+from app.services.note_scale import (
+    resolve_scale_max_for_evaluation,
+    validate_note_valeur_against_scale,
 )
 from app.services.tenant import (
     apply_tenant_school,
@@ -120,7 +126,7 @@ def _coefficients_tenant_query(db):
     )
 
 
-def _serialize_evaluation(db, evaluation):
+def _serialize_evaluation(db, evaluation, *, cache: RulesResolutionCache | None = None):
     data = EvaluationSchema().dump(evaluation)
     matiere = tenant_query(Matiere).filter(Matiere.id == evaluation.id_matiere).first()
     classe = tenant_query(Classe).filter(Classe.id == evaluation.id_classe).first()
@@ -130,7 +136,30 @@ def _serialize_evaluation(db, evaluation):
     data["trimestre_numero"] = trimestre.numero if trimestre else None
     data["statut_publication"] = evaluation.statut_publication
     data["statut_saisie"] = evaluation.statut_saisie
+    # PR16 — échelle pour saisie / affichage (ruleset résolu ou défaut)
+    scale = resolve_scale_max_for_evaluation(db, evaluation, cache=cache)
+    data["scale_max"] = float(scale)
     return data
+
+
+def _bulletin_display_scale_max(bulletin) -> float | None:
+    """Échelle d'affichage bulletin si toutes les matières partagent le même scale_max."""
+    rows = (
+        tenant_query(AcademicSubjectResult)
+        .filter(
+            AcademicSubjectResult.id_eleve == bulletin.id_eleve,
+            AcademicSubjectResult.id_period == bulletin.id_trimestre,
+        )
+        .all()
+    )
+    scales = {
+        float(r.scale_max)
+        for r in rows
+        if r.scale_max is not None
+    }
+    if len(scales) == 1:
+        return scales.pop()
+    return None
 
 
 def _serialize_bulletin(db, bulletin):
@@ -146,6 +175,7 @@ def _serialize_bulletin(db, bulletin):
     data["results_calculated_at"] = (
         bulletin.results_calculated_at.isoformat() if bulletin.results_calculated_at else None
     )
+    data["scale_max"] = _bulletin_display_scale_max(bulletin)
     if eleve and trimestre:
         ins = (
             tenant_query(Inscription)
@@ -316,9 +346,10 @@ class EvaluationsResource(MethodView):
         items, total, pages = paginate_query(
             q.order_by(Evaluation.date_evaluation.desc()), page, per_page
         )
+        scale_cache = RulesResolutionCache()
         return jsonify(
             pagination_payload(
-                [_serialize_evaluation(db, e) for e in items],
+                [_serialize_evaluation(db, e, cache=scale_cache) for e in items],
                 page=page,
                 per_page=per_page,
                 total=total,
@@ -568,10 +599,18 @@ class NotesEvaluation(MethodView):
         ):
             return jsonify({"message": "Accès refusé"}), 403
 
+        scale_max = resolve_scale_max_for_evaluation(db, evaluation)
+
         for note_data in data["notes"]:
             id_eleve = note_data["id_eleve"]
             eleve = get_or_404_tenant(Eleve, id_eleve)
             assert_same_school(evaluation, eleve)
+            absent = bool(note_data.get("absent"))
+            validated = validate_note_valeur_against_scale(
+                note_data.get("valeur_note"),
+                scale_max=scale_max,
+                absent=absent,
+            )
             existing = (
                 tenant_query(Note)
                 .filter(Note.id_evaluation == id_evaluation, Note.id_eleve == id_eleve)
@@ -580,12 +619,12 @@ class NotesEvaluation(MethodView):
             if existing:
                 from datetime import datetime
 
-                if note_data.get("absent"):
+                if absent:
                     existing.absent = True
                     existing.valeur_note = None
                 else:
                     existing.absent = False
-                    existing.valeur_note = note_data.get("valeur_note")
+                    existing.valeur_note = validated
                 existing.modifie_par = user.id
                 existing.modifie_le = datetime.now(UTC)
                 existing.appreciation = note_data.get("appreciation")
@@ -595,8 +634,8 @@ class NotesEvaluation(MethodView):
                     id=uuid.uuid4(),
                     id_evaluation=id_evaluation,
                     id_eleve=id_eleve,
-                    valeur_note=None if note_data.get("absent") else note_data.get("valeur_note"),
-                    absent=note_data.get("absent", False),
+                    valeur_note=validated,
+                    absent=absent,
                     appreciation=note_data.get("appreciation"),
                     saisi_par=user.id,
                 )
@@ -614,6 +653,7 @@ class NotesEvaluation(MethodView):
             "id_classe": str(evaluation.id_classe),
             "id_period": str(evaluation.id_trimestre),
             "id_matiere": str(evaluation.id_matiere),
+            "scale_max": float(scale_max),
         }), 200
 
 

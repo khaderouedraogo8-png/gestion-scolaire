@@ -512,8 +512,8 @@ CREATE TABLE note (
     school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_evaluation        UUID NOT NULL,
     id_eleve             UUID NOT NULL,
-    valeur_note          NUMERIC(4,2) CHECK (valeur_note BETWEEN 0 AND 20),
-    absent               BOOLEAN DEFAULT false,     -- distinct d'une note à 0/20
+    valeur_note          NUMERIC(6,2) CHECK (valeur_note IS NULL OR valeur_note >= 0),
+    absent               BOOLEAN DEFAULT false,     -- distinct d'une note à 0
     appreciation         VARCHAR(255),
     saisi_par            UUID REFERENCES utilisateur(id),
     modifie_par          UUID REFERENCES utilisateur(id),
@@ -590,10 +590,10 @@ CREATE TABLE bulletin (
     school_id              UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
     id_eleve               UUID NOT NULL,
     id_trimestre           UUID NOT NULL REFERENCES academic_period(id) ON DELETE CASCADE,
-    moyenne_generale       NUMERIC(4,2),
+    moyenne_generale       NUMERIC(6,2),
     rang                   INTEGER,
     effectif_classe        INTEGER,
-    moyenne_classe         NUMERIC(4,2),
+    moyenne_classe         NUMERIC(6,2),
     mention                VARCHAR(50),
     appreciation_generale  TEXT,
     statut                 VARCHAR(20) DEFAULT 'brouillon' CHECK (statut IN ('brouillon', 'valide', 'publie')),

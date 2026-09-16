@@ -45,17 +45,25 @@ class DashboardStats(MethodView):
             {"niveau": r[0], "sexe": r[1], "effectif": r[2]} for r in effectifs_query
         ]
 
+        # Taux de réussite depuis academic_subject_result (rules engine),
+        # seuil = 50% de scale_max (fallback 20 → 10).
         taux_reussite = []
         try:
             reussite_query = db.execute(
                 text("""
                     SELECT mat.libelle,
                            COUNT(*) AS total,
-                           COUNT(*) FILTER (WHERE m.moyenne >= 10) AS reussis
-                    FROM moyenne_matiere_eleve m
-                    JOIN matiere mat ON mat.id = m.id_matiere
-                    WHERE mat.school_id = CAST(:school_id AS UUID)
+                           COUNT(*) FILTER (
+                             WHERE r.moyenne IS NOT NULL
+                               AND r.moyenne >= (COALESCE(r.scale_max, 20) / 2.0)
+                           ) AS reussis
+                    FROM academic_subject_result r
+                    JOIN matiere mat ON mat.id = r.id_matiere
+                    WHERE r.school_id = CAST(:school_id AS UUID)
+                      AND r.incomplete = false
+                      AND r.is_stale = false
                     GROUP BY mat.libelle
+                    ORDER BY mat.libelle
                 """),
                 {"school_id": str(school_id)},
             ).fetchall()

@@ -1137,3 +1137,38 @@ Import, PDF redesign, dashboard MV, historisation versions, PR15.
 ### Hors scope
 Promotion, conseil de classe, paiements, notifications, présence, import Excel, redesign PDF complet, suppression MV dashboard, axes Class/Period V2, API `missing_grade_policy`.
 
+---
+
+## PR #16 — Intégrité d’échelle (notes + affichage)
+
+**Branche :** `cursor/pr16-scale-integrity-8bcc`
+**Objectif :** saisie / contrainte DB / affichage alignés sur `scale_max` du ruleset résolu.
+
+### Livré
+1. Service `note_scale` — `resolve_scale_max_for_evaluation` + validation `GRADE_OUT_OF_SCALE`
+2. Migration `pr16_note_scale_integrity` — drop CHECK 0..20, `NUMERIC(6,2)`, MV recreée
+3. API grille/batch notes expose et respecte `scale_max` (cache résolution sur liste évaluations)
+4. FE `SaisieNotes` max dynamique ; `BulletinList` via `formatMoyenneDisplay` + `scale_max` bulletin si consensus matières
+5. Tests unit/intégration échelle (accept 85/100, reject 101, missing≠0, 401)
+
+### Hors scope
+Mentions scale-aware, dashboard MV, FK Evaluation↔type, Calculation Engine formulas.
+
+---
+
+## Delivery finalize — post-PR16 (branche `cursor/pr16-scale-integrity-8bcc`)
+
+**Objectif :** produit exploitable BF/SaaS sans refonte.
+
+### Livré additionnel
+1. Mentions proportionnelles à `scale_max` (`determiner_mention`)
+2. Migration `delivery_bulletin_scale` — `bulletin.moyenne_*` → `NUMERIC(6,2)`
+3. Dashboard taux de réussite via `academic_subject_result` (seuil = 50% de `scale_max`)
+4. FE bulletins : filtres périodes dynamiques (plus T1–T3 hardcodés)
+5. FE sidebar : rôles par enfant (encaissement, affectations, saisie)
+6. FE routes : parent limité aux bulletins (plus évaluations/résultats)
+7. Header : indicateur école + sortie contexte plateforme
+
+### Hors scope volontaire (non-bloquant)
+Import bulk élèves/notes, CRUD evaluation_type admin, SMS réel, redesign PDF, FK Evaluation↔type, axes Class/Period V2.
+

@@ -149,7 +149,7 @@ class Note(Base):
     )
     id_evaluation: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    valeur_note: Mapped[float | None] = mapped_column(Numeric(4, 2))
+    valeur_note: Mapped[float | None] = mapped_column(Numeric(6, 2))
     absent: Mapped[bool] = mapped_column(Boolean, default=False)
     appreciation: Mapped[str | None] = mapped_column(String(255))
     saisi_par: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("utilisateur.id"))
@@ -180,10 +180,10 @@ class Bulletin(Base):
     id_trimestre: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("academic_period.id", ondelete="CASCADE"), nullable=False
     )
-    moyenne_generale: Mapped[float | None] = mapped_column(Numeric(4, 2))
+    moyenne_generale: Mapped[float | None] = mapped_column(Numeric(6, 2))
     rang: Mapped[int | None] = mapped_column(Integer)
     effectif_classe: Mapped[int | None] = mapped_column(Integer)
-    moyenne_classe: Mapped[float | None] = mapped_column(Numeric(4, 2))
+    moyenne_classe: Mapped[float | None] = mapped_column(Numeric(6, 2))
     mention: Mapped[str | None] = mapped_column(String(50))
     appreciation_generale: Mapped[str | None] = mapped_column(Text)
     statut: Mapped[str] = mapped_column(String(20), default="brouillon")
