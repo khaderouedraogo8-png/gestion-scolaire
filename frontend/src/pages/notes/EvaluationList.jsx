@@ -89,14 +89,18 @@ export default function EvaluationList() {
   const typeOptions =
     evaluationTypes.length > 0
       ? evaluationTypes.map((t) => ({ value: t.code, label: t.label || t.code }))
-      : [
-          { value: 'devoir', label: 'Devoir' },
-          { value: 'interrogation', label: 'Interrogation' },
-          { value: 'examen', label: 'Examen' },
-        ];
+      : [];
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!typeOptions.length) {
+      toast.error('Catalogue des types d’évaluation indisponible');
+      return;
+    }
+    if (!form.type_evaluation) {
+      toast.error('Sélectionnez un type d’évaluation');
+      return;
+    }
     setSaving(true);
     try {
       await notesApi.createEvaluation({

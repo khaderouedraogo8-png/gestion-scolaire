@@ -453,10 +453,7 @@ CREATE TABLE evaluation (
     id_matiere           UUID NOT NULL,
     id_trimestre         UUID NOT NULL REFERENCES academic_period(id) ON DELETE CASCADE,
     id_enseignant        UUID NOT NULL,
-    type_evaluation      VARCHAR(20) NOT NULL CHECK (type_evaluation IN (
-        'devoir', 'interrogation', 'composition', 'examen', 'tp',
-        'oral', 'projet', 'exam_blanc', 'rattrapage'
-    )),
+    type_evaluation      VARCHAR(20) NOT NULL,
     coefficient          NUMERIC(4,2) NOT NULL DEFAULT 1,
     date_evaluation      DATE NOT NULL,
     libelle              VARCHAR(150),
@@ -554,6 +551,7 @@ CREATE TABLE academic_subject_result (
     id_period            UUID NOT NULL,
     moyenne              NUMERIC(6,2),
     coefficient          NUMERIC(4,2) NOT NULL DEFAULT 1,
+    scale_max            NUMERIC(6,2),
     ruleset_id           UUID,
     ruleset_version      INTEGER,
     ruleset_code         VARCHAR(40),

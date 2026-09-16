@@ -1,10 +1,7 @@
 """Schémas notes, évaluations, bulletins."""
 from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, validates_schema
 
-from app.models.grading import SYSTEM_EVALUATION_TYPE_CODES
-
-# Catalogue contrôlé = source de vérité des types saisissables (PR #12 Step 4)
-EVALUATION_TYPE_CHOICES = [code for code, _label in SYSTEM_EVALUATION_TYPE_CODES]
+# type_evaluation : validé contre le catalogue tenant (PR15-A), pas OneOf système.
 
 
 class MatiereSchema(Schema):
@@ -27,7 +24,7 @@ class EvaluationSchema(Schema):
     id_trimestre = fields.UUID(required=True)
     id_enseignant = fields.UUID(required=True)
     type_evaluation = fields.String(
-        required=True, validate=validate.OneOf(EVALUATION_TYPE_CHOICES)
+        required=True, validate=validate.Length(min=1, max=20)
     )
     coefficient = fields.Decimal(load_default=1)
     date_evaluation = fields.Date(required=True)
@@ -42,7 +39,7 @@ class EvaluationCreateSchema(Schema):
     id_trimestre = fields.UUID(required=True)
     id_enseignant = fields.UUID(required=False, allow_none=True)
     type_evaluation = fields.String(
-        required=True, validate=validate.OneOf(EVALUATION_TYPE_CHOICES)
+        required=True, validate=validate.Length(min=1, max=20)
     )
     coefficient = fields.Decimal(load_default=1)
     date_evaluation = fields.Date(required=True)
@@ -55,14 +52,15 @@ class NoteSchema(Schema):
     id = fields.UUID(dump_only=True)
     id_evaluation = fields.UUID(required=True)
     id_eleve = fields.UUID(required=True)
-    valeur_note = fields.Decimal(allow_none=True, validate=validate.Range(min=0, max=20))
+    # Échelle réelle = scale_max du ruleset (PR15-A) — pas de plafond /20 hardcodé
+    valeur_note = fields.Decimal(allow_none=True, validate=validate.Range(min=0))
     absent = fields.Boolean(load_default=False)
     appreciation = fields.String(allow_none=True)
 
 
 class NoteInputSchema(Schema):
     id_eleve = fields.UUID(required=True)
-    valeur_note = fields.Decimal(allow_none=True, validate=validate.Range(min=0, max=20))
+    valeur_note = fields.Decimal(allow_none=True, validate=validate.Range(min=0))
     absent = fields.Boolean(load_default=False)
     appreciation = fields.String(allow_none=True)
 

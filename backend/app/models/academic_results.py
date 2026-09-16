@@ -98,6 +98,7 @@ class AcademicSubjectResult(Base):
     id_period: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     moyenne: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     coefficient: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False, default=Decimal(1))
+    scale_max: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     ruleset_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     ruleset_version: Mapped[int | None] = mapped_column(Integer)
     ruleset_code: Mapped[str | None] = mapped_column(String(40))

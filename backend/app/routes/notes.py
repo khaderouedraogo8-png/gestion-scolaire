@@ -53,6 +53,7 @@ from app.services.academic_results import (
 from app.services.calcul_moyennes import refresh_moyenne_matiere_view
 from app.services.calendrier_scolaire import date_est_bloquee
 from app.services.envoi_notification import creer_notification
+from app.services.evaluation_types import get_active_evaluation_type_by_code
 from app.services.generation_bulletin import (
     generer_bulletin,
     generer_bulletin_pdf,
@@ -352,6 +353,10 @@ class EvaluationsResource(MethodView):
         trimestre = _get_trimestre_or_404(db, data["id_trimestre"])
         enseignant = get_or_404_tenant(Enseignant, data["id_enseignant"])
         assert_same_school(classe, matiere, enseignant)
+
+        # PR15-A : type_evaluation = code catalogue actif (pas OneOf système)
+        eval_type = get_active_evaluation_type_by_code(db, data["type_evaluation"])
+        data["type_evaluation"] = eval_type.code
 
         id_annee = trimestre.id_annee
         if id_annee:

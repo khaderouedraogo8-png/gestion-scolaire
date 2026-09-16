@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { formatBulletinRulesets } from '../utils/bulletinRulesets';
 
-describe('formatBulletinRulesets (PR13)', () => {
-  it('returns Legacy when snapshot empty', () => {
-    expect(formatBulletinRulesets([])).toMatchObject({ label: 'Legacy' });
-    expect(formatBulletinRulesets(null)).toMatchObject({ label: 'Legacy' });
+describe('formatBulletinRulesets (PR13/PR15-C)', () => {
+  it('returns Sans ruleset when snapshot empty (not Legacy MV)', () => {
+    expect(formatBulletinRulesets([])).toMatchObject({ label: 'Sans ruleset' });
+    expect(formatBulletinRulesets(null)).toMatchObject({ label: 'Sans ruleset' });
   });
 
   it('formats code and version', () => {

@@ -210,7 +210,7 @@ export default function ResultatsAcademiques() {
       header: 'Moyenne',
       render: (r) => (
         <span>
-          {formatMoyenneDisplay(r.moyenne)}
+          {formatMoyenneDisplay(r.moyenne, r.scale_max)}
           {r.incomplete ? (
             <span className="ml-2 text-xs text-texte-secondaire">(incomplet)</span>
           ) : null}

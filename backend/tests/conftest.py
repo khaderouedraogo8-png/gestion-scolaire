@@ -55,6 +55,9 @@ def default_school(db):
         db.add(school)
         db.commit()
     get_or_create_general_program(db, school.id)
+    from app.services.evaluation_types import ensure_system_evaluation_types
+
+    ensure_system_evaluation_types(db, school.id)
     db.commit()
     return school
 
