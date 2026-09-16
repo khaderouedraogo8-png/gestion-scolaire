@@ -1172,3 +1172,17 @@ Mentions scale-aware, dashboard MV, FK Evaluation↔type, Calculation Engine for
 ### Hors scope volontaire (non-bloquant)
 Import bulk élèves/notes, CRUD evaluation_type admin, SMS réel, redesign PDF, FK Evaluation↔type, axes Class/Period V2.
 
+---
+
+## Delivery finalize — import + types (suite)
+
+### Livré
+1. Import Excel/CSV élèves — preview / confirm / template (`eleves_import.py` + FE `/eleves/import`)
+2. CRUD types d’évaluation — create custom + activate/deactivate + FE `/config/types-evaluation`
+3. Tests intégration import (4) + evaluation types (2)
+
+### Prérequis école
+- Activer un Ruleset
+- Appliquer migrations `pr16_note_scale_integrity` + `delivery_bulletin_scale`
+- Utiliser Import Excel pour charger les élèves
+
