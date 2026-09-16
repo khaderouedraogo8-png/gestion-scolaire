@@ -2,37 +2,61 @@ import SealMedallion from './SealMedallion';
 
 export default function AuthShell({ title, subtitle, children, footer }) {
   return (
-    <div className="flex min-h-dvh">
-      <div className="sidebar-premium relative hidden w-1/2 flex-col justify-center overflow-hidden p-12 lg:flex">
+    <div className="flex min-h-dvh bg-craie">
+      <div className="sidebar-premium relative hidden w-[44%] flex-col justify-between overflow-hidden p-10 xl:p-14 lg:flex">
         <div
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 20% 80%, rgba(184,134,46,0.25) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.06) 0%, transparent 40%)',
+              'radial-gradient(circle at 15% 85%, rgba(14,116,144,0.22) 0%, transparent 45%), radial-gradient(circle at 90% 10%, rgba(255,255,255,0.05) 0%, transparent 35%)',
           }}
         />
+        <div className="relative">
+          <SealMedallion size="md" />
+        </div>
         <div className="relative max-w-md">
-          <SealMedallion size="lg" className="mb-8" />
-          <p className="page-eyebrow !text-or-cachet/80">Établissement scolaire</p>
-          <h1 className="font-display text-4xl font-medium tracking-tight text-craie">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-or-cachet">
+            Établissement scolaire
+          </p>
+          <h1 className="font-display text-4xl font-semibold tracking-tight text-blanc xl:text-[2.75rem]">
             Gestion Scolaire
           </h1>
-          <p className="mt-5 text-lg leading-relaxed text-craie/65">
-            Plateforme complète de gestion pour votre établissement : élèves, notes, finances,
-            absences et bien plus.
+          <p className="mt-5 text-base leading-relaxed text-blanc/60">
+            Pilotage académique, administratif et financier — une plateforme claire pour
+            votre établissement.
           </p>
-          <div className="mt-10 h-0.5 w-16 rounded-full bg-or-cachet" />
+          <ul className="mt-10 space-y-3 text-sm text-blanc/55">
+            <li className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-or-cachet" aria-hidden="true" />
+              Effectifs, notes et bulletins
+            </li>
+            <li className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-or-cachet" aria-hidden="true" />
+              Finance et recouvrement
+            </li>
+            <li className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-or-cachet" aria-hidden="true" />
+              Portail parents sécurisé
+            </li>
+          </ul>
         </div>
+        <p className="relative text-xs text-blanc/35">© {new Date().getFullYear()} Gestion Scolaire</p>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="card-premium p-8">
-            <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-              <SealMedallion size="lg" className="mb-6 lg:hidden" />
-              <h2 className="page-title">{title}</h2>
-              {subtitle && <p className="page-subtitle mt-2">{subtitle}</p>}
-              <div className="page-title-accent mx-auto lg:mx-0" aria-hidden="true" />
+      <div className="flex flex-1 items-center justify-center p-5 sm:p-8">
+        <div className="w-full max-w-[26rem]">
+          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+            <SealMedallion size="lg" className="mb-4" />
+            <p className="font-display text-lg font-semibold text-encre">Gestion Scolaire</p>
+          </div>
+          <div className="card border-bordure/80 p-7 shadow-elevated sm:p-8">
+            <div className="mb-7">
+              <h2 className="font-display text-2xl font-semibold tracking-tight text-encre">
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="mt-2 text-sm leading-relaxed text-texte-secondaire">{subtitle}</p>
+              )}
             </div>
             {children}
           </div>
