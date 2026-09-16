@@ -1,9 +1,11 @@
 ﻿import { Link } from 'react-router-dom';
 import {
+  Bell,
   BookOpen,
   ClipboardList,
   FileText,
   GraduationCap,
+  LineChart,
   Wallet,
 } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
@@ -15,6 +17,18 @@ const CARDS = [
     icon: GraduationCap,
     title: 'Mes enfants',
     subtitle: 'Fiches élèves et inscriptions',
+  },
+  {
+    to: '/parent/notes',
+    icon: FileText,
+    title: 'Notes & résultats',
+    subtitle: 'Notes publiées et résultats académiques',
+  },
+  {
+    to: '/parent/evolution',
+    icon: LineChart,
+    title: 'Évolution scolaire',
+    subtitle: 'Moyennes et absences par période',
   },
   {
     to: '/notes/bulletins',
@@ -39,6 +53,12 @@ const CARDS = [
     icon: BookOpen,
     title: 'Programme pédagogique',
     subtitle: 'Devoirs, compositions et cahier de texte',
+  },
+  {
+    to: '/parent/notifications',
+    icon: Bell,
+    title: 'Notifications',
+    subtitle: 'Boîte de réception',
   },
 ];
 

@@ -12,6 +12,7 @@ from app.auth.permissions import (
     get_enseignant_for_user,
     get_parent_classe_ids,
     get_parent_eleve_ids,
+    get_teacher_class_ids,
     parent_has_eleve_access,
     require_role,
     teacher_has_class_access,
@@ -309,7 +310,7 @@ class CoefficientDetail(MethodView):
 @blp.route("/evaluations")
 class EvaluationsResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "enseignant", "parent")
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
     def get(self):
         db = get_db()
         user = get_current_user()
@@ -660,7 +661,7 @@ class NotesEvaluation(MethodView):
 @blp.route("/resultats")
 class AcademicResultsResource(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
     def get(self):
         """Liste les résultats matière persistés pour un élève / classe / période."""
         db = get_db()
@@ -680,10 +681,14 @@ class AcademicResultsResource(MethodView):
             user, id_eleve
         ) and not teacher_has_class_access(user, id_classe):
             return jsonify({"message": "Accès refusé"}), 403
+        if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
 
         rows = list_results_for_student_period(
             db, id_eleve=id_eleve, id_classe=id_classe, id_period=id_period
         )
+        # Parent : uniquement résultats issus d'évaluations publiées / non gated brouillon
+        # Les résultats academic sont déjà calculés ; on expose la lecture si parent a accès enfant.
         return jsonify(
             {
                 "items": [serialize_result_row(db, r) for r in rows],
@@ -774,10 +779,25 @@ class BulletinsResource(MethodView):
             if not eleve_ids:
                 return jsonify(empty_pagination())
             q = q.filter(Bulletin.id_eleve.in_(eleve_ids), Bulletin.statut == "publie")
+        elif user.role == "enseignant":
+            class_ids = get_teacher_class_ids(user)
+            if not class_ids:
+                return jsonify(empty_pagination())
+            q = (
+                q.join(Inscription, Inscription.id_eleve == Bulletin.id_eleve)
+                .filter(
+                    Inscription.id_classe.in_(class_ids),
+                    Inscription.school_id == get_current_school_id(),
+                    Inscription.statut.in_(("inscrit", "reinscrit")),
+                )
+                .distinct()
+            )
 
         if id_eleve:
             eid = uuid.UUID(id_eleve)
             if user.role == "parent" and not parent_has_eleve_access(user, eid):
+                return jsonify({"message": "Accès refusé"}), 403
+            if user.role == "enseignant" and not teacher_has_eleve_access(user, eid):
                 return jsonify({"message": "Accès refusé"}), 403
             q = q.filter(Bulletin.id_eleve == eid)
         if id_trimestre:
@@ -918,7 +938,7 @@ class BulletinDetail(MethodView):
 @blp.route("/bulletins/<uuid:id_bulletin>/pdf")
 class BulletinPDF(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "secretariat", "parent")
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
     def get(self, id_bulletin):
         get_db()
         user = get_current_user()
@@ -928,6 +948,9 @@ class BulletinPDF(MethodView):
                 return jsonify({"message": "Accès refusé"}), 403
             if bulletin.statut != "publie":
                 return jsonify({"message": "Bulletin non publié"}), 403
+        elif user.role == "enseignant":
+            if not teacher_has_eleve_access(user, bulletin.id_eleve):
+                return jsonify({"message": "Accès refusé"}), 403
         try:
             path = generer_bulletin_pdf(bulletin)
             eleve = tenant_query(Eleve).filter(Eleve.id == bulletin.id_eleve).first()

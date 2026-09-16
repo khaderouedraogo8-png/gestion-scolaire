@@ -27,8 +27,16 @@ blp = Blueprint(
     description="Moteur de règles de notation — administration et résolution",
 )
 
-_READ_ROLES = ("administrateur", "directeur", "secretariat", "enseignant", "agent_comptable")
 _WRITE_ROLES = ("administrateur", "directeur")
+# Catalogue types d'évaluation : lecture utile à la saisie / consultation notes
+_EVAL_TYPE_READ_ROLES = (
+    "administrateur",
+    "directeur",
+    "enseignant",
+    "secretariat",
+)
+# Rulesets : administration sensible — direction uniquement
+_RULESET_READ_ROLES = ("administrateur", "directeur")
 
 
 def _parse_uuid_arg(*names: str) -> uuid.UUID | None:
@@ -42,7 +50,7 @@ def _parse_uuid_arg(*names: str) -> uuid.UUID | None:
 @blp.route("/evaluation-types")
 class EvaluationTypesResource(MethodView):
     @jwt_required()
-    @require_role(*_READ_ROLES)
+    @require_role(*_EVAL_TYPE_READ_ROLES)
     def get(self):
         db = get_db()
         active_only = request.args.get("active_only", "true").lower() not in ("0", "false", "no")
@@ -82,7 +90,7 @@ class EvaluationTypeDeactivate(MethodView):
 @blp.route("/grading-rulesets/resolve")
 class GradingRulesetsResolve(MethodView):
     @jwt_required()
-    @require_role(*_READ_ROLES)
+    @require_role(*_RULESET_READ_ROLES)
     @blp.arguments(GradingResolveSchema)
     def post(self, data):
         db = get_db()
@@ -93,7 +101,7 @@ class GradingRulesetsResolve(MethodView):
 @blp.route("/grading-rulesets")
 class GradingRulesetsResource(MethodView):
     @jwt_required()
-    @require_role(*_READ_ROLES)
+    @require_role(*_RULESET_READ_ROLES)
     def get(self):
         db = get_db()
         page, per_page = parse_pagination()
@@ -126,7 +134,7 @@ class GradingRulesetsResource(MethodView):
 @blp.route("/grading-rulesets/<uuid:ruleset_id>")
 class GradingRulesetDetail(MethodView):
     @jwt_required()
-    @require_role(*_READ_ROLES)
+    @require_role(*_RULESET_READ_ROLES)
     def get(self, ruleset_id):
         db = get_db()
         return jsonify(svc.get_ruleset(db, ruleset_id))

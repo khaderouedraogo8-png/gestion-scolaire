@@ -26,14 +26,16 @@ import useAuth from '../../hooks/useAuth';
 import { cycleLabel, findClassBySlug } from '../../utils/classNavigation';
 
 const TABS = [
-  { id: 'eleves', label: 'Élèves' },
-  { id: 'devoirs', label: 'Devoirs' },
-  { id: 'compositions', label: 'Compositions' },
-  { id: 'cahier', label: 'Cahier de texte' },
-  { id: 'absences', label: 'Absences' },
-  { id: 'scolarite', label: 'Scolarité' },
-  { id: 'notes', label: 'Notes & Bulletins' },
+  { id: 'eleves', label: 'Élèves', roles: ['administrateur', 'directeur', 'secretariat', 'enseignant', 'agent_comptable'] },
+  { id: 'devoirs', label: 'Devoirs', roles: ['administrateur', 'directeur', 'enseignant', 'secretariat'] },
+  { id: 'compositions', label: 'Compositions', roles: ['administrateur', 'directeur', 'enseignant', 'secretariat'] },
+  { id: 'cahier', label: 'Cahier de texte', roles: ['administrateur', 'directeur', 'enseignant', 'secretariat'] },
+  { id: 'absences', label: 'Absences', roles: ['administrateur', 'directeur', 'enseignant', 'secretariat'] },
+  { id: 'scolarite', label: 'Scolarité', roles: ['administrateur', 'directeur', 'agent_comptable'] },
+  { id: 'notes', label: 'Notes & Bulletins', roles: ['administrateur', 'directeur', 'enseignant', 'secretariat'] },
 ];
+
+const PEDAGOGY_EDIT_ROLES = ['administrateur', 'directeur', 'enseignant'];
 
 const JOURS = [
   { value: 1, label: 'Lundi' },
@@ -64,9 +66,20 @@ export default function ClassDetail() {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
-  const canEdit = user?.role !== 'parent';
-
+  const role = user?.role;
+  const canEdit = PEDAGOGY_EDIT_ROLES.includes(role);
   const activeTab = searchParams.get('onglet') || 'eleves';
+  const visibleTabs = useMemo(
+    () => TABS.filter((t) => !t.roles || t.roles.includes(role)),
+    [role]
+  );
+
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab) && visibleTabs[0]) {
+      setSearchParams({ onglet: visibleTabs[0].id });
+    }
+  }, [activeTab, visibleTabs, setSearchParams]);
+
   const [classe, setClasse] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [loadingTab, setLoadingTab] = useState(true);
@@ -330,7 +343,7 @@ export default function ClassDetail() {
         }
       />
 
-      <TabBar tabs={TABS} active={activeTab} onChange={setTab} />
+      <TabBar tabs={visibleTabs} active={activeTab} onChange={setTab} />
 
       {activeTab === 'eleves' && (
         <>

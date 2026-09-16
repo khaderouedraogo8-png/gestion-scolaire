@@ -618,7 +618,10 @@ class TestGradingTenantSecurity:
         payload["components"] = _comps_60_40(db, a["school"].id)
         rid = client.post("/api/grading-rulesets", json=payload, headers=admin).get_json()["id"]
 
-        assert client.get(f"/api/grading-rulesets/{rid}", headers=teacher).status_code == 200
+        # Rulesets = configuration sensible (direction uniquement)
+        assert client.get(f"/api/grading-rulesets/{rid}", headers=teacher).status_code == 403
+        assert client.get("/api/grading-rulesets", headers=teacher).status_code == 403
+        # Catalogue types d'évaluation toujours lisible pour la saisie
         assert client.get("/api/evaluation-types", headers=teacher).status_code == 200
         assert client.post("/api/grading-rulesets", json=payload, headers=teacher).status_code == 403
         assert client.post(f"/api/grading-rulesets/{rid}/activate", headers=teacher).status_code == 403

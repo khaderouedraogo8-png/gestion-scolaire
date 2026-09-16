@@ -4,6 +4,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import AuthShell from '../../components/AuthShell';
 import FormField from '../../components/FormField';
+import { homePathForRole } from '../../utils/homePath';
 
 export default function Login() {
   const { login, isAuthenticated, isLoading, error, clearError, user } = useAuth();
@@ -19,10 +20,8 @@ export default function Login() {
       .catch(() => setServerOk(false));
   }, []);
 
-  const from = location.state?.from?.pathname || (user?.role === 'parent' ? '/parent' : user?.role === 'super_admin' ? '/platform/schools' : '/dashboard');
-
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'parent' ? '/parent' : user?.role === 'super_admin' ? '/platform/schools' : from} replace />;
+    return <Navigate to={homePathForRole(user?.role)} replace />;
   }
 
   const validate = () => {
@@ -48,12 +47,9 @@ export default function Login() {
       const data = await login(form.email, form.password);
       if (data.doit_changer_mdp || data.user?.doit_changer_mdp) {
         navigate('/change-password', { replace: true });
-      } else if (data.user?.role === 'super_admin') {
-        navigate('/platform/schools', { replace: true });
-      } else if (data.user?.role === 'parent') {
-        navigate('/parent', { replace: true });
       } else {
-        navigate(from === '/dashboard' && data.user?.role === 'parent' ? '/parent' : from, { replace: true });
+        const dest = location.state?.from?.pathname || homePathForRole(data.user?.role);
+        navigate(dest, { replace: true });
       }
     } catch {
       /* error handled in store */

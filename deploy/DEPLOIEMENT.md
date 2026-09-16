@@ -127,6 +127,9 @@ Ou manuellement :
 # Relances arriérés (lundi 8h)
 0 8 * * 1 docker compose --env-file /chemin/gestion-scolaire/deploy/.env.prod -f /chemin/gestion-scolaire/docker-compose.prod.yml exec -T backend flask --app run.py relancer-arrieres
 
+# Digest hebdomadaire absences (lundi 9h)
+0 9 * * 1 docker compose --env-file /chemin/gestion-scolaire/deploy/.env.prod -f /chemin/gestion-scolaire/docker-compose.prod.yml exec -T backend flask --app run.py digest-absences-hebdo
+
 # Traitement file notifications (toutes les 15 min)
 */15 * * * * docker compose --env-file /chemin/gestion-scolaire/deploy/.env.prod -f /chemin/gestion-scolaire/docker-compose.prod.yml exec -T backend flask --app run.py traiter-notifications
 ```

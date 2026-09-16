@@ -37,4 +37,6 @@ class Notification(Base):
     statut: Mapped[str] = mapped_column(String(20), default="en_attente")
     tentative_count: Mapped[int] = mapped_column(SmallInteger, default=0)
     envoye_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lu_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    idempotency_key: Mapped[str | None] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

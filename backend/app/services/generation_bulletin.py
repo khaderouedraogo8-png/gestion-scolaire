@@ -211,7 +211,7 @@ def generer_bulletin_pdf(bulletin: Bulletin) -> str:
     upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "bulletins")
     os.makedirs(upload_dir, exist_ok=True)
     filename = f"bulletin_{bulletin.id_eleve}_{bulletin.id_trimestre}.pdf"
-    filepath = os.path.join(upload_dir, filename)
+    filepath = os.path.abspath(os.path.join(upload_dir, filename))
     html_to_pdf(html, filepath)
 
     bulletin.pdf_url = filepath
