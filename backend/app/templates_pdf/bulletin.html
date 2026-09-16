@@ -45,7 +45,7 @@
             <tr>
                 <th>Matière</th>
                 <th>Coefficient</th>
-                <th>Moyenne /20</th>
+                <th>Moyenne</th>
             </tr>
         </thead>
         <tbody>
@@ -53,16 +53,24 @@
             <tr>
                 <td>{{ m.libelle }}</td>
                 <td>{{ m.coefficient }}</td>
-                <td>{{ '%.2f'|format(m.moyenne) if m.moyenne is not none else '—' }}</td>
+                <td>
+                  {% if m.moyenne is not none %}
+                    {{ '%.2f'|format(m.moyenne) }}{% if m.scale_max %}/{{ m.scale_max }}{% endif %}
+                  {% elif m.incomplete %}
+                    Incomplet{% if m.incomplete_reason %} ({{ m.incomplete_reason }}){% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
     <div class="resultats">
-        <p><strong>Moyenne générale :</strong> {{ '%.2f'|format(bulletin.moyenne_generale) if bulletin.moyenne_generale else '—' }} /20</p>
+        <p><strong>Moyenne générale :</strong> {% if bulletin.moyenne_generale %}{{ '%.2f'|format(bulletin.moyenne_generale) }}{% else %}—{% endif %}</p>
         <p><strong>Rang :</strong> {{ bulletin.rang or '—' }} / {{ bulletin.effectif_classe or '—' }}</p>
-        <p><strong>Moyenne de classe :</strong> {{ '%.2f'|format(bulletin.moyenne_classe) if bulletin.moyenne_classe else '—' }} /20</p>
+        <p><strong>Moyenne de classe :</strong> {% if bulletin.moyenne_classe %}{{ '%.2f'|format(bulletin.moyenne_classe) }}{% else %}—{% endif %}</p>
         <p class="mention"><strong>Mention :</strong> {{ bulletin.mention or '—' }}</p>
         {% if bulletin.appreciation_generale %}
         <p><strong>Appréciation :</strong> {{ bulletin.appreciation_generale }}</p>

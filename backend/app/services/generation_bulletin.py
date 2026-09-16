@@ -26,7 +26,6 @@ from app.services.calcul_moyennes import (
     calculer_moyenne_generale,
     calculer_rangs,
     determiner_mention,
-    refresh_moyenne_matiere_view,
 )
 from app.services.pdf_render import html_to_pdf
 from app.services.tenant import (
@@ -53,13 +52,13 @@ def _get_trimestre_or_404(db, id_trimestre):
 
 
 def _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre, cache=None):
-    """Moyennes matière depuis résultats persistés (PR #13).
+    """Moyennes matière depuis résultats persistés (PR #13 / PR15-C).
 
-    Recalcule et persiste si absents ou stale. La MV legacy n'est plus la
-    source directe du bulletin — uniquement fallback interne du service persist.
+    Recalcule et persiste si absents ou stale. Source unique = store
+    AcademicSubjectResult (Calculation Engine). Incomplete → moyenne None.
     """
     if id_classe is None:
-        return []
+        return [], []
     cache = cache or RulesResolutionCache()
     rows = ensure_student_period_results(
         db,
@@ -94,7 +93,6 @@ def _appreciation_discipline(db, id_eleve, id_trimestre) -> str | None:
 def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateur: uuid.UUID) -> Bulletin:
     """Génère ou met à jour un bulletin en brouillon avec calcul des moyennes."""
     db = get_db()
-    refresh_moyenne_matiere_view(db)
 
     eleve = get_or_404_tenant(Eleve, id_eleve)
     trimestre = _get_trimestre_or_404(db, id_trimestre)
@@ -111,6 +109,7 @@ def generer_bulletin(id_eleve: uuid.UUID, id_trimestre: uuid.UUID, id_utilisateu
     id_classe = inscription.id_classe
     cache = RulesResolutionCache()
     moyennes_mat, result_rows = _get_moyennes_eleve(db, id_eleve, id_classe, id_trimestre, cache=cache)
+    # Moyenne générale : exclut déjà les matières incomplete (moyenne None)
     moy_gen = calculer_moyenne_generale(
         [{"moyenne": m["moyenne"], "coefficient_matiere": m["coefficient"]} for m in moyennes_mat]
     )

@@ -1120,3 +1120,20 @@ Import Excel, redesign PDF, suppression MV `moyenne_matiere_eleve`, dashboard re
 ### Hors scope
 Import, PDF redesign, dashboard MV, historisation versions, PR15.
 
+---
+
+## PR #15 — Intégrité types + dual-path + bulletin store
+
+**Branche :** `cursor/pr15-eval-integrity-legacy-bulletin-8bcc`  
+**Objectif :** A + B + C validés ensemble.
+
+### Spec verrouillée
+| Volet | Contenu |
+|-------|---------|
+| **A** | Création Evaluation validée contre catalogue `evaluation_type` actif ; CHECK système retiré ; `scale_max` persisté/exposé ; FE affichage scale |
+| **B** | Persist résultats : plus de moyenne MV legacy silencieuse → `incomplete` + `NO_RULESET` / conflit |
+| **C** | Bulletin consomme uniquement le store ; plus de `refresh_moyenne_matiere_view` à la génération ; libellé FE « Sans ruleset » |
+
+### Hors scope
+Promotion, conseil de classe, paiements, notifications, présence, import Excel, redesign PDF complet, suppression MV dashboard, axes Class/Period V2, API `missing_grade_policy`.
+

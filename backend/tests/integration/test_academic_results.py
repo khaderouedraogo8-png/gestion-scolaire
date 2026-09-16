@@ -321,6 +321,34 @@ class TestAcademicResultsPersist:
         assert r.ruleset_version == 1
         assert float(r.moyenne) == pytest.approx(13.60, abs=0.01)
         assert r.is_stale is False
+        assert r.scale_max is not None
+        assert float(r.scale_max) == pytest.approx(20.0)
+
+    def test_no_ruleset_persists_incomplete_not_legacy(self, db, app, results_ctx):
+        """PR15-B : sans ruleset ACTIVE → incomplete, jamais source=legacy + MV."""
+        from app.models.grading import GRADING_RULESET_STATUS_ARCHIVED, GradingRuleset
+
+        a = results_ctx["a"]
+        with _auth_ctx(app, a["admin_id"]):
+            from flask_jwt_extended import verify_jwt_in_request
+
+            verify_jwt_in_request()
+            rs = db.get(GradingRuleset, a["ruleset_id"])
+            rs.status = GRADING_RULESET_STATUS_ARCHIVED
+            db.commit()
+            rows = persist_student_period_results(
+                db,
+                id_eleve=a["eleve_id"],
+                id_classe=a["classe_id"],
+                id_period=a["period_id"],
+            )
+            db.commit()
+        assert len(rows) >= 1
+        r = rows[0]
+        assert r.source == "rules_engine"
+        assert r.incomplete is True
+        assert r.moyenne is None
+        assert r.incomplete_reason == "NO_RULESET"
 
     def test_note_change_marks_stale_then_recalc(self, db, app, results_ctx):
         a = results_ctx["a"]
@@ -427,6 +455,7 @@ class TestAcademicResultsPersist:
         body = resp_ok.get_json()
         assert body["total"] >= 1
         assert body["items"][0]["ruleset_id"] == str(a["ruleset_id"])
+        assert body["items"][0].get("scale_max") is not None
 
     def test_recalculate_endpoint_and_reject_school_id(self, client, app, results_ctx):
         a = results_ctx["a"]
