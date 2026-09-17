@@ -120,7 +120,7 @@ CREATE TABLE utilisateur (
     mot_de_passe_hash    TEXT NOT NULL,               -- Argon2id
     role                 VARCHAR(30) NOT NULL CHECK (role IN
                             ('administrateur', 'directeur', 'enseignant', 'agent_comptable',
-                             'secretariat', 'parent', 'super_admin')),
+                             'secretariat', 'surveillant', 'parent', 'eleve', 'super_admin')),
     actif                BOOLEAN DEFAULT true,
     doit_changer_mdp     BOOLEAN DEFAULT true,        -- forcer changement au 1er login
     derniere_connexion   TIMESTAMPTZ,
@@ -182,6 +182,7 @@ CREATE TABLE parent_tuteur (
 CREATE TABLE eleve (
     id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+    id_utilisateur            UUID,  -- portail élève (rôle eleve), nullable
     matricule                 VARCHAR(30) NOT NULL,
     nom                       VARCHAR(100) NOT NULL,
     prenom                    VARCHAR(100) NOT NULL,
@@ -196,6 +197,7 @@ CREATE TABLE eleve (
     CONSTRAINT uq_eleve_school_matricule UNIQUE (school_id, matricule),
     CONSTRAINT uq_eleve_id_school UNIQUE (id, school_id)
 );
+CREATE INDEX ix_eleve_id_utilisateur ON eleve (id_utilisateur);
 
 -- Parent-only : isolation via eleve / parent_tuteur.school_id
 CREATE TABLE eleve_parent (
@@ -1030,6 +1032,7 @@ CREATE TABLE cantine_abonnement (
     date_debut           DATE NOT NULL,
     date_fin             DATE,
     actif                BOOLEAN NOT NULL DEFAULT true,
+    id_paiement          UUID,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_cantine_abonnement_school_id ON cantine_abonnement (school_id);
@@ -1083,6 +1086,21 @@ CREATE TABLE transport_eleve (
 );
 CREATE INDEX ix_transport_eleve_school_id ON transport_eleve (school_id);
 CREATE INDEX ix_transport_eleve_id_eleve ON transport_eleve (id_eleve);
+
+CREATE TABLE transport_pointage (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_arret             UUID NOT NULL REFERENCES transport_arret(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    date_pointage        DATE NOT NULL,
+    embarque             BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_transport_pointage_arret_date_eleve
+        UNIQUE (school_id, id_arret, date_pointage, id_eleve)
+);
+CREATE INDEX ix_transport_pointage_school_id ON transport_pointage (school_id);
+CREATE INDEX ix_transport_pointage_id_arret ON transport_pointage (id_arret);
+CREATE INDEX ix_transport_pointage_id_eleve ON transport_pointage (id_eleve);
 
 CREATE TABLE internat_chambre (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1148,6 +1166,7 @@ CREATE TABLE bibliotheque_pret (
     date_retour_prevue      DATE,
     date_retour_effective   DATE,
     statut                  VARCHAR(20) NOT NULL DEFAULT 'en_cours',
+    amende                  NUMERIC(12, 2) NOT NULL DEFAULT 0,
     notes                   TEXT,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -1213,7 +1232,10 @@ CREATE TABLE sortie_eleve (
     autorise_par         UUID,
     recupere_par         VARCHAR(150),
     heure_retour         TIMESTAMPTZ,
-    statut               VARCHAR(20) NOT NULL DEFAULT 'sorti'
+    statut               VARCHAR(20) NOT NULL DEFAULT 'sorti',
+    token_hmac           VARCHAR(128),
+    parent_valide        BOOLEAN NOT NULL DEFAULT false,
+    parent_valide_le     TIMESTAMPTZ
 );
 CREATE INDEX ix_sortie_eleve_school_id ON sortie_eleve (school_id);
 CREATE INDEX ix_sortie_eleve_id_eleve ON sortie_eleve (id_eleve);
