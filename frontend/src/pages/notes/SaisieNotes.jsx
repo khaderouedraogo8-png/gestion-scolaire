@@ -60,6 +60,23 @@ export default function SaisieNotes() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        const { enqueueOffline } = await import('../../utils/offlineQueue');
+        await enqueueOffline('notes', {
+          url: `/api/notes/evaluations/${selectedId}/notes`,
+          method: 'POST',
+          body: {
+            notes: notes.map((n) => ({
+              id_eleve: n.id_eleve,
+              valeur_note: n.absent ? null : n.valeur_note != null ? Number(n.valeur_note) : null,
+              absent: Boolean(n.absent),
+              appreciation: n.appreciation || null,
+            })),
+          },
+        }, { evaluationId: selectedId });
+        toast.success('Hors ligne — notes mises en file d’attente');
+        return;
+      }
       const res = await notesApi.saveNotes(selectedId, notes);
       toast.success(
         res?.results_stale

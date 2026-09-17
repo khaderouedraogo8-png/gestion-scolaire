@@ -30,4 +30,9 @@ export const dashboardApi = {
     const { data } = await apiClient.get('/dashboard/surveillant', { params });
     return data;
   },
+
+  getSecretaire: async (params = {}) => {
+    const { data } = await apiClient.get('/dashboard/secretaire', { params });
+    return data;
+  },
 };

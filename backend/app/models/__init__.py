@@ -40,6 +40,7 @@ from app.models.deerflow_modules import (
     TransportArret,
     TransportEleve,
     TransportItineraire,
+    TransportPointage,
     Visiteur,
 )
 from app.models.document import DocumentAdministratif
@@ -203,6 +204,7 @@ __all__ = [
     "TransportArret",
     "TransportEleve",
     "TransportItineraire",
+    "TransportPointage",
     "Trimestre",
     "Utilisateur",
     "Visiteur",

@@ -1,4 +1,4 @@
-const CACHE = 'gestion-scolaire-v3';
+const CACHE = 'gestion-scolaire-v4';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.svg', '/login'];
 
 self.addEventListener('install', (event) => {
@@ -54,13 +54,15 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+function broadcastSync() {
+  return self.clients.matchAll({ type: 'window' }).then((clients) => {
+    clients.forEach((client) => client.postMessage({ type: 'SYNC_OFFLINE_QUEUE' }));
+  });
+}
+
 self.addEventListener('sync', (event) => {
   if (event.tag === 'gs-offline-sync') {
-    event.waitUntil(
-      self.clients.matchAll({ type: 'window' }).then((clients) => {
-        clients.forEach((client) => client.postMessage({ type: 'SYNC_OFFLINE_QUEUE' }));
-      })
-    );
+    event.waitUntil(broadcastSync());
   }
 });
 
@@ -68,4 +70,25 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data?.type === 'REQUEST_BACKGROUND_SYNC') {
+    event.waitUntil(
+      (async () => {
+        try {
+          if (self.registration && 'sync' in self.registration) {
+            await self.registration.sync.register('gs-offline-sync');
+          }
+        } catch {
+          /* Background Sync may be unavailable */
+        }
+        await broadcastSync();
+      })()
+    );
+  }
+  if (event.data?.type === 'SYNC_OFFLINE_QUEUE') {
+    event.waitUntil(broadcastSync());
+  }
+});
+
+self.addEventListener('online', () => {
+  broadcastSync();
 });

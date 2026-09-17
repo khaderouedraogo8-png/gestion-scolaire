@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import OfflineSyncBadge from './OfflineSyncBadge';
 
 export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -43,6 +44,9 @@ export default function Layout() {
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
         />
+        <div className="flex justify-end px-4 pt-2 sm:px-6 lg:px-8">
+          <OfflineSyncBadge />
+        </div>
         <main
           className={`flex-1 p-4 sm:p-6 lg:p-8 ${mobileMenuOpen ? 'overflow-hidden' : 'overflow-auto'}`}
         >

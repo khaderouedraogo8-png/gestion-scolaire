@@ -11,13 +11,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import Base
 
 # Rôles rattachés à une école (school_id NOT NULL)
+# Note migration : étendre utilisateur_role_check pour inclure
+# 'surveillant' et 'eleve' (voir migrations/versions/deerflow_depth_roles.py).
+# Sans migration appliquée, l'UI peut traiter secretariat comme alias surveillant.
 SCHOOL_ROLES = (
     "administrateur",
     "directeur",
     "enseignant",
     "agent_comptable",
     "secretariat",
+    "surveillant",
     "parent",
+    "eleve",
 )
 
 # Rôle plateforme SaaS (school_id IS NULL)

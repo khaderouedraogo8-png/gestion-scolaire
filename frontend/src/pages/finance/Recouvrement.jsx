@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp, Wallet, AlertCircle, Users } from 'lucide-react';
 import { financeApi } from '../../services/api/finance';
@@ -7,6 +7,37 @@ import StatCard from '../../components/StatCard';
 import Table from '../../components/Table';
 import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
+
+const AGING_KEYS = ['J0-30', 'J31-60', 'J61-90', 'J90+'];
+
+function AgingBars({ aging }) {
+  if (!aging) return null;
+  const max = Math.max(...AGING_KEYS.map((k) => Number(aging[k]?.montant || 0)), 1);
+  return (
+    <div className="space-y-3">
+      {AGING_KEYS.map((key) => {
+        const bucket = aging[key] || { montant: 0, count: 0 };
+        const pct = Math.round((Number(bucket.montant) / max) * 100);
+        return (
+          <div key={key}>
+            <div className="mb-1 flex justify-between text-xs text-texte-secondaire">
+              <span>{key}</span>
+              <span>
+                {Number(bucket.montant).toLocaleString('fr-FR')} FCFA · {bucket.count} échéance(s)
+              </span>
+            </div>
+            <div className="h-2.5 overflow-hidden rounded bg-bordure/40">
+              <div
+                className="h-full rounded bg-brique/80 transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Recouvrement() {
   const toast = useToast();
@@ -42,7 +73,14 @@ export default function Recouvrement() {
     load();
   }, [load]);
 
-  const top = detail?.top_arrieres || [];
+  const top = detail?.top_debiteurs || detail?.top_arrieres || [];
+  const byClasse = detail?.by_classe || [];
+  const byMotif = detail?.by_motif || [];
+
+  const motifMax = useMemo(
+    () => Math.max(...byMotif.map((m) => Number(m.montant) || 0), 1),
+    [byMotif]
+  );
 
   return (
     <div className="space-y-8">
@@ -115,8 +153,62 @@ export default function Recouvrement() {
             />
           </div>
 
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section>
+              <h2 className="dashboard-section-label">Aging (jours de retard)</h2>
+              <div className="card-premium p-5">
+                <AgingBars aging={detail?.aging} />
+              </div>
+            </section>
+            <section>
+              <h2 className="dashboard-section-label">Par motif</h2>
+              <div className="card-premium space-y-3 p-5">
+                {byMotif.length === 0 ? (
+                  <p className="text-sm text-texte-secondaire">Aucun motif en retard.</p>
+                ) : (
+                  byMotif.map((m) => (
+                    <div key={m.motif}>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span>{m.motif}</span>
+                        <span className="tabular-nums">
+                          {Number(m.montant).toLocaleString('fr-FR')} FCFA
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded bg-bordure/40">
+                        <div
+                          className="h-full rounded bg-or-cachet/70"
+                          style={{
+                            width: `${Math.round((Number(m.montant) / motifMax) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+
           <div>
-            <h2 className="dashboard-section-label">Top arriérés</h2>
+            <h2 className="dashboard-section-label">Par classe</h2>
+            <Table
+              columns={[
+                { key: 'classe', header: 'Classe' },
+                {
+                  key: 'montant',
+                  header: 'Arriéré',
+                  render: (r) => `${Number(r.montant).toLocaleString('fr-FR')} FCFA`,
+                },
+                { key: 'count', header: 'Échéances' },
+              ]}
+              data={byClasse}
+              loading={false}
+              emptyMessage="Aucune répartition par classe."
+            />
+          </div>
+
+          <div>
+            <h2 className="dashboard-section-label">Top débiteurs</h2>
             <Table
               columns={[
                 { key: 'matricule', header: 'Matricule' },

@@ -300,6 +300,7 @@ class CantineAbonnement(Base):
     date_debut: Mapped[date] = mapped_column(Date, nullable=False)
     date_fin: Mapped[date | None] = mapped_column(Date)
     actif: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    id_paiement: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -375,6 +376,32 @@ class TransportEleve(Base):
     )
     id_annee: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     actif: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransportPointage(Base):
+    __tablename__ = "transport_pointage"
+    __table_args__ = (
+        UniqueConstraint(
+            "school_id",
+            "id_arret",
+            "date_pointage",
+            "id_eleve",
+            name="uq_transport_pointage_arret_date_eleve",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = _school_id_cascade()
+    id_arret: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("transport_arret.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    date_pointage: Mapped[date] = mapped_column(Date, nullable=False)
+    embarque: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -471,6 +498,7 @@ class BibliothequePret(Base):
     date_retour_prevue: Mapped[date | None] = mapped_column(Date)
     date_retour_effective: Mapped[date | None] = mapped_column(Date)
     statut: Mapped[str] = mapped_column(String(20), default="en_cours", nullable=False)
+    amende: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -550,6 +578,9 @@ class SortieEleve(Base):
     recupere_par: Mapped[str | None] = mapped_column(String(150))
     heure_retour: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     statut: Mapped[str] = mapped_column(String(20), default="sorti", nullable=False)
+    token_hmac: Mapped[str | None] = mapped_column(String(128))
+    parent_valide: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    parent_valide_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # ---------------------------------------------------------------------------

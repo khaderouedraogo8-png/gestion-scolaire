@@ -79,6 +79,7 @@ import ParentPedagogie from './pages/parent/ParentPedagogie';
 import ParentNotifications from './pages/parent/ParentNotifications';
 import ParentEvolution from './pages/parent/ParentEvolution';
 import ParentNotes from './pages/parent/ParentNotes';
+import WhatsAppBotHelp from './pages/parent/WhatsAppBotHelp';
 
 import PlatformSchools from './pages/platform/PlatformSchools';
 import PlatformOnboarding from './pages/platform/PlatformOnboarding';
@@ -216,6 +217,10 @@ export const routes = [
       {
         path: 'parent/notes',
         element: guard(['parent'], <ParentNotes />),
+      },
+      {
+        path: 'parent/whatsapp-bot',
+        element: guard(['parent'], <WhatsAppBotHelp />),
       },
       {
         path: 'eleve',

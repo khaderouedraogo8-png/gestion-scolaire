@@ -22,6 +22,10 @@ export const frontOfficeApi = {
     const { data } = await apiClient.post('/front-office/sorties', payload);
     return data;
   },
+  validateSortie: async (id, payload) => {
+    const { data } = await apiClient.patch(`/front-office/sorties/${id}/validate`, payload);
+    return data;
+  },
   retourSortie: async (id) => {
     const { data } = await apiClient.post(`/front-office/sorties/${id}/retour`);
     return data;

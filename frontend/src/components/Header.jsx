@@ -8,7 +8,9 @@ const ROLE_LABELS = {
   secretariat: 'Secrétariat',
   agent_comptable: 'Comptable',
   enseignant: 'Enseignant',
+  surveillant: 'Surveillant',
   parent: 'Parent',
+  eleve: 'Élève',
   super_admin: 'Super admin',
 };
 

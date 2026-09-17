@@ -162,3 +162,19 @@ class RetryNotification(MethodView):
         notif.tentative_count = 0
         db.commit()
         return NotificationSchema().dump(notif)
+
+
+@blp.route("/whatsapp-bot/inbound")
+class WhatsAppBotInboundSandbox(MethodView):
+    """Sandbox bot parent — POST {from, text} → {reply} sans Meta."""
+
+    def post(self):
+        from app.services.whatsapp_bot import handle_inbound
+
+        payload = request.get_json(silent=True) or {}
+        telephone = str(payload.get("from") or payload.get("telephone") or "")
+        text = str(payload.get("text") or payload.get("message") or "")
+        if not telephone:
+            return jsonify({"message": "Champ 'from' requis"}), 400
+        result = handle_inbound(telephone, text, send=False)
+        return jsonify(result), 200

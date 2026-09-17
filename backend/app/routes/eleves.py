@@ -229,6 +229,122 @@ class ElevesList(MethodView):
         return eleve, 201
 
 
+@blp.route("/me/portal")
+class EleveMePortal(MethodView):
+    """Portail élève authentifié — si lien id_utilisateur ; sinon vue parent liée."""
+
+    @jwt_required()
+    @require_role(
+        "eleve",
+        "parent",
+        "administrateur",
+        "directeur",
+        "secretariat",
+    )
+    def get(self):
+        from app.auth.permissions import get_parent_eleve_ids
+        from app.models import Absence, Note
+
+        db = get_db()
+        user = get_current_user()
+
+        # Lien direct élève ↔ utilisateur
+        eleve_linked = None
+        try:
+            eleve_linked = (
+                tenant_query(Eleve)
+                .filter(Eleve.id_utilisateur == user.id)
+                .first()
+            )
+        except Exception:
+            db.rollback()
+            eleve_linked = None
+
+        def _portal_payload(eleve: Eleve) -> dict:
+            active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+            insc = None
+            classe_info = None
+            if active:
+                insc = (
+                    tenant_query(Inscription)
+                    .filter(
+                        Inscription.id_eleve == eleve.id,
+                        Inscription.id_annee == active.id,
+                        Inscription.statut.in_(("inscrit", "reinscrit", "en_cours")),
+                    )
+                    .first()
+                )
+                if insc:
+                    classe = tenant_query(Classe).filter(Classe.id == insc.id_classe).first()
+                    if classe:
+                        classe_info = {"id": str(classe.id), "libelle": classe.libelle}
+            notes = (
+                tenant_query(Note)
+                .filter(Note.id_eleve == eleve.id)
+                .order_by(Note.saisi_le.desc())
+                .limit(8)
+                .all()
+            )
+            absences = (
+                tenant_query(Absence)
+                .filter(Absence.id_eleve == eleve.id)
+                .order_by(Absence.date_absence.desc())
+                .limit(8)
+                .all()
+            )
+            return {
+                "id": str(eleve.id),
+                "matricule": eleve.matricule,
+                "nom": eleve.nom,
+                "prenom": eleve.prenom,
+                "classe": classe_info,
+                "notes_recentes": [
+                    {
+                        "id": str(n.id),
+                        "valeur_note": float(n.valeur_note) if n.valeur_note is not None else None,
+                        "absent": bool(getattr(n, "absent", False)),
+                    }
+                    for n in notes
+                ],
+                "absences_recentes": [
+                    {
+                        "id": str(a.id),
+                        "date_absence": a.date_absence.isoformat() if a.date_absence else None,
+                        "type_absence": a.type_absence,
+                        "justifiee": bool(a.justifiee),
+                    }
+                    for a in absences
+                ],
+            }
+
+        if eleve_linked:
+            return jsonify({
+                "mode": "eleve",
+                "eleve": _portal_payload(eleve_linked),
+                "enfants": [],
+            })
+
+        # Fallback parent-linked
+        if user.role == "parent":
+            enfants = []
+            for eid in get_parent_eleve_ids(user):
+                e = tenant_query(Eleve).filter(Eleve.id == eid).first()
+                if e:
+                    enfants.append(_portal_payload(e))
+            return jsonify({
+                "mode": "parent",
+                "eleve": None,
+                "enfants": enfants,
+            })
+
+        return jsonify({
+            "mode": "unlinked",
+            "eleve": None,
+            "enfants": [],
+            "message": "Aucun élève lié à ce compte. Demandez au secrétariat de lier votre fiche.",
+        })
+
+
 @blp.route("/<uuid:id_eleve>")
 class EleveDetail(MethodView):
     @jwt_required()
@@ -665,25 +781,41 @@ class ElevesImportConfirm(MethodView):
 
 @blp.route("/reincription/batch")
 class ReincriptionBatch(MethodView):
+    """Alias legacy — préférer /reinscription-batch."""
+
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat")
     def post(self):
-        """Réinscription one-click : crée des inscriptions pour l'année cible."""
-        db = get_db()
-        body = request.get_json(silent=True) or {}
-        reject_client_school_id(body)
-        try:
-            id_annee_cible = uuid.UUID(str(body.get("id_annee_cible")))
-        except (TypeError, ValueError):
-            return jsonify({"message": "id_annee_cible requis"}), 400
-        get_or_404_tenant(AnneeScolaire, id_annee_cible)
+        return _reinscription_batch_handler()
 
-        items = body.get("eleves") or []
-        if not isinstance(items, list) or not items:
-            return jsonify({"message": "eleves[] requis"}), 400
 
+@blp.route("/reinscription-batch")
+class ReinscriptionBatch(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def post(self):
+        """Réinscription batch : {id_annee_source, id_annee_cible, id_classe_map?, eleve_ids?}."""
+        return _reinscription_batch_handler()
+
+
+def _reinscription_batch_handler():
+    db = get_db()
+    body = request.get_json(silent=True) or {}
+    reject_client_school_id(body)
+
+    id_annee_source_raw = body.get("id_annee_source")
+    id_annee_cible_raw = body.get("id_annee_cible")
+    try:
+        id_annee_cible = uuid.UUID(str(id_annee_cible_raw))
+    except (TypeError, ValueError):
+        return jsonify({"message": "id_annee_cible requis"}), 400
+    get_or_404_tenant(AnneeScolaire, id_annee_cible)
+
+    # Legacy format : eleves[{id_eleve, id_classe}]
+    legacy_items = body.get("eleves")
+    if isinstance(legacy_items, list) and legacy_items and not id_annee_source_raw:
         created, skipped, errors = [], [], []
-        for item in items:
+        for item in legacy_items:
             try:
                 id_eleve = uuid.UUID(str(item.get("id_eleve")))
                 id_classe = uuid.UUID(str(item.get("id_classe")))
@@ -723,17 +855,108 @@ class ReincriptionBatch(MethodView):
             "count_created": len(created),
         }), 201
 
+    try:
+        id_annee_source = uuid.UUID(str(id_annee_source_raw))
+    except (TypeError, ValueError):
+        return jsonify({"message": "id_annee_source requis"}), 400
+    get_or_404_tenant(AnneeScolaire, id_annee_source)
+
+    id_classe_map_raw = body.get("id_classe_map") or {}
+    if not isinstance(id_classe_map_raw, dict):
+        return jsonify({"message": "id_classe_map doit être un objet"}), 400
+    id_classe_map = {}
+    for k, v in id_classe_map_raw.items():
+        try:
+            id_classe_map[uuid.UUID(str(k))] = uuid.UUID(str(v))
+        except (TypeError, ValueError):
+            return jsonify({"message": f"id_classe_map invalide: {k}→{v}"}), 400
+
+    eleve_ids_raw = body.get("eleve_ids")
+    filter_ids = None
+    if eleve_ids_raw is not None:
+        if not isinstance(eleve_ids_raw, list):
+            return jsonify({"message": "eleve_ids doit être une liste"}), 400
+        try:
+            filter_ids = {uuid.UUID(str(x)) for x in eleve_ids_raw}
+        except (TypeError, ValueError):
+            return jsonify({"message": "eleve_ids invalides"}), 400
+
+    sources = (
+        tenant_query(Inscription)
+        .filter(
+            Inscription.id_annee == id_annee_source,
+            Inscription.statut.in_(("inscrit", "reinscrit")),
+        )
+        .all()
+    )
+    created, skipped, errors = [], [], []
+    for src in sources:
+        if filter_ids is not None and src.id_eleve not in filter_ids:
+            continue
+        id_classe_cible = id_classe_map.get(src.id_classe, src.id_classe)
+        try:
+            get_or_404_tenant(Eleve, src.id_eleve)
+            get_or_404_tenant(Classe, id_classe_cible)
+        except Exception as exc:
+            errors.append({"id_eleve": str(src.id_eleve), "error": str(exc)})
+            continue
+        existing = (
+            tenant_query(Inscription)
+            .filter(
+                Inscription.id_eleve == src.id_eleve,
+                Inscription.id_annee == id_annee_cible,
+                Inscription.statut.in_(("inscrit", "reinscrit")),
+            )
+            .first()
+        )
+        if existing:
+            skipped.append({
+                "id_eleve": str(src.id_eleve),
+                "id_inscription": str(existing.id),
+            })
+            continue
+        insc = Inscription(
+            id=uuid.uuid4(),
+            id_eleve=src.id_eleve,
+            id_classe=id_classe_cible,
+            id_annee=id_annee_cible,
+            statut="reinscrit",
+            est_boursier=bool(src.est_boursier),
+            taux_reduction=src.taux_reduction or 0,
+            date_inscription=date.today(),
+        )
+        apply_tenant_school(insc)
+        db.add(insc)
+        created.append({
+            "id_eleve": str(src.id_eleve),
+            "id_inscription": str(insc.id),
+            "id_classe": str(id_classe_cible),
+            "id_classe_source": str(src.id_classe),
+        })
+    db.commit()
+    return jsonify({
+        "id_annee_source": str(id_annee_source),
+        "id_annee_cible": str(id_annee_cible),
+        "created": created,
+        "skipped": skipped,
+        "errors": errors,
+        "count_created": len(created),
+        "count_skipped": len(skipped),
+    }), 201
+
 
 @blp.route("/<uuid:id_eleve>/dossier.pdf")
 class EleveDossierPdf(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
     def get(self, id_eleve):
-        """Dossier élève PDF simple (identité + inscriptions)."""
+        """Dossier élève PDF (identité, parents, inscriptions, solde, absences, notes)."""
         from datetime import UTC, datetime
 
-        from flask import render_template_string
+        from flask import render_template
 
+        from app.models import Absence, Note
+        from app.services.finance_arrieres import list_arrieres
         from app.services.pdf_render import html_to_pdf
 
         db = get_db()
@@ -749,6 +972,18 @@ class EleveDossierPdf(MethodView):
             .filter(Etablissement.school_id == get_current_school_id())
             .first()
         )
+
+        parents = []
+        for parent, tuteur_legal in _get_parents(db, id_eleve):
+            parents.append({
+                "nom": parent.nom,
+                "prenom": parent.prenom,
+                "lien_parente": parent.lien_parente,
+                "telephone": parent.telephone,
+                "email": parent.email,
+                "tuteur_legal": tuteur_legal,
+            })
+
         inscriptions = (
             tenant_query(Inscription)
             .filter(Inscription.id_eleve == id_eleve)
@@ -763,30 +998,70 @@ class EleveDossierPdf(MethodView):
                 "classe": classe.libelle if classe else "—",
                 "annee": annee.libelle if annee else "—",
                 "statut": insc.statut,
+                "est_boursier": bool(insc.est_boursier),
+                "taux_reduction": float(insc.taux_reduction or 0),
             })
 
-        html = render_template_string(
-            """
-            <html><head><meta charset="utf-8"><style>
-            body{font-family:DejaVu Sans,sans-serif;margin:40px;font-size:12px}
-            h1{font-size:18px} table{width:100%;border-collapse:collapse;margin-top:16px}
-            td,th{border:1px solid #333;padding:6px}
-            </style></head><body>
-            <h1>{{ etab_nom }} — Dossier élève</h1>
-            <p><strong>{{ eleve.prenom }} {{ eleve.nom }}</strong> ({{ eleve.matricule }})</p>
-            <p>Né(e) le {{ eleve.date_naissance or '—' }} à {{ eleve.lieu_naissance or '—' }}</p>
-            <table><tr><th>Année</th><th>Classe</th><th>Statut</th></tr>
-            {% for r in insc_rows %}
-            <tr><td>{{ r.annee }}</td><td>{{ r.classe }}</td><td>{{ r.statut }}</td></tr>
-            {% endfor %}
-            </table>
-            <p style="margin-top:24px;color:#666">Généré le {{ now }}</p>
-            </body></html>
-            """,
-            etab_nom=etab.nom if etab else "Établissement",
+        solde = None
+        active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+        if active and user.role != "enseignant":
+            rows = list_arrieres(
+                db, active.id, school_id=get_current_school_id(), as_of=date.today()
+            )
+            mine = next((r for r in rows if r["id_eleve"] == id_eleve), None)
+            if mine:
+                solde = {
+                    "total_du": mine["total_du"],
+                    "total_paye": mine["total_paye"],
+                    "arriere": mine["arriere"],
+                }
+            else:
+                solde = {"total_du": 0, "total_paye": 0, "arriere": 0}
+
+        absences_rows = (
+            tenant_query(Absence)
+            .filter(Absence.id_eleve == id_eleve)
+            .order_by(Absence.date_absence.desc())
+            .limit(15)
+            .all()
+        )
+        absences = [
+            {
+                "date": a.date_absence.isoformat() if a.date_absence else "—",
+                "type": a.type_absence,
+                "motif": a.motif,
+                "justifiee": bool(a.justifiee),
+            }
+            for a in absences_rows
+        ]
+
+        notes_rows = (
+            tenant_query(Note)
+            .filter(Note.id_eleve == id_eleve)
+            .order_by(Note.saisi_le.desc())
+            .limit(15)
+            .all()
+        )
+        notes = [
+            {
+                "id_evaluation": str(n.id_evaluation),
+                "libelle": None,
+                "valeur": float(n.valeur_note) if n.valeur_note is not None else None,
+                "absent": bool(getattr(n, "absent", False)),
+            }
+            for n in notes_rows
+        ]
+
+        html = render_template(
+            "dossier_eleve.html",
+            etablissement=etab,
             eleve=eleve,
-            insc_rows=insc_rows,
-            now=datetime.now(UTC).strftime("%d/%m/%Y"),
+            parents=parents,
+            inscriptions=insc_rows,
+            solde=solde,
+            absences=absences,
+            notes=notes,
+            date_generation=datetime.now(UTC),
         )
         upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "dossiers")
         os.makedirs(upload_dir, exist_ok=True)

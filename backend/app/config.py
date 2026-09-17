@@ -90,6 +90,7 @@ class Config:
     # WhatsApp Business (vide = NON_CONFIGURE — jamais de faux succès)
     WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN", "")
     WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
     WHATSAPP_SANDBOX = os.getenv("WHATSAPP_SANDBOX", "").strip().lower() in ("1", "true", "yes")
 
     # Mobile Money par opérateur (vide = NON_CONFIGURE)
@@ -103,6 +104,12 @@ class Config:
     MM_MTN_API_URL = os.getenv("MM_MTN_API_URL", "")
     MM_API_BASE_URL = os.getenv("MM_API_BASE_URL", "")
     MM_SANDBOX = os.getenv("MM_SANDBOX", "").strip().lower() in ("1", "true", "yes")
+
+    # Paie — taux de retenues sociales (CNSS-like), défaut 5.5 %
+    PAIE_TAUX_RETENUE = float(os.getenv("PAIE_TAUX_RETENUE", "0.055"))
+    PAIE_COMPTE_CHARGE = os.getenv("PAIE_COMPTE_CHARGE", "661")
+    PAIE_COMPTE_PERSONNEL = os.getenv("PAIE_COMPTE_PERSONNEL", "421")
+    PAIE_COMPTE_CHARGES_SOCIALES = os.getenv("PAIE_COMPTE_CHARGES_SOCIALES", "431")
 
 
 class DevelopmentConfig(Config):

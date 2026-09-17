@@ -17,6 +17,14 @@ export const vieScolaireApi = {
     const { data } = await apiClient.post('/vie-scolaire/cantine/presences', payload);
     return data;
   },
+  marquerCantinePresences: async (payload) => {
+    const { data } = await apiClient.post('/vie-scolaire/cantine/presences/marquer', payload);
+    return data;
+  },
+  cantineFacturation: async (params = {}) => {
+    const { data } = await apiClient.get('/vie-scolaire/cantine/facturation', { params });
+    return data;
+  },
 
   listTransportItineraires: async () => {
     const { data } = await apiClient.get('/vie-scolaire/transport/itineraires');
@@ -40,6 +48,14 @@ export const vieScolaireApi = {
   },
   createTransportEleve: async (payload) => {
     const { data } = await apiClient.post('/vie-scolaire/transport/eleves', payload);
+    return data;
+  },
+  transportPointage: async (payload) => {
+    const { data } = await apiClient.post('/vie-scolaire/transport/pointage', payload);
+    return data;
+  },
+  listTransportPointages: async (params = {}) => {
+    const { data } = await apiClient.get('/vie-scolaire/transport/pointage', { params });
     return data;
   },
 
@@ -85,8 +101,16 @@ export const vieScolaireApi = {
     const { data } = await apiClient.post('/vie-scolaire/bibliotheque/prets', payload);
     return data;
   },
-  retourBibliothequePret: async (id) => {
-    const { data } = await apiClient.post(`/vie-scolaire/bibliotheque/prets/${id}/retour`);
+  listBibliothequeRetards: async () => {
+    const { data } = await apiClient.get('/vie-scolaire/bibliotheque/prets/retards');
+    return data;
+  },
+  updateBibliothequePret: async (id, payload) => {
+    const { data } = await apiClient.patch(`/vie-scolaire/bibliotheque/prets/${id}`, payload);
+    return data;
+  },
+  retourBibliothequePret: async (id, payload = {}) => {
+    const { data } = await apiClient.post(`/vie-scolaire/bibliotheque/prets/${id}/retour`, payload);
     return data;
   },
 };

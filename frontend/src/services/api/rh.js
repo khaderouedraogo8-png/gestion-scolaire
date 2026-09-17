@@ -5,6 +5,10 @@ export const rhApi = {
     const { data } = await apiClient.get('/rh/contrats', { params });
     return data;
   },
+  alertesExpirationContrats: async (params = {}) => {
+    const { data } = await apiClient.get('/rh/contrats/alertes-expiration', { params });
+    return data;
+  },
   getContrat: async (id) => {
     const { data } = await apiClient.get(`/rh/contrats/${id}`);
     return data;

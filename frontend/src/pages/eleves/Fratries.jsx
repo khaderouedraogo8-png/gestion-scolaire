@@ -26,6 +26,8 @@ export default function Fratries() {
     condition_valeur: '2',
   });
   const [applyForm, setApplyForm] = useState({ id_eleve: '', id_frais: '', id_remise_regle: '' });
+  const [previewEleveId, setPreviewEleveId] = useState('');
+  const [preview, setPreview] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,6 +111,18 @@ export default function Fratries() {
       );
     } catch (err) {
       toast.error(err.response?.data?.message || 'Application impossible');
+    }
+  };
+
+  const previewRemise = async (e) => {
+    e.preventDefault();
+    if (!previewEleveId.trim()) return;
+    try {
+      const res = await financeApi.previewRemiseEleve(previewEleveId.trim());
+      setPreview(res);
+    } catch (err) {
+      setPreview(null);
+      toast.error(err.response?.data?.message || 'Prévisualisation impossible');
     }
   };
 
@@ -274,6 +288,41 @@ export default function Fratries() {
             Appliquer
           </button>
         </div>
+      </form>
+
+      <form onSubmit={previewRemise} className="card-premium grid gap-3 p-5 sm:grid-cols-3">
+        <h3 className="section-title sm:col-span-3 !text-base">Prévisualiser remises élève</h3>
+        <FormField
+          label="ID élève"
+          name="preview_eleve"
+          value={previewEleveId}
+          onChange={(e) => setPreviewEleveId(e.target.value)}
+        />
+        <div className="flex items-end">
+          <button type="submit" className="btn-primary w-full">
+            Prévisualiser
+          </button>
+        </div>
+        {preview && (
+          <div className="sm:col-span-3 rounded-lg border border-bordure/60 bg-craie/30 p-4 text-sm">
+            <p>
+              Taux cumulé : <strong>{preview.taux_percent}%</strong>
+              {' · '}
+              Montant fixe : <strong>{preview.montant_fixe} FCFA</strong>
+              {' · '}
+              Fratrie : {preview.fratrie_count} élève(s)
+            </p>
+            <ul className="mt-2 list-disc pl-5 text-texte-secondaire">
+              {(preview.sources || []).map((s, i) => (
+                <li key={s.code || i}>
+                  {s.libelle || s.code} — {s.type_remise === 'montant'
+                    ? `${s.valeur} FCFA`
+                    : `${s.valeur}%`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </form>
     </div>
   );

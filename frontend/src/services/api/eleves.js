@@ -16,6 +16,11 @@ export const elevesApi = {
     return data;
   },
 
+  getMePortal: async () => {
+    const { data } = await apiClient.get('/eleves/me/portal');
+    return data;
+  },
+
   create: async (payload) => {
     const { data } = await apiClient.post('/eleves', payload);
     return data;
@@ -87,6 +92,18 @@ export const elevesApi = {
 
   importConfirm: async (payload) => {
     const { data } = await apiClient.post('/eleves/import/confirm', payload);
+    return data;
+  },
+
+  downloadDossierPdf: async (id) => {
+    const { data } = await apiClient.get(`/eleves/${id}/dossier.pdf`, {
+      responseType: 'blob',
+    });
+    return data;
+  },
+
+  reinscriptionBatch: async (payload) => {
+    const { data } = await apiClient.post('/eleves/reinscription-batch', payload);
     return data;
   },
 };

@@ -36,13 +36,24 @@ export default function AppelMobile() {
 
   const submit = async () => {
     setSaving(true);
+    const payload = {
+      id_classe: idClasse,
+      presents: eleves.filter((e) => !absents.has(e.id)).map((e) => e.id),
+      absents: [...absents].map((id) => ({ id_eleve: id, type_absence: 'absence' })),
+    };
     try {
-      const presents = eleves.filter((e) => !absents.has(e.id)).map((e) => e.id);
-      const { data } = await apiClient.post('/absences/appel', {
-        id_classe: idClasse,
-        presents,
-        absents: [...absents].map((id) => ({ id_eleve: id, type_absence: 'absence' })),
-      });
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        const { enqueueOffline } = await import('../../utils/offlineQueue');
+        await enqueueOffline('appel', {
+          url: '/api/absences/appel',
+          method: 'POST',
+          body: payload,
+        });
+        toast.success("Hors ligne — appel mis en file d'attente");
+        setAbsents(new Set());
+        return;
+      }
+      const { data } = await apiClient.post('/absences/appel', payload);
       toast.success(data.message || 'Appel enregistré');
       setAbsents(new Set());
     } catch {

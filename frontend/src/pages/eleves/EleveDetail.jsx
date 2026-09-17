@@ -46,6 +46,7 @@ export default function EleveDetail() {
   const [savingMedical, setSavingMedical] = useState(false);
   const [tab, setTab] = useState('identite');
   const [vue360, setVue360] = useState(null);
+  const [downloadingDossier, setDownloadingDossier] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -214,6 +215,31 @@ export default function EleveDetail() {
             <Link to={isParent ? '/parent' : '/eleves'} className="btn-secondary">
               ← Retour
             </Link>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={downloadingDossier}
+              onClick={async () => {
+                setDownloadingDossier(true);
+                try {
+                  const blob = await elevesApi.downloadDossierPdf(id);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `dossier_${eleve.matricule || id}.pdf`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success('Dossier PDF téléchargé');
+                } catch {
+                  toast.error('Impossible de générer le dossier PDF');
+                } finally {
+                  setDownloadingDossier(false);
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              {downloadingDossier ? 'PDF…' : 'Dossier PDF'}
+            </button>
             {canWrite && (
               <>
                 <Link to={`/eleves/${id}/modifier`} className="btn-secondary">

@@ -30,4 +30,12 @@ export const inventaireApi = {
     const { data } = await apiClient.post('/inventaire/mouvements', payload);
     return data;
   },
+  listAlertes: async () => {
+    const { data } = await apiClient.get('/inventaire/alertes');
+    return data;
+  },
+  inventaireAnnuelEcarts: async (payload) => {
+    const { data } = await apiClient.post('/inventaire/inventaire-annuel/ecarts', payload);
+    return data;
+  },
 };

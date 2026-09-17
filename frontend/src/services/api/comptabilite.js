@@ -43,6 +43,10 @@ export const comptabiliteApi = {
     const { data } = await apiClient.post(`/comptabilite/paie/periodes/${id}/cloturer`);
     return data;
   },
+  calculerPaiePeriode: async (id, payload = {}) => {
+    const { data } = await apiClient.post(`/comptabilite/paie/periodes/${id}/calculer`, payload);
+    return data;
+  },
   listPaieLignes: async (params = {}) => {
     const { data } = await apiClient.get('/comptabilite/paie/lignes', { params });
     return data;

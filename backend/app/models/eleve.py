@@ -56,6 +56,8 @@ class Eleve(Base):
         nullable=False,
         index=True,
     )
+    # Lien compte utilisateur (rôle eleve) — nullable ; migration deerflow_depth_roles
+    id_utilisateur: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     matricule: Mapped[str] = mapped_column(String(30), nullable=False)
     nom: Mapped[str] = mapped_column(String(100), nullable=False)
     prenom: Mapped[str] = mapped_column(String(100), nullable=False)

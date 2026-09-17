@@ -100,4 +100,9 @@ export const financeApi = {
     const { data } = await apiClient.post('/finance/remises/appliquer', payload);
     return data;
   },
+
+  previewRemiseEleve: async (idEleve) => {
+    const { data } = await apiClient.get(`/finance/remises/eleve/${idEleve}`);
+    return data;
+  },
 };

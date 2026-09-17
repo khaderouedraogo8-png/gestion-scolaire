@@ -44,9 +44,11 @@ from app.schemas.finance import (
 from app.services.channels.mobile_money import initier_paiement, mobile_money_status
 from app.services.channels.whatsapp import whatsapp_status
 from app.services.envoi_notification import creer_notification
-from app.services.finance_arrieres import list_arrieres
+from app.services.finance_arrieres import list_arrieres, list_echeances_impayees
 from app.services.generation_recu import generer_recu_pdf
 from app.services.relance_arrieres import relancer_arrieres
+from app.services.remises import apply_remise_to_montant, compute_remise_eleve
+from app.services.syscohada_ecritures import creer_ecritures_paiement
 from app.services.tenant import (
     apply_tenant_school,
     assert_same_school,
@@ -360,6 +362,7 @@ class EcheancesEleve(MethodView):
             )
             .all()
         )
+        remise = compute_remise_eleve(db, eid, get_current_school_id())
         out = []
         for frais in frais_list:
             for ec in (
@@ -368,10 +371,17 @@ class EcheancesEleve(MethodView):
                 .order_by(EcheancePaiement.date_echeance)
                 .all()
             ):
+                brut = float(ec.montant)
+                net = apply_remise_to_montant(brut, remise)
                 out.append({
                     **EcheancePaiementSchema().dump(ec),
                     "motif_frais": frais.motif,
-                    "montant": float(ec.montant),
+                    "montant_brut": brut,
+                    "montant": net,
+                    "remise": {
+                        "taux_percent": remise["taux_percent"],
+                        "montant_fixe": remise["montant_fixe"],
+                    },
                 })
         return jsonify(out)
 
@@ -447,6 +457,14 @@ class PaiementsResource(MethodView):
         )
         apply_tenant_school(paiement)
         db.add(paiement)
+        db.flush()
+        # SYSCOHADA auto-écriture (idempotent via reference PAIEMENT:{id})
+        try:
+            creer_ecritures_paiement(db, paiement, saisi_par=user.id)
+        except Exception as exc:
+            from flask import current_app
+
+            current_app.logger.warning("Écriture SYSCOHADA ignorée: %s", exc)
         db.commit()
         log_audit(
             "PAIEMENT_ENCAISSE",
@@ -684,6 +702,18 @@ class MobileMoneyInitiateSchema(Schema):
     motif = fields.String(allow_none=True)
 
 
+@blp.route("/remises/eleve/<uuid:id_eleve>")
+class RemiseElevePreview(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    def get(self, id_eleve):
+        """Prévisualise les remises applicables (fratrie / bourse / manuelle)."""
+        db = get_db()
+        get_or_404_tenant(Eleve, id_eleve)
+        result = compute_remise_eleve(db, id_eleve, get_current_school_id())
+        return jsonify({"id_eleve": str(id_eleve), **result})
+
+
 @blp.route("/remises/appliquer")
 class ApplyRemise(MethodView):
     @jwt_required()
@@ -717,9 +747,11 @@ class ApplyRemise(MethodView):
         )
         if insc and regle.type_remise == "pourcent":
             insc.taux_reduction = float(regle.valeur)
-            insc.est_boursier = True
+            if (regle.condition_type or "").lower() == "bourse":
+                insc.est_boursier = True
 
         db.commit()
+        preview = compute_remise_eleve(db, eleve.id, get_current_school_id())
         return jsonify({
             "id_eleve": str(eleve.id),
             "id_frais": str(frais.id),
@@ -734,6 +766,7 @@ class ApplyRemise(MethodView):
             "montant_net": float(montant_net),
             "id_annee": str(annee.id) if annee else None,
             "inscription_taux_reduction": float(insc.taux_reduction) if insc else None,
+            "preview": preview,
         })
 
 
@@ -772,7 +805,7 @@ class RecouvrementDetail(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
     def get(self):
-        """Dashboard recouvrement : totaux + top arriérés + répartition."""
+        """Dashboard recouvrement : totaux, aging, par classe/motif, top débiteurs."""
         db = get_db()
         id_annee = request.args.get("id_annee")
         if id_annee:
@@ -784,19 +817,91 @@ class RecouvrementDetail(MethodView):
         if not annee_id:
             return jsonify({"message": "Aucune année active"}), 400
 
-        rows = list_arrieres(db, annee_id, school_id=get_current_school_id(), as_of=date.today())
+        school_id = get_current_school_id()
+        as_of = date.today()
+        rows = list_arrieres(db, annee_id, school_id=school_id, as_of=as_of)
         total_du = sum(r["total_du"] for r in rows)
         total_paye = sum(r["total_paye"] for r in rows)
         total_arriere = sum(r["arriere"] for r in rows)
         taux = round(total_paye / total_du * 100, 1) if total_du > 0 else 0
         top = sorted(rows, key=lambda r: r["arriere"], reverse=True)[:20]
+
+        # Aging sur échéances échues (jours_relatifs négatif = en retard)
+        echeances = list_echeances_impayees(db, annee_id, school_id=school_id, as_of=as_of)
+        buckets = {
+            "J0-30": {"montant": 0.0, "count": 0},
+            "J31-60": {"montant": 0.0, "count": 0},
+            "J61-90": {"montant": 0.0, "count": 0},
+            "J90+": {"montant": 0.0, "count": 0},
+        }
+        by_motif: dict[str, float] = {}
+        by_classe_acc: dict[str, dict] = {}
+        classe_cache: dict = {}
+
+        for ec in echeances:
+            jr = ec.get("jours_relatifs")
+            if jr is None or jr > 0:
+                continue  # pas encore échue
+            days_overdue = abs(jr)
+            reste = float(ec["reste"])
+            if days_overdue <= 30:
+                key = "J0-30"
+            elif days_overdue <= 60:
+                key = "J31-60"
+            elif days_overdue <= 90:
+                key = "J61-90"
+            else:
+                key = "J90+"
+            buckets[key]["montant"] = round(buckets[key]["montant"] + reste, 2)
+            buckets[key]["count"] += 1
+
+            motif = ec.get("motif") or "autre"
+            by_motif[motif] = round(by_motif.get(motif, 0.0) + reste, 2)
+
+            cid = ec.get("id_classe")
+            cid_s = str(cid) if cid else "inconnu"
+            if cid_s not in by_classe_acc:
+                libelle = "—"
+                if cid and cid not in classe_cache:
+                    cl = tenant_query(Classe).filter(Classe.id == cid).first()
+                    classe_cache[cid] = cl.libelle if cl else "—"
+                    libelle = classe_cache[cid]
+                elif cid in classe_cache:
+                    libelle = classe_cache[cid]
+                by_classe_acc[cid_s] = {"id_classe": cid_s, "classe": libelle, "montant": 0.0, "count": 0}
+            by_classe_acc[cid_s]["montant"] = round(by_classe_acc[cid_s]["montant"] + reste, 2)
+            by_classe_acc[cid_s]["count"] += 1
+
+        by_classe = sorted(by_classe_acc.values(), key=lambda x: x["montant"], reverse=True)
+        by_motif_list = [
+            {"motif": m, "montant": v}
+            for m, v in sorted(by_motif.items(), key=lambda x: x[1], reverse=True)
+        ]
+
         return jsonify({
             "id_annee": str(annee_id),
+            "as_of": as_of.isoformat(),
             "total_du": total_du,
             "total_paye": total_paye,
             "total_arriere": total_arriere,
             "taux_recouvrement": taux,
             "nb_eleves_en_retard": sum(1 for r in rows if r["arriere"] > 0),
+            "aging": buckets,
+            "by_classe": by_classe,
+            "by_motif": by_motif_list,
+            "top_debiteurs": [
+                {
+                    "id_eleve": str(r["id_eleve"]),
+                    "matricule": r["matricule"],
+                    "nom": r["nom"],
+                    "prenom": r["prenom"],
+                    "arriere": r["arriere"],
+                    "total_du": r["total_du"],
+                    "total_paye": r["total_paye"],
+                }
+                for r in top
+                if r["arriere"] > 0
+            ],
             "top_arrieres": [
                 {
                     "id_eleve": str(r["id_eleve"]),

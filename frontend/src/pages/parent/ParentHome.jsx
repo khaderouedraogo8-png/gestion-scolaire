@@ -7,6 +7,7 @@ import {
   FileText,
   GraduationCap,
   LineChart,
+  MessageCircle,
   Wallet,
 } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
@@ -60,6 +61,12 @@ const CARDS = [
     icon: Bell,
     title: 'Notifications',
     subtitle: 'Boîte de réception',
+  },
+  {
+    to: '/parent/whatsapp-bot',
+    icon: MessageCircle,
+    title: 'Bot WhatsApp',
+    subtitle: 'SOLDE, NOTES, ECHEANCES, ABSENCES',
   },
 ];
 

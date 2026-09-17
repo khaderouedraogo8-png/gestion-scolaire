@@ -403,21 +403,46 @@ class DashboardComptable(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
-        """Vue détaillée comptable : encaissements récents + recouvrement."""
+        """Vue comptable : encaissements jour, impayés, échéances 7j, MM pending."""
+        from datetime import datetime
+
+        from app.models import AnneeScolaire, EcheancePaiement, FraisScolaire
         from app.services.finance_arrieres import list_arrieres
 
         db = get_db()
         school_id = get_current_school_id()
         id_annee = request.args.get("id_annee")
-        annee = None
         if id_annee:
-            from app.models import AnneeScolaire
-
             annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == uuid.UUID(id_annee)).first()
         else:
-            from app.models import AnneeScolaire
-
             annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+
+        today = date.today()
+        start_day = datetime.combine(today, datetime.min.time())
+
+        # Encaissements du jour
+        paiements_jour_q = (
+            tenant_query(Paiement)
+            .filter(Paiement.annule.is_(False), Paiement.date_paiement >= start_day)
+        )
+        if annee:
+            paiements_jour_q = paiements_jour_q.filter(Paiement.id_annee == annee.id)
+        paiements_jour = paiements_jour_q.all()
+        encaissements_jour = {
+            "count": len(paiements_jour),
+            "montant": float(sum(float(p.montant_verse) for p in paiements_jour)),
+            "items": [
+                {
+                    "id": str(p.id),
+                    "montant": float(p.montant_verse),
+                    "motif": p.motif,
+                    "date": p.date_paiement.isoformat() if p.date_paiement else None,
+                    "numero_recu": p.numero_recu,
+                    "mode_paiement": p.mode_paiement,
+                }
+                for p in paiements_jour[:20]
+            ],
+        }
 
         paiements = (
             tenant_query(Paiement)
@@ -433,23 +458,101 @@ class DashboardComptable(MethodView):
                 "motif": p.motif,
                 "date": p.date_paiement.isoformat() if p.date_paiement else None,
                 "numero_recu": p.numero_recu,
+                "mode_paiement": p.mode_paiement,
             }
             for p in paiements
         ]
 
+        # Impayés (arriérés)
+        impayes = {"nb": 0, "montant": 0.0, "top": []}
         recouvrement = None
         if annee:
-            rows = list_arrieres(db, annee.id, school_id=school_id, as_of=date.today())
+            rows = list_arrieres(db, annee.id, school_id=school_id, as_of=today)
+            arrears = [r for r in rows if r.get("arriere", 0) > 0]
+            impayes = {
+                "nb": len(arrears),
+                "montant": float(sum(r["arriere"] for r in arrears)),
+                "top": [
+                    {
+                        "id_eleve": str(r["id_eleve"]),
+                        "matricule": r.get("matricule"),
+                        "nom": r.get("nom"),
+                        "prenom": r.get("prenom"),
+                        "arriere": float(r["arriere"]),
+                    }
+                    for r in sorted(arrears, key=lambda x: -x["arriere"])[:10]
+                ],
+            }
             total_du = sum(r["total_du"] for r in rows)
             total_paye = sum(r["total_paye"] for r in rows)
             recouvrement = {
                 "total_du": total_du,
                 "total_paye": total_paye,
                 "taux": round(total_paye / total_du * 100, 1) if total_du else 0,
-                "nb_arrieres": sum(1 for r in rows if r["arriere"] > 0),
+                "nb_arrieres": len(arrears),
             }
+
+        # Échéances dans les 7 jours
+        until = today + timedelta(days=7)
+        echeances_7j = []
+        if annee:
+            frais_ids = [
+                f.id
+                for f in tenant_query(FraisScolaire)
+                .filter(FraisScolaire.id_annee == annee.id)
+                .all()
+            ]
+            if frais_ids:
+                ecs = (
+                    db.query(EcheancePaiement)
+                    .filter(
+                        EcheancePaiement.id_frais.in_(frais_ids),
+                        EcheancePaiement.date_echeance >= today,
+                        EcheancePaiement.date_echeance <= until,
+                    )
+                    .order_by(EcheancePaiement.date_echeance)
+                    .limit(30)
+                    .all()
+                )
+                echeances_7j = [
+                    {
+                        "id": str(ec.id),
+                        "libelle": ec.libelle,
+                        "montant": float(ec.montant),
+                        "date_echeance": ec.date_echeance.isoformat(),
+                    }
+                    for ec in ecs
+                ]
+
+        # Mobile Money « pending » : paiements MM du jour non encore rapprochés
+        # (mode_paiement opérateur + pas de numéro de reçu définitif rare — heuristique)
+        mm_modes = ("orange", "wave", "moov", "mtn", "mobile_money", "orange_money", "momo")
+        mm_pending_items = [
+            p for p in paiements_jour
+            if (p.mode_paiement or "").strip().lower() in mm_modes
+            or (p.numero_recu or "").upper().startswith("MM-")
+            or (p.numero_recu or "").upper().startswith("SBX-")
+        ]
+        mm_pending = {
+            "count": len(mm_pending_items),
+            "montant": float(sum(float(p.montant_verse) for p in mm_pending_items)),
+            "items": [
+                {
+                    "id": str(p.id),
+                    "montant": float(p.montant_verse),
+                    "numero_recu": p.numero_recu,
+                    "mode_paiement": p.mode_paiement,
+                }
+                for p in mm_pending_items[:15]
+            ],
+        }
+
         return jsonify({
             "role": "comptable",
+            "encaissements_jour": encaissements_jour,
+            "impayes": impayes,
+            "echeances_7j": echeances_7j,
+            "mm_pending": mm_pending,
             "paiements_recents": recent,
             "recouvrement": recouvrement,
         })
@@ -458,10 +561,10 @@ class DashboardComptable(MethodView):
 @blp.route("/surveillant")
 class DashboardSurveillant(MethodView):
     @jwt_required()
-    @require_role("administrateur", "directeur", "secretariat")
+    @require_role("administrateur", "directeur", "secretariat", "surveillant")
     def get(self):
-        """Vue surveillant / vie scolaire : absences du jour + sorties ouvertes."""
-        from app.models import SortieEleve
+        """Vue surveillant : absences jour, retards, alertes décrochage, incidents."""
+        from app.models import AlerteDecrochage, IncidentDisciplinaire, SortieEleve
 
         db = get_db()
         today = date.today()
@@ -470,6 +573,68 @@ class DashboardSurveillant(MethodView):
             .filter(Absence.date_absence == today)
             .count()
         )
+        retards_jour = (
+            tenant_query(Absence)
+            .filter(
+                Absence.date_absence == today,
+                Absence.type_absence.in_(("retard", "Retard", "RETARD")),
+            )
+            .count()
+        )
+
+        alertes_decrochage = 0
+        alertes_items = []
+        try:
+            alertes = (
+                tenant_query(AlerteDecrochage)
+                .filter(AlerteDecrochage.statut.in_(("ouverte", "en_cours")))
+                .order_by(AlerteDecrochage.created_at.desc())
+                .limit(15)
+                .all()
+            )
+            alertes_decrochage = (
+                tenant_query(AlerteDecrochage)
+                .filter(AlerteDecrochage.statut.in_(("ouverte", "en_cours")))
+                .count()
+            )
+            alertes_items = [
+                {
+                    "id": str(a.id),
+                    "id_eleve": str(a.id_eleve),
+                    "type_alerte": a.type_alerte,
+                    "niveau": a.niveau,
+                    "statut": a.statut,
+                }
+                for a in alertes
+            ]
+        except Exception:
+            db.rollback()
+            alertes_decrochage = 0
+            alertes_items = []
+
+        incidents_recent = []
+        incidents_count = 0
+        try:
+            since = today - timedelta(days=14)
+            incidents_q = (
+                tenant_query(IncidentDisciplinaire)
+                .filter(IncidentDisciplinaire.date_incident >= since)
+                .order_by(IncidentDisciplinaire.date_incident.desc())
+            )
+            incidents_count = incidents_q.count()
+            incidents_recent = [
+                {
+                    "id": str(i.id),
+                    "id_eleve": str(i.id_eleve),
+                    "type_incident": i.type_incident,
+                    "date_incident": i.date_incident.isoformat() if i.date_incident else None,
+                    "description": (i.description or "")[:120],
+                }
+                for i in incidents_q.limit(10).all()
+            ]
+        except Exception:
+            db.rollback()
+
         sorties_ouvertes = 0
         try:
             sorties_ouvertes = (
@@ -478,6 +643,7 @@ class DashboardSurveillant(MethodView):
                 .count()
             )
         except Exception:
+            db.rollback()
             sorties_ouvertes = 0
 
         abs_par_classe = get_absences_par_classe_dashboard(
@@ -487,6 +653,88 @@ class DashboardSurveillant(MethodView):
         return jsonify({
             "role": "surveillant",
             "absences_aujourd_hui": absences_jour,
+            "retards_aujourd_hui": retards_jour,
+            "alertes_decrochage": alertes_decrochage,
+            "alertes": alertes_items,
+            "incidents_14j": incidents_count,
+            "incidents": incidents_recent,
             "sorties_ouvertes": sorties_ouvertes,
             "absences_par_classe": abs_par_classe,
+        })
+
+
+@blp.route("/secretaire")
+class DashboardSecretaire(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        """Vue secrétariat : inscriptions en cours, dossiers admission incomplets, encaissements."""
+        from datetime import datetime
+
+        from app.models import AdmissionDossier, AnneeScolaire
+
+        school_id = get_current_school_id()
+        id_annee = request.args.get("id_annee")
+        if id_annee:
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == uuid.UUID(id_annee)).first()
+        else:
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+
+        # Inscriptions en cours (statut provisoire / en_attente / brouillon)
+        insc_statuts = ("en_cours", "en_attente", "provisoire", "brouillon", "preinscrit")
+        insc_q = tenant_query(Inscription).filter(Inscription.statut.in_(insc_statuts))
+        if annee:
+            insc_q = insc_q.filter(Inscription.id_annee == annee.id)
+        inscriptions_en_cours = insc_q.count()
+        insc_items = [
+            {
+                "id": str(i.id),
+                "id_eleve": str(i.id_eleve),
+                "statut": i.statut,
+                "id_classe": str(i.id_classe) if i.id_classe else None,
+            }
+            for i in insc_q.order_by(Inscription.id.desc()).limit(15).all()
+        ]
+
+        # Dossiers admission incomplets
+        incomplets_statuts = ("brouillon", "incomplet", "pieces_manquantes", "en_attente")
+        dossiers_q = tenant_query(AdmissionDossier).filter(
+            AdmissionDossier.statut.in_(incomplets_statuts)
+        )
+        if annee:
+            dossiers_q = dossiers_q.filter(
+                (AdmissionDossier.id_annee == annee.id) | (AdmissionDossier.id_annee.is_(None))
+            )
+        dossiers_incomplets = dossiers_q.count()
+        dossier_items = [
+            {
+                "id": str(d.id),
+                "nom": d.nom,
+                "prenom": d.prenom,
+                "statut": d.statut,
+                "niveau_demande": d.niveau_demande,
+            }
+            for d in dossiers_q.order_by(AdmissionDossier.updated_at.desc()).limit(15).all()
+        ]
+
+        today = date.today()
+        start_day = datetime.combine(today, datetime.min.time())
+        paiements_jour = (
+            tenant_query(Paiement)
+            .filter(Paiement.annule.is_(False), Paiement.date_paiement >= start_day)
+            .all()
+        )
+        encaissements = {
+            "count": len(paiements_jour),
+            "montant": float(sum(float(p.montant_verse) for p in paiements_jour)),
+        }
+
+        return jsonify({
+            "role": "secretaire",
+            "inscriptions_en_cours": inscriptions_en_cours,
+            "inscriptions": insc_items,
+            "dossiers_admission_incomplets": dossiers_incomplets,
+            "dossiers": dossier_items,
+            "encaissements_jour": encaissements,
+            "school_id": str(school_id),
         })

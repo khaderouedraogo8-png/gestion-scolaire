@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from flask import jsonify, request
 from flask.views import MethodView
@@ -78,6 +78,40 @@ class ContratsResource(MethodView):
         db.add(row)
         db.commit()
         return row, 201
+
+
+@blp.route("/contrats/alertes-expiration")
+class ContratsAlertesExpiration(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    def get(self):
+        """Contrats actifs expirant dans les N jours (défaut 30)."""
+        jours = request.args.get("jours", default=30, type=int)
+        jours = max(1, min(jours or 30, 365))
+        today = date.today()
+        until = today + timedelta(days=jours)
+        rows = (
+            tenant_query(RhContrat)
+            .filter(
+                RhContrat.statut == "actif",
+                RhContrat.date_fin.isnot(None),
+                RhContrat.date_fin >= today,
+                RhContrat.date_fin <= until,
+            )
+            .order_by(RhContrat.date_fin.asc())
+            .all()
+        )
+        payload = []
+        for c in rows:
+            item = ContratSchema().dump(c)
+            item["jours_restants"] = (c.date_fin - today).days if c.date_fin else None
+            payload.append(item)
+        return jsonify({
+            "alertes": payload,
+            "nb": len(payload),
+            "jours": jours,
+            "jusqu_au": until.isoformat(),
+        })
 
 
 @blp.route("/contrats/<uuid:id_contrat>")

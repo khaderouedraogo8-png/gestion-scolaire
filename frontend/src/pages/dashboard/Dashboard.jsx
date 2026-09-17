@@ -323,13 +323,16 @@ function ComptableDashboard({ idAnnee }) {
   }
 
   const rec = data?.recouvrement;
+  const enc = data?.encaissements_jour;
+  const imp = data?.impayes;
+  const mm = data?.mm_pending;
 
   return (
     <div className="space-y-10">
       <PageHeader
         eyebrow="Espace comptable"
         title="Tableau de bord finance"
-        subtitle="Encaissements récents et recouvrement"
+        subtitle="Encaissements du jour, impayés, échéances et Mobile Money"
         actions={
           <Link to="/finance/encaissement" className="btn-primary">
             Encaissement
@@ -340,11 +343,46 @@ function ComptableDashboard({ idAnnee }) {
         <h2 className="dashboard-section-label">Indicateurs</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            title="Taux de recouvrement"
-            value={rec ? `${rec.taux}%` : '—'}
-            icon={TrendingUp}
+            title="Encaissements du jour"
+            value={
+              enc
+                ? `${Number(enc.montant || 0).toLocaleString('fr-FR')} FCFA`
+                : '—'
+            }
+            subtitle={`${enc?.count ?? 0} opération(s)`}
+            icon={Wallet}
             tone="positive"
           />
+          <StatCard
+            title="Impayés"
+            value={imp ? `${Number(imp.montant || 0).toLocaleString('fr-FR')} FCFA` : '—'}
+            subtitle={`${imp?.nb ?? 0} dossier(s)`}
+            icon={AlertCircle}
+            tone="negative"
+          />
+          <StatCard
+            title="Échéances 7 j"
+            value={data?.echeances_7j?.length ?? 0}
+            icon={CalendarCheck}
+            tone="warning"
+          />
+          <StatCard
+            title="MM en attente"
+            value={mm?.count ?? 0}
+            subtitle={
+              mm?.montant
+                ? `${Number(mm.montant).toLocaleString('fr-FR')} FCFA`
+                : undefined
+            }
+            icon={TrendingUp}
+            tone="neutral"
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="dashboard-section-label">Recouvrement</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard title="Taux" value={rec ? `${rec.taux}%` : '—'} icon={TrendingUp} tone="positive" />
           <StatCard
             title="Total dû"
             value={rec ? `${Number(rec.total_du).toLocaleString('fr-FR')} FCFA` : '—'}
@@ -357,12 +395,7 @@ function ComptableDashboard({ idAnnee }) {
             icon={Wallet}
             tone="neutral"
           />
-          <StatCard
-            title="Dossiers en retard"
-            value={rec?.nb_arrieres ?? 0}
-            icon={AlertCircle}
-            tone="negative"
-          />
+          <StatCard title="Dossiers en retard" value={rec?.nb_arrieres ?? 0} icon={AlertCircle} tone="negative" />
         </div>
       </section>
       <section>
@@ -441,7 +474,7 @@ function SurveillantDashboard({ idAnnee }) {
       <PageHeader
         eyebrow="Vie scolaire"
         title="Tableau de bord surveillant"
-        subtitle="Absences du jour et sorties ouvertes"
+        subtitle="Absences, retards, décrochage et incidents"
         actions={
           <Link to="/front-office/sorties" className="btn-primary">
             Sorties élèves
@@ -450,7 +483,7 @@ function SurveillantDashboard({ idAnnee }) {
       />
       <section>
         <h2 className="dashboard-section-label">Indicateurs</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Absences aujourd’hui"
             value={data?.absences_aujourd_hui ?? 0}
@@ -458,8 +491,20 @@ function SurveillantDashboard({ idAnnee }) {
             tone="negative"
           />
           <StatCard
-            title="Sorties ouvertes"
-            value={data?.sorties_ouvertes ?? 0}
+            title="Retards aujourd’hui"
+            value={data?.retards_aujourd_hui ?? 0}
+            icon={Clock}
+            tone="warning"
+          />
+          <StatCard
+            title="Alertes décrochage"
+            value={data?.alertes_decrochage ?? 0}
+            icon={AlertCircle}
+            tone="negative"
+          />
+          <StatCard
+            title="Incidents (14 j)"
+            value={data?.incidents_14j ?? 0}
             icon={ClipboardList}
             tone="warning"
           />
@@ -494,15 +539,103 @@ function SurveillantDashboard({ idAnnee }) {
   );
 }
 
+function SecretaireDashboard({ idAnnee }) {
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await dashboardApi.getSecretaire(idAnnee ? { id_annee: idAnnee } : {});
+        if (!cancelled) setData(res);
+      } catch {
+        if (!cancelled) toast.error('Impossible de charger la vue secrétariat.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [idAnnee, toast]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+      </div>
+    );
+  }
+
+  const enc = data?.encaissements_jour;
+
+  return (
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Espace secrétariat"
+        title="Tableau de bord secrétariat"
+        subtitle="Inscriptions, admissions et encaissements du jour"
+        actions={
+          <Link to="/admission" className="btn-primary">
+            Admissions
+          </Link>
+        }
+      />
+      <section>
+        <h2 className="dashboard-section-label">Indicateurs</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <StatCard
+            title="Inscriptions en cours"
+            value={data?.inscriptions_en_cours ?? 0}
+            icon={Users}
+            tone="warning"
+          />
+          <StatCard
+            title="Dossiers incomplets"
+            value={data?.dossiers_admission_incomplets ?? 0}
+            icon={FileText}
+            tone="negative"
+          />
+          <StatCard
+            title="Encaissements du jour"
+            value={
+              enc
+                ? `${Number(enc.montant || 0).toLocaleString('fr-FR')} FCFA`
+                : '—'
+            }
+            subtitle={`${enc?.count ?? 0} opération(s)`}
+            icon={Wallet}
+            tone="positive"
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="dashboard-section-label">Accès rapides</h2>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/admission" className="btn-secondary">Admissions</Link>
+          <Link to="/eleves" className="btn-secondary">Élèves</Link>
+          <Link to="/front-office/visiteurs" className="btn-secondary">Visiteurs</Link>
+          <Link to="/front-office/sorties" className="btn-secondary">Sorties</Link>
+          <Link to="/eleves/fratries" className="btn-secondary">Fratries</Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const toast = useToast();
   const { user } = useAuth();
   const role = user?.role;
   const isTeacher = role === 'enseignant';
   const isComptable = role === 'agent_comptable';
+  // Alias UI : secretariat peut ouvrir la vue surveillant via query ; rôle surveillant dédié
   const isSurveillant = role === 'surveillant';
-  const isDirection = role === 'administrateur' || role === 'directeur' || role === 'super_admin';
   const isSecretariat = role === 'secretariat';
+  const isDirection = role === 'administrateur' || role === 'directeur' || role === 'super_admin';
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -533,7 +666,7 @@ export default function Dashboard() {
   }, [toast]);
 
   useEffect(() => {
-    if (isTeacher || isComptable || isSurveillant) return undefined;
+    if (isTeacher || isComptable || isSurveillant || isSecretariat) return undefined;
     let cancelled = false;
     const load = async () => {
       if (!idAnnee) return;
@@ -557,14 +690,14 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [idAnnee, toast, isTeacher, isComptable, isSurveillant]);
+  }, [idAnnee, toast, isTeacher, isComptable, isSurveillant, isSecretariat]);
 
   useEffect(() => {
-    if (!idAnnee && !isTeacher && !isComptable && !isSurveillant) {
+    if (!idAnnee && !isTeacher && !isComptable && !isSurveillant && !isSecretariat) {
       const t = setTimeout(() => setLoading(false), 0);
       return () => clearTimeout(t);
     }
-  }, [idAnnee, isTeacher, isComptable, isSurveillant]);
+  }, [idAnnee, isTeacher, isComptable, isSurveillant, isSecretariat]);
 
   if (isTeacher) {
     return <TeacherDashboard idAnnee={idAnnee} />;
@@ -576,6 +709,10 @@ export default function Dashboard() {
 
   if (isSurveillant) {
     return <SurveillantDashboard idAnnee={idAnnee} />;
+  }
+
+  if (isSecretariat) {
+    return <SecretaireDashboard idAnnee={idAnnee} />;
   }
 
   if (loading) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { comptabiliteApi } from '../../services/api/comptabilite';
 import Table from '../../components/Table';
@@ -12,6 +12,8 @@ export default function Paie() {
   const [lignes, setLignes] = useState([]);
   const [idPeriode, setIdPeriode] = useState('');
   const [loading, setLoading] = useState(true);
+  const [calculating, setCalculating] = useState(false);
+  const [totaux, setTotaux] = useState(null);
   const [periodeForm, setPeriodeForm] = useState({
     libelle: '',
     date_debut: '',
@@ -46,12 +48,25 @@ export default function Paie() {
   useEffect(() => {
     if (!idPeriode) {
       setLignes([]);
+      setTotaux(null);
       return;
     }
     comptabiliteApi
       .listPaieLignes({ id_periode: idPeriode })
-      .then((d) => setLignes(Array.isArray(d) ? d : []))
-      .catch(() => setLignes([]));
+      .then((d) => {
+        const list = Array.isArray(d) ? d : [];
+        setLignes(list);
+        setTotaux({
+          brut: list.reduce((s, r) => s + Number(r.brut || 0), 0),
+          retenues: list.reduce((s, r) => s + Number(r.retenues || 0), 0),
+          net: list.reduce((s, r) => s + Number(r.net || 0), 0),
+          nb_lignes: list.length,
+        });
+      })
+      .catch(() => {
+        setLignes([]);
+        setTotaux(null);
+      });
   }, [idPeriode]);
 
   const createPeriode = async (e) => {
@@ -83,7 +98,14 @@ export default function Paie() {
       });
       toast.success('Ligne ajoutée');
       const d = await comptabiliteApi.listPaieLignes({ id_periode: idPeriode });
-      setLignes(Array.isArray(d) ? d : []);
+      const list = Array.isArray(d) ? d : [];
+      setLignes(list);
+      setTotaux({
+        brut: list.reduce((s, r) => s + Number(r.brut || 0), 0),
+        retenues: list.reduce((s, r) => s + Number(r.retenues || 0), 0),
+        net: list.reduce((s, r) => s + Number(r.net || 0), 0),
+        nb_lignes: list.length,
+      });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur');
     }
@@ -100,12 +122,33 @@ export default function Paie() {
     }
   };
 
+  const calculer = async () => {
+    if (!idPeriode) return;
+    setCalculating(true);
+    try {
+      const result = await comptabiliteApi.calculerPaiePeriode(idPeriode);
+      const list = Array.isArray(result.lignes) ? result.lignes : [];
+      setLignes(list);
+      setTotaux(result.totaux || null);
+      toast.success(
+        `Paie calculée — ${result.totaux?.nb_lignes ?? list.length} bulletin(s), net ${(result.totaux?.net ?? 0).toLocaleString('fr-FR')} FCFA`,
+      );
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Calcul impossible');
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  const totauxAffiches = useMemo(() => totaux, [totaux]);
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="SYSCOHADA"
         title="Paie"
-        subtitle="Périodes et bulletins de paie"
+        subtitle="Périodes, calcul automatique et bulletins de paie"
         actions={
           <Link to="/finance/ecritures" className="btn-secondary">
             Écritures
@@ -135,11 +178,44 @@ export default function Paie() {
           </select>
         </div>
         {idPeriode && (
-          <button type="button" className="btn-secondary" onClick={cloturer}>
-            Clôturer
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={calculer}
+              disabled={calculating}
+            >
+              {calculating ? 'Calcul…' : 'Calculer la paie'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={cloturer}>
+              Clôturer
+            </button>
+          </>
         )}
       </div>
+
+      {totauxAffiches && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="card-premium p-4">
+            <p className="text-sm text-[var(--color-muted)]">Total brut</p>
+            <p className="mt-1 text-xl font-semibold">
+              {Number(totauxAffiches.brut).toLocaleString('fr-FR')} FCFA
+            </p>
+          </div>
+          <div className="card-premium p-4">
+            <p className="text-sm text-[var(--color-muted)]">Total retenues</p>
+            <p className="mt-1 text-xl font-semibold">
+              {Number(totauxAffiches.retenues).toLocaleString('fr-FR')} FCFA
+            </p>
+          </div>
+          <div className="card-premium p-4">
+            <p className="text-sm text-[var(--color-muted)]">Total net</p>
+            <p className="mt-1 text-xl font-semibold">
+              {Number(totauxAffiches.net).toLocaleString('fr-FR')} FCFA
+            </p>
+          </div>
+        </div>
+      )}
 
       {idPeriode && (
         <form onSubmit={createLigne} className="card-premium grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-5">
@@ -155,7 +231,7 @@ export default function Paie() {
 
       <Table
         columns={[
-          { key: 'matricule', header: 'Matricule', render: (r) => r.matricule || '—' },
+          { key: 'matricule', header: 'Matricule', render: (r) => r.matricule || r.details?.nom || '—' },
           {
             key: 'brut',
             header: 'Brut',
