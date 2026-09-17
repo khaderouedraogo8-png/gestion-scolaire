@@ -150,11 +150,15 @@ def _notify_parent_recu(paiement: Paiement, canal: str = "email") -> None:
             contenu=contenu,
             id_eleve=paiement.id_eleve,
             school_id=paiement.school_id,
-            idempotency_key=f"recu:{paiement.id}",
+            idempotency_key=f"recu:{canal}:{paiement.id}",
         )
     except Exception:
         # Ne bloque jamais l'encaissement si la notif échoue
-        pass
+        db = get_db()
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
 
 @blp.route("/integrations")
