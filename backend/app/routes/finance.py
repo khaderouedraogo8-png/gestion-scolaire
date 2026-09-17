@@ -9,6 +9,7 @@ from flask import abort, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
+from marshmallow import Schema, fields
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
@@ -42,7 +43,6 @@ from app.schemas.finance import (
 )
 from app.services.channels.mobile_money import initier_paiement, mobile_money_status
 from app.services.channels.whatsapp import whatsapp_status
-from marshmallow import Schema, fields
 from app.services.envoi_notification import creer_notification
 from app.services.finance_arrieres import list_arrieres
 from app.services.generation_recu import generer_recu_pdf
@@ -744,9 +744,12 @@ class MobileMoneyInitiate(MethodView):
     @blp.arguments(MobileMoneyInitiateSchema)
     def post(self, data):
         user = get_current_user()
-        if user.role == "parent" and data.get("id_eleve"):
-            if not parent_has_eleve_access(user, data["id_eleve"]):
-                return jsonify({"message": "Accès refusé"}), 403
+        if (
+            user.role == "parent"
+            and data.get("id_eleve")
+            and not parent_has_eleve_access(user, data["id_eleve"])
+        ):
+            return jsonify({"message": "Accès refusé"}), 403
         ref = data.get("reference") or f"MM-{uuid.uuid4().hex[:12]}"
         ok, code, payload = initier_paiement(
             operateur=data["operateur"],

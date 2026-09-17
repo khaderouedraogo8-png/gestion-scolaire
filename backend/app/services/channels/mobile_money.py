@@ -144,6 +144,6 @@ def initier_paiement(
         detail = exc.read().decode("utf-8", errors="replace")[:300]
         current_app.logger.error("MM %s HTTP %s: %s", op, exc.code, detail)
         return False, f"HTTP_{exc.code}", {"status": "ERROR", "detail": detail}
-    except Exception as exc:  # noqa: BLE001
-        current_app.logger.exception("MM erreur: %s", exc)
+    except Exception as exc:
+        current_app.logger.exception("MM erreur")
         return False, "ERROR", {"status": "ERROR", "detail": str(exc)}

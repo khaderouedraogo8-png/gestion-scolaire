@@ -5,6 +5,7 @@ from flask import abort, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
+from marshmallow import Schema, fields
 
 from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import get_enseignant_for_user, require_role
@@ -34,7 +35,6 @@ from app.services.tenant import (
     get_or_404_tenant,
     tenant_query,
 )
-from marshmallow import Schema, fields
 
 blp = Blueprint("emploi_temps", __name__, url_prefix="/emploi-temps", description="Emploi du temps")
 
@@ -569,7 +569,7 @@ class EdtGenerer(MethodView):
         jobs = []
         for aff in affectations:
             vol = float(aff.volume_horaire_hebdo or 2)
-            slots_needed = max(1, int(round(vol)))
+            slots_needed = max(1, round(vol))
             for _ in range(slots_needed):
                 jobs.append(aff)
 

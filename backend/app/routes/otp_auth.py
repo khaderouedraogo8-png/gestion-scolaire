@@ -53,7 +53,6 @@ def _resolve_school_and_user(db, destinataire: str, school_code: str | None):
     """Retrouve un parent/utilisateur et son école pour l'OTP login_parent."""
     from app.models import School
 
-    dest = destinataire.strip().lower()
     user = None
     school = None
 

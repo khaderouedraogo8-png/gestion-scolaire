@@ -87,8 +87,8 @@ def envoyer_whatsapp(destinataire: str, contenu: str) -> tuple[bool, str]:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
         current_app.logger.error("WhatsApp HTTP %s: %s", exc.code, detail)
         return False, f"HTTP_{exc.code}"
-    except Exception as exc:  # noqa: BLE001
-        current_app.logger.exception("WhatsApp erreur: %s", exc)
+    except Exception:
+        current_app.logger.exception("WhatsApp erreur")
         return False, "ERROR"
 
 
