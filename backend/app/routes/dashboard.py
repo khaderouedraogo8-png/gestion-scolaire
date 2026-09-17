@@ -396,3 +396,97 @@ class DashboardParentEvolution(MethodView):
             })
 
         return jsonify({"enfants": enfants})
+
+
+@blp.route("/comptable")
+class DashboardComptable(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable")
+    def get(self):
+        """Vue détaillée comptable : encaissements récents + recouvrement."""
+        from app.services.finance_arrieres import list_arrieres
+
+        db = get_db()
+        school_id = get_current_school_id()
+        id_annee = request.args.get("id_annee")
+        annee = None
+        if id_annee:
+            from app.models import AnneeScolaire
+
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == uuid.UUID(id_annee)).first()
+        else:
+            from app.models import AnneeScolaire
+
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+
+        paiements = (
+            tenant_query(Paiement)
+            .filter(Paiement.annule.is_(False))
+            .order_by(Paiement.date_paiement.desc())
+            .limit(30)
+            .all()
+        )
+        recent = [
+            {
+                "id": str(p.id),
+                "montant": float(p.montant_verse),
+                "motif": p.motif,
+                "date": p.date_paiement.isoformat() if p.date_paiement else None,
+                "numero_recu": p.numero_recu,
+            }
+            for p in paiements
+        ]
+
+        recouvrement = None
+        if annee:
+            rows = list_arrieres(db, annee.id, school_id=school_id, as_of=date.today())
+            total_du = sum(r["total_du"] for r in rows)
+            total_paye = sum(r["total_paye"] for r in rows)
+            recouvrement = {
+                "total_du": total_du,
+                "total_paye": total_paye,
+                "taux": round(total_paye / total_du * 100, 1) if total_du else 0,
+                "nb_arrieres": sum(1 for r in rows if r["arriere"] > 0),
+            }
+        return jsonify({
+            "role": "comptable",
+            "paiements_recents": recent,
+            "recouvrement": recouvrement,
+        })
+
+
+@blp.route("/surveillant")
+class DashboardSurveillant(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        """Vue surveillant / vie scolaire : absences du jour + sorties ouvertes."""
+        from app.models import SortieEleve
+
+        db = get_db()
+        today = date.today()
+        absences_jour = (
+            tenant_query(Absence)
+            .filter(Absence.date_absence == today)
+            .count()
+        )
+        sorties_ouvertes = 0
+        try:
+            sorties_ouvertes = (
+                tenant_query(SortieEleve)
+                .filter(SortieEleve.statut == "sorti", SortieEleve.heure_retour.is_(None))
+                .count()
+            )
+        except Exception:
+            sorties_ouvertes = 0
+
+        abs_par_classe = get_absences_par_classe_dashboard(
+            db,
+            id_annee=uuid.UUID(request.args["id_annee"]) if request.args.get("id_annee") else None,
+        )
+        return jsonify({
+            "role": "surveillant",
+            "absences_aujourd_hui": absences_jour,
+            "sorties_ouvertes": sorties_ouvertes,
+            "absences_par_classe": abs_par_classe,
+        })

@@ -20,4 +20,14 @@ export const dashboardApi = {
     const { data } = await apiClient.get('/dashboard/parent-evolution', { params });
     return data;
   },
+
+  getComptable: async (params = {}) => {
+    const { data } = await apiClient.get('/dashboard/comptable', { params });
+    return data;
+  },
+
+  getSurveillant: async (params = {}) => {
+    const { data } = await apiClient.get('/dashboard/surveillant', { params });
+    return data;
+  },
 };

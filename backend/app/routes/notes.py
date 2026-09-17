@@ -1020,3 +1020,62 @@ class BulletinPDF(MethodView):
             return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=name)
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+
+
+@blp.route("/bulletins/<uuid:id_bulletin>/conseil")
+class BulletinConseilHook(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self, id_bulletin):
+        """Hook conseil de classe : session / décision liées à l'élève du bulletin."""
+        from app.models import ConseilClasseSession, DecisionPassage
+
+        db = get_db()
+        bulletin = get_or_404_tenant(Bulletin, id_bulletin)
+        trimestre = _get_trimestre_or_404(db, bulletin.id_trimestre)
+        insc = (
+            tenant_query(Inscription)
+            .filter(
+                Inscription.id_eleve == bulletin.id_eleve,
+                Inscription.id_annee == trimestre.id_annee,
+            )
+            .first()
+        )
+        sessions = []
+        if insc:
+            sessions = (
+                tenant_query(ConseilClasseSession)
+                .filter(
+                    ConseilClasseSession.id_classe == insc.id_classe,
+                    ConseilClasseSession.id_trimestre == bulletin.id_trimestre,
+                )
+                .all()
+            )
+        decision = (
+            tenant_query(DecisionPassage)
+            .filter(
+                DecisionPassage.id_eleve == bulletin.id_eleve,
+                DecisionPassage.id_annee == trimestre.id_annee,
+            )
+            .first()
+        )
+        return jsonify({
+            "id_bulletin": str(bulletin.id),
+            "id_eleve": str(bulletin.id_eleve),
+            "moyenne_generale": float(bulletin.moyenne_generale) if bulletin.moyenne_generale is not None else None,
+            "mention": bulletin.mention,
+            "sessions": [
+                {
+                    "id": str(s.id),
+                    "date_session": s.date_session.isoformat(),
+                    "statut": s.statut,
+                }
+                for s in sessions
+            ],
+            "decision_passage": {
+                "id": str(decision.id),
+                "decision": decision.decision,
+                "mention": decision.mention,
+                "commentaire": decision.commentaire,
+            } if decision else None,
+        })

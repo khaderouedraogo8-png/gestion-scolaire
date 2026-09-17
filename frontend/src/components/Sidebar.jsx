@@ -15,6 +15,18 @@ import {
   X,
   TrendingUp,
   Rocket,
+  UserPlus,
+  Users,
+  Bus,
+  UtensilsCrossed,
+  BedDouble,
+  Cross,
+  Library,
+  Briefcase,
+  DoorOpen,
+  Package,
+  Laptop,
+  Smartphone,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import SealMedallion from './SealMedallion';
@@ -37,11 +49,22 @@ const ICONS = {
   pedagogie: BookOpen,
   evolution: TrendingUp,
   demarrage: Rocket,
+  admission: UserPlus,
+  fratries: Users,
+  viesco: Bus,
+  cantine: UtensilsCrossed,
+  internat: BedDouble,
+  infirmiere: Cross,
+  biblio: Library,
+  rh: Briefcase,
+  frontoffice: DoorOpen,
+  inventaire: Package,
+  elearning: Laptop,
+  mobile: Smartphone,
 };
 
 /**
  * section: groupe visuel sidebar (n’affecte pas le RBAC)
- * — principal | academique | administration | finance | parent | plateforme | config
  */
 const menuItems = [
   {
@@ -79,17 +102,26 @@ const menuItems = [
   },
   { label: 'Paiements', path: '/finance/paiements', icon: 'paiements', roles: ['parent'], section: 'parent' },
   {
+    label: 'Mobile Money',
+    path: '/finance/mobile-money',
+    icon: 'mobile',
+    roles: ['parent'],
+    section: 'parent',
+  },
+  {
     label: 'Élèves',
     path: '/eleves',
     icon: 'eleves',
     roles: ['parent'],
     section: 'parent',
   },
+  { label: 'Mon espace', path: '/eleve', icon: 'home', roles: ['eleve'], section: 'eleve' },
+  { label: 'Devoirs', path: '/elearning/devoirs', icon: 'elearning', roles: ['eleve'], section: 'eleve' },
   {
     label: 'Tableau de bord',
     path: '/dashboard',
     icon: 'dashboard',
-    roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant'],
+    roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant', 'surveillant'],
     section: 'principal',
   },
   {
@@ -105,6 +137,12 @@ const menuItems = [
     icon: 'eleves',
     roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant'],
     section: 'principal',
+    children: [
+      { label: 'Par classes', path: '/classes', roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant'] },
+      { label: 'Liste / recherche', path: '/eleves', roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat', 'enseignant'] },
+      { label: 'Fratries & remises', path: '/eleves/fratries', roles: [...ADMIN_ROLES, 'secretariat', 'agent_comptable'] },
+      { label: 'Admissions', path: '/admission', roles: [...ADMIN_ROLES, 'secretariat'] },
+    ],
   },
   {
     label: 'Notes & Bulletins',
@@ -117,6 +155,18 @@ const menuItems = [
       { label: 'Saisie des notes', path: '/notes/saisie', roles: [...ADMIN_ROLES, 'enseignant'] },
       { label: 'Résultats', path: '/notes/resultats', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
       { label: 'Bulletins', path: '/notes/bulletins', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Conseil de classe', path: '/notes/conseil-classe', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+    ],
+  },
+  {
+    label: 'E-learning',
+    path: '/elearning/devoirs',
+    icon: 'elearning',
+    roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'],
+    section: 'academique',
+    children: [
+      { label: 'Devoirs', path: '/elearning/devoirs', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Quiz', path: '/elearning/quiz', roles: [...ADMIN_ROLES, 'enseignant'] },
     ],
   },
   {
@@ -141,21 +191,68 @@ const menuItems = [
     children: [
       { label: 'Frais scolaires', path: '/finance/frais', roles: [...ADMIN_ROLES, 'agent_comptable'] },
       { label: 'Encaissement', path: '/finance/encaissement', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Recouvrement', path: '/finance/recouvrement', roles: [...ADMIN_ROLES, 'agent_comptable', 'secretariat'] },
       { label: 'Arriérés', path: '/finance/arrieres', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Mobile Money', path: '/finance/mobile-money', roles: [...ADMIN_ROLES, 'agent_comptable'] },
       { label: 'Reçus', path: '/finance/recus', roles: [...ADMIN_ROLES, 'agent_comptable'] },
-      { label: 'SYSCOHADA', path: '/finance/syscohada', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Plan SYSCOHADA', path: '/finance/syscohada', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Écritures', path: '/finance/ecritures', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'Paie', path: '/finance/paie', roles: [...ADMIN_ROLES, 'agent_comptable'] },
     ],
   },
   {
     label: 'Absences & Discipline',
     path: '/absences',
     icon: 'absences',
-    roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'],
+    roles: [...ADMIN_ROLES, 'enseignant', 'secretariat', 'surveillant'],
     section: 'administration',
     children: [
-      { label: 'Absences', path: '/absences', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
-      { label: 'Discipline', path: '/absences/discipline', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Absences', path: '/absences', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat', 'surveillant'] },
+      { label: 'Discipline', path: '/absences/discipline', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat', 'surveillant'] },
     ],
+  },
+  {
+    label: 'Vie scolaire',
+    path: '/vie-scolaire/cantine',
+    icon: 'viesco',
+    roles: [...ADMIN_ROLES, 'secretariat'],
+    section: 'vie_scolaire',
+    children: [
+      { label: 'Cantine', path: '/vie-scolaire/cantine', roles: [...ADMIN_ROLES, 'secretariat'] },
+      { label: 'Transport', path: '/vie-scolaire/transport', roles: [...ADMIN_ROLES, 'secretariat'] },
+      { label: 'Internat', path: '/vie-scolaire/internat', roles: [...ADMIN_ROLES, 'secretariat'] },
+      { label: 'Infirmerie', path: '/vie-scolaire/infirmerie', roles: [...ADMIN_ROLES, 'secretariat'] },
+      { label: 'Bibliothèque', path: '/vie-scolaire/bibliotheque', roles: [...ADMIN_ROLES, 'secretariat', 'enseignant'] },
+    ],
+  },
+  {
+    label: 'Accueil',
+    path: '/front-office/visiteurs',
+    icon: 'frontoffice',
+    roles: [...ADMIN_ROLES, 'secretariat', 'surveillant'],
+    section: 'vie_scolaire',
+    children: [
+      { label: 'Visiteurs', path: '/front-office/visiteurs', roles: [...ADMIN_ROLES, 'secretariat', 'surveillant'] },
+      { label: 'Sorties élèves', path: '/front-office/sorties', roles: [...ADMIN_ROLES, 'secretariat', 'surveillant'] },
+    ],
+  },
+  {
+    label: 'RH',
+    path: '/rh/contrats',
+    icon: 'rh',
+    roles: ADMIN_ROLES,
+    section: 'administration',
+    children: [
+      { label: 'Contrats', path: '/rh/contrats', roles: ADMIN_ROLES },
+      { label: 'Congés', path: '/rh/conges', roles: ADMIN_ROLES },
+    ],
+  },
+  {
+    label: 'Inventaire',
+    path: '/inventaire',
+    icon: 'inventaire',
+    roles: [...ADMIN_ROLES, 'secretariat'],
+    section: 'administration',
   },
   {
     label: 'Documents',
@@ -206,16 +303,20 @@ const SECTION_LABELS = {
   academique: 'Académique',
   finance: 'Finance',
   administration: 'Administration',
+  vie_scolaire: 'Vie scolaire',
   config: 'Paramètres',
   parent: 'Mon espace',
+  eleve: 'Espace élève',
 };
 
 const SECTION_ORDER = [
   'plateforme',
   'parent',
+  'eleve',
   'principal',
   'academique',
   'finance',
+  'vie_scolaire',
   'administration',
   'config',
 ];

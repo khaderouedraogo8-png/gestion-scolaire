@@ -14,8 +14,10 @@ from app.models import (
     AnneeScolaire,
     Classe,
     CreneauEmploiTemps,
+    EdtPublication,
     Enseignant,
     Matiere,
+    RemplacementEnseignant,
     Salle,
 )
 from app.schemas.emploi_temps import (
@@ -32,6 +34,7 @@ from app.services.tenant import (
     get_or_404_tenant,
     tenant_query,
 )
+from marshmallow import Schema, fields
 
 blp = Blueprint("emploi_temps", __name__, url_prefix="/emploi-temps", description="Emploi du temps")
 
@@ -324,3 +327,189 @@ class CreneauDetail(MethodView):
         db.delete(creneau)
         db.commit()
         return jsonify({"message": "Créneau supprimé"})
+
+
+class RemplacementSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    id_enseignant_absent = fields.UUID(required=True)
+    id_enseignant_remplacant = fields.UUID(allow_none=True)
+    id_creneau = fields.UUID(allow_none=True)
+    date_remplacement = fields.Date(required=True)
+    motif = fields.String(allow_none=True)
+    statut = fields.String(load_default="planifie")
+    created_at = fields.DateTime(dump_only=True)
+
+
+class PublishEdtSchema(Schema):
+    id_annee = fields.UUID(required=True)
+    libelle = fields.String(allow_none=True)
+    semaine = fields.Integer(allow_none=True)
+    date_debut = fields.Date(allow_none=True)
+    date_fin = fields.Date(allow_none=True)
+
+
+@blp.route("/conflits")
+class EdtConflits(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        """Détecte conflits enseignant (double booking) et classe (même créneau)."""
+        db = get_db()
+        id_annee = request.args.get("id_annee")
+        creneaux = _creneaux_tenant_query(db).all()
+        enriched = []
+        for c in creneaux:
+            aff = tenant_query(AffectationEnseignant).filter(
+                AffectationEnseignant.id == c.id_affectation
+            ).first()
+            if not aff:
+                continue
+            if id_annee and str(aff.id_annee) != id_annee:
+                continue
+            enriched.append({
+                "creneau": c,
+                "id_enseignant": aff.id_enseignant,
+                "id_classe": aff.id_classe,
+                "id_annee": aff.id_annee,
+            })
+
+        conflits_ens = []
+        conflits_classe = []
+        for i, a in enumerate(enriched):
+            for b in enriched[i + 1 :]:
+                ca, cb = a["creneau"], b["creneau"]
+                if ca.jour_semaine != cb.jour_semaine:
+                    continue
+                if not (ca.heure_debut < cb.heure_fin and cb.heure_debut < ca.heure_fin):
+                    continue
+                if a["id_enseignant"] == b["id_enseignant"]:
+                    conflits_ens.append({
+                        "type": "enseignant",
+                        "id_enseignant": str(a["id_enseignant"]),
+                        "creneaux": [str(ca.id), str(cb.id)],
+                        "jour": ca.jour_semaine,
+                    })
+                if a["id_classe"] == b["id_classe"]:
+                    conflits_classe.append({
+                        "type": "classe",
+                        "id_classe": str(a["id_classe"]),
+                        "creneaux": [str(ca.id), str(cb.id)],
+                        "jour": ca.jour_semaine,
+                    })
+        return jsonify({
+            "conflits_enseignant": conflits_ens,
+            "conflits_classe": conflits_classe,
+            "total": len(conflits_ens) + len(conflits_classe),
+        })
+
+
+@blp.route("/remplacements")
+class RemplacementsResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        rows = tenant_query(RemplacementEnseignant).order_by(
+            RemplacementEnseignant.date_remplacement.desc()
+        ).all()
+        return jsonify(RemplacementSchema(many=True).dump(rows))
+
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    @blp.arguments(RemplacementSchema)
+    @blp.response(201, RemplacementSchema)
+    def post(self, data):
+        db = get_db()
+        get_or_404_tenant(Enseignant, data["id_enseignant_absent"])
+        if data.get("id_enseignant_remplacant"):
+            get_or_404_tenant(Enseignant, data["id_enseignant_remplacant"])
+        row = RemplacementEnseignant(id=uuid.uuid4(), **data)
+        apply_tenant_school(row)
+        db.add(row)
+        db.commit()
+        return row, 201
+
+
+@blp.route("/remplacements/<uuid:id_remplacement>")
+class RemplacementDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    @blp.arguments(RemplacementSchema(partial=True))
+    def put(self, data, id_remplacement):
+        db = get_db()
+        row = get_or_404_tenant(RemplacementEnseignant, id_remplacement)
+        for k, v in data.items():
+            setattr(row, k, v)
+        db.commit()
+        return jsonify(RemplacementSchema().dump(row))
+
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    def delete(self, id_remplacement):
+        db = get_db()
+        row = get_or_404_tenant(RemplacementEnseignant, id_remplacement)
+        db.delete(row)
+        db.commit()
+        return jsonify({"message": "Remplacement supprimé"})
+
+
+@blp.route("/publier")
+class EdtPublier(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(PublishEdtSchema)
+    def post(self, data):
+        db = get_db()
+        user = get_current_user()
+        get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        # Désactiver publications précédentes de la même année
+        prev = (
+            tenant_query(EdtPublication)
+            .filter(
+                EdtPublication.id_annee == data["id_annee"],
+                EdtPublication.actif.is_(True),
+            )
+            .all()
+        )
+        version = 1
+        for p in prev:
+            p.actif = False
+            version = max(version, (p.version or 1) + 1)
+        pub = EdtPublication(
+            id=uuid.uuid4(),
+            id_annee=data["id_annee"],
+            libelle=data.get("libelle") or f"EDT v{version}",
+            semaine=data.get("semaine"),
+            date_debut=data.get("date_debut"),
+            date_fin=data.get("date_fin"),
+            version=version,
+            publie_par=user.id,
+            actif=True,
+        )
+        apply_tenant_school(pub)
+        db.add(pub)
+        db.commit()
+        return jsonify({
+            "id": str(pub.id),
+            "version": pub.version,
+            "libelle": pub.libelle,
+            "publie_le": pub.publie_le.isoformat() if pub.publie_le else None,
+        }), 201
+
+
+@blp.route("/publications")
+class EdtPublications(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self):
+        rows = tenant_query(EdtPublication).order_by(EdtPublication.publie_le.desc()).all()
+        return jsonify([
+            {
+                "id": str(r.id),
+                "id_annee": str(r.id_annee),
+                "libelle": r.libelle,
+                "version": r.version,
+                "actif": r.actif,
+                "publie_le": r.publie_le.isoformat() if r.publie_le else None,
+            }
+            for r in rows
+        ])

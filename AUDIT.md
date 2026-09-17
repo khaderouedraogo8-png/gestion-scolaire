@@ -30,7 +30,7 @@ Croisement audit marché Deerflow × code réel. Livré sur PR #17 + hotfix `bul
 **Tests :** `test_uemoa_finance_wave1.py` + `test_relances.py` (9 verts)  
 **Prod :** https://web-production-54355.up.railway.app — health OK, login multi-rôles OK, CI `main` vert
 
-**Hors scope (vision long terme) :** offline-first complet, bot WhatsApp parent, paie, vie scolaire, générateur EDT.
+**Suite Deerflow full (branche `cursor/deerflow-full-delivery-8bcc`) :** admission funnel, fratries/remises, MM/WhatsApp adapters+sandbox, OTP parent, conseil de classe, vie scolaire, RH, front office, inventaire, e-learning, compta/paie MVP, landing, PWA offline queue — voir `DEERFLOW-LIVRAISON-COMPLETE.md`.
 
 ---
 

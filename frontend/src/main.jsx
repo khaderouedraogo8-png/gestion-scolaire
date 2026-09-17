@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
+import { registerOfflineSync } from './utils/offlineQueue';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -12,8 +13,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+registerOfflineSync();
+
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const register = () =>
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    if (import.meta.env.PROD || import.meta.env.VITE_ENABLE_SW === 'true') {
+      register();
+    }
   });
 }

@@ -40,24 +40,35 @@ def create_app(config_name: str | None = None) -> Flask:
 
     import app.models  # noqa: F401
     from app.routes.absences import blp as absences_blp
+    from app.routes.admission import blp as admission_blp
     from app.routes.audit import blp as audit_blp
     from app.routes.auth import blp as auth_blp
+    from app.routes.comptabilite import blp as comptabilite_blp
+    from app.routes.conseil_classe import blp as conseil_classe_blp
     from app.routes.dashboard import blp as dashboard_blp
     from app.routes.documents import blp as documents_blp
+    from app.routes.elearning import blp as elearning_blp
     from app.routes.eleves import blp as eleves_blp
     from app.routes.emploi_temps import blp as emploi_temps_blp
     from app.routes.etablissement import blp as etablissement_blp
     from app.routes.finance import blp as finance_blp
+    from app.routes.fratries import blp as fratries_blp
+    from app.routes.front_office import blp as front_office_blp
     from app.routes.grading import blp as grading_blp
+    from app.routes.inventaire import blp as inventaire_blp
     from app.routes.notes import blp as notes_blp
     from app.routes.notifications import blp as notifications_blp
+    from app.routes.otp_auth import blp as otp_auth_blp
     from app.routes.pedagogie import blp as pedagogie_blp
     from app.routes.platform import blp as platform_blp
+    from app.routes.rh import blp as rh_blp
     from app.routes.schools import blp as schools_blp
     from app.routes.users import blp as users_blp
+    from app.routes.vie_scolaire import blp as vie_scolaire_blp
 
     # Auth : routes plates (/api/login, /api/me, …)
     api.register_blueprint(auth_blp, url_prefix="/api")
+    api.register_blueprint(otp_auth_blp, url_prefix="/api/auth")
     api.register_blueprint(users_blp, url_prefix="/api/users")
     api.register_blueprint(schools_blp, url_prefix="/api/schools")
     api.register_blueprint(platform_blp, url_prefix="/api/platform")
@@ -74,6 +85,16 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(dashboard_blp, url_prefix="/api/dashboard")
     api.register_blueprint(audit_blp, url_prefix="/api/audit")
     api.register_blueprint(grading_blp, url_prefix="/api")
+    # Deerflow modules A/B
+    api.register_blueprint(admission_blp, url_prefix="/api/admission")
+    api.register_blueprint(fratries_blp, url_prefix="/api/fratries")
+    api.register_blueprint(conseil_classe_blp, url_prefix="/api/conseil-classe")
+    api.register_blueprint(vie_scolaire_blp, url_prefix="/api/vie-scolaire")
+    api.register_blueprint(rh_blp, url_prefix="/api/rh")
+    api.register_blueprint(front_office_blp, url_prefix="/api/front-office")
+    api.register_blueprint(inventaire_blp, url_prefix="/api/inventaire")
+    api.register_blueprint(elearning_blp, url_prefix="/api/elearning")
+    api.register_blueprint(comptabilite_blp, url_prefix="/api/comptabilite")
 
     from app.utils.errors import register_error_handlers
 

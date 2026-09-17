@@ -196,8 +196,18 @@ def generer_bulletin_pdf(bulletin: Bulletin) -> str:
         db, bulletin.id_eleve, classe.id if classe else None, bulletin.id_trimestre
     )
 
+    tpl_code = (etablissement.bulletin_template if etablissement else None) or "BF"
+    # Variantes nationales : bulletin_BF.html … ; fallback bulletin.html
+    candidates = [f"bulletin_{tpl_code}.html", "bulletin.html"]
+    template_name = "bulletin.html"
+    for name in candidates:
+        path = os.path.join(current_app.template_folder or "", name)
+        if os.path.isfile(path):
+            template_name = name
+            break
+
     html = render_template(
-        "bulletin.html",
+        template_name,
         etablissement=etablissement,
         eleve=eleve,
         trimestre=trimestre,
@@ -206,6 +216,7 @@ def generer_bulletin_pdf(bulletin: Bulletin) -> str:
         bulletin=bulletin,
         moyennes=moyennes,
         date_generation=datetime.now(UTC),
+        bulletin_template=tpl_code,
     )
 
     upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "bulletins")

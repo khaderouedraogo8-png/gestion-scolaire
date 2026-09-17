@@ -123,6 +123,12 @@ export default function Login() {
             Mot de passe oublié ?
           </Link>
         </p>
+        <p className="text-center text-sm text-texte-secondaire">
+          Parent ?{' '}
+          <Link to="/login/otp" className="font-medium text-or-cachet hover:underline">
+            Connexion par code OTP
+          </Link>
+        </p>
       </form>
     </AuthShell>
   );

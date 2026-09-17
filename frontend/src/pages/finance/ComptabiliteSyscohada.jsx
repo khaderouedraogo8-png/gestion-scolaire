@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { BookOpen } from 'lucide-react';
 import { financeApi } from '../../services/api/finance';
 import Table from '../../components/Table';
@@ -55,6 +56,16 @@ export default function ComptabiliteSyscohada() {
         eyebrow="Finance"
         title="Plan comptable SYSCOHADA"
         subtitle="Référentiel comptable — lecture seule"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link to="/finance/ecritures" className="btn-secondary">
+              Écritures
+            </Link>
+            <Link to="/finance/paie" className="btn-secondary">
+              Paie
+            </Link>
+          </div>
+        }
       />
 
       {!loading && comptes.length === 0 && (

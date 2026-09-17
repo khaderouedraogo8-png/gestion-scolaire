@@ -85,4 +85,19 @@ export const financeApi = {
     });
     return data;
   },
+
+  getRecouvrementDetail: async (params = {}) => {
+    const { data } = await apiClient.get('/finance/recouvrement/detail', { params });
+    return data;
+  },
+
+  initiateMobileMoney: async (payload) => {
+    const { data } = await apiClient.post('/finance/mobile-money/initiate', payload);
+    return data;
+  },
+
+  appliquerRemise: async (payload) => {
+    const { data } = await apiClient.post('/finance/remises/appliquer', payload);
+    return data;
+  },
 };

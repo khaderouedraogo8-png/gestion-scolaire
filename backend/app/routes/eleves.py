@@ -24,8 +24,10 @@ from app.models import (
     AnneeScolaire,
     Classe,
     Eleve,
+    EleveFratrie,
     EleveParent,
     Etablissement,
+    Fratrie,
     Inscription,
     NiveauEtude,
     ParentTuteur,
@@ -378,6 +380,28 @@ class EleveVue360(MethodView):
                             "motif": frais.motif,
                         })
 
+        # Fratrie (Deerflow)
+        fratrie_info = None
+        link = tenant_query(EleveFratrie).filter(EleveFratrie.id_eleve == id_eleve).first()
+        if link:
+            fratrie = tenant_query(Fratrie).filter(Fratrie.id == link.id_fratrie).first()
+            if fratrie:
+                membres = []
+                for lf in tenant_query(EleveFratrie).filter(EleveFratrie.id_fratrie == fratrie.id).all():
+                    sibling = tenant_query(Eleve).filter(Eleve.id == lf.id_eleve).first()
+                    if sibling:
+                        membres.append({
+                            "id": str(sibling.id),
+                            "matricule": sibling.matricule,
+                            "nom": sibling.nom,
+                            "prenom": sibling.prenom,
+                        })
+                fratrie_info = {
+                    "id": str(fratrie.id),
+                    "libelle": fratrie.libelle,
+                    "membres": membres,
+                }
+
         return jsonify({
             "eleve": {
                 "id": str(eleve.id),
@@ -389,6 +413,7 @@ class EleveVue360(MethodView):
             "notes_recentes": notes_recentes,
             "solde": solde,
             "echeances": echeances,
+            "fratrie": fratrie_info,
         })
 
 
@@ -636,3 +661,135 @@ class ElevesImportConfirm(MethodView):
             db, id_annee=id_annee, rows=normalized, user_id=user.id
         )
         return jsonify(result), 201
+
+
+@blp.route("/reincription/batch")
+class ReincriptionBatch(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def post(self):
+        """Réinscription one-click : crée des inscriptions pour l'année cible."""
+        db = get_db()
+        body = request.get_json(silent=True) or {}
+        reject_client_school_id(body)
+        try:
+            id_annee_cible = uuid.UUID(str(body.get("id_annee_cible")))
+        except (TypeError, ValueError):
+            return jsonify({"message": "id_annee_cible requis"}), 400
+        get_or_404_tenant(AnneeScolaire, id_annee_cible)
+
+        items = body.get("eleves") or []
+        if not isinstance(items, list) or not items:
+            return jsonify({"message": "eleves[] requis"}), 400
+
+        created, skipped, errors = [], [], []
+        for item in items:
+            try:
+                id_eleve = uuid.UUID(str(item.get("id_eleve")))
+                id_classe = uuid.UUID(str(item.get("id_classe")))
+            except (TypeError, ValueError):
+                errors.append({"item": item, "error": "id_eleve/id_classe invalides"})
+                continue
+            get_or_404_tenant(Eleve, id_eleve)
+            get_or_404_tenant(Classe, id_classe)
+            existing = (
+                tenant_query(Inscription)
+                .filter(
+                    Inscription.id_eleve == id_eleve,
+                    Inscription.id_annee == id_annee_cible,
+                    Inscription.statut.in_(("inscrit", "reinscrit")),
+                )
+                .first()
+            )
+            if existing:
+                skipped.append({"id_eleve": str(id_eleve), "id_inscription": str(existing.id)})
+                continue
+            insc = Inscription(
+                id=uuid.uuid4(),
+                id_eleve=id_eleve,
+                id_classe=id_classe,
+                id_annee=id_annee_cible,
+                statut="reinscrit",
+                date_inscription=date.today(),
+            )
+            apply_tenant_school(insc)
+            db.add(insc)
+            created.append({"id_eleve": str(id_eleve), "id_inscription": str(insc.id)})
+        db.commit()
+        return jsonify({
+            "created": created,
+            "skipped": skipped,
+            "errors": errors,
+            "count_created": len(created),
+        }), 201
+
+
+@blp.route("/<uuid:id_eleve>/dossier.pdf")
+class EleveDossierPdf(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
+    def get(self, id_eleve):
+        """Dossier élève PDF simple (identité + inscriptions)."""
+        from datetime import UTC, datetime
+
+        from flask import render_template_string
+
+        from app.services.pdf_render import html_to_pdf
+
+        db = get_db()
+        user = get_current_user()
+        if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
+        if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
+
+        eleve = get_or_404_tenant(Eleve, id_eleve)
+        etab = (
+            db.query(Etablissement)
+            .filter(Etablissement.school_id == get_current_school_id())
+            .first()
+        )
+        inscriptions = (
+            tenant_query(Inscription)
+            .filter(Inscription.id_eleve == id_eleve)
+            .order_by(Inscription.date_inscription.desc())
+            .all()
+        )
+        insc_rows = []
+        for insc in inscriptions:
+            classe = tenant_query(Classe).filter(Classe.id == insc.id_classe).first()
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == insc.id_annee).first()
+            insc_rows.append({
+                "classe": classe.libelle if classe else "—",
+                "annee": annee.libelle if annee else "—",
+                "statut": insc.statut,
+            })
+
+        html = render_template_string(
+            """
+            <html><head><meta charset="utf-8"><style>
+            body{font-family:DejaVu Sans,sans-serif;margin:40px;font-size:12px}
+            h1{font-size:18px} table{width:100%;border-collapse:collapse;margin-top:16px}
+            td,th{border:1px solid #333;padding:6px}
+            </style></head><body>
+            <h1>{{ etab_nom }} — Dossier élève</h1>
+            <p><strong>{{ eleve.prenom }} {{ eleve.nom }}</strong> ({{ eleve.matricule }})</p>
+            <p>Né(e) le {{ eleve.date_naissance or '—' }} à {{ eleve.lieu_naissance or '—' }}</p>
+            <table><tr><th>Année</th><th>Classe</th><th>Statut</th></tr>
+            {% for r in insc_rows %}
+            <tr><td>{{ r.annee }}</td><td>{{ r.classe }}</td><td>{{ r.statut }}</td></tr>
+            {% endfor %}
+            </table>
+            <p style="margin-top:24px;color:#666">Généré le {{ now }}</p>
+            </body></html>
+            """,
+            etab_nom=etab.nom if etab else "Établissement",
+            eleve=eleve,
+            insc_rows=insc_rows,
+            now=datetime.now(UTC).strftime("%d/%m/%Y"),
+        )
+        upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "dossiers")
+        os.makedirs(upload_dir, exist_ok=True)
+        path = os.path.join(upload_dir, f"dossier_{id_eleve}.pdf")
+        html_to_pdf(html, path)
+        return send_file(path, as_attachment=True, download_name=f"dossier_{eleve.matricule}.pdf")

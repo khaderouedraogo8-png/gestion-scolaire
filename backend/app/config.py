@@ -90,12 +90,19 @@ class Config:
     # WhatsApp Business (vide = NON_CONFIGURE — jamais de faux succès)
     WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN", "")
     WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    WHATSAPP_SANDBOX = os.getenv("WHATSAPP_SANDBOX", "").strip().lower() in ("1", "true", "yes")
 
     # Mobile Money par opérateur (vide = NON_CONFIGURE)
     MM_ORANGE_API_KEY = os.getenv("MM_ORANGE_API_KEY", "")
     MM_WAVE_API_KEY = os.getenv("MM_WAVE_API_KEY", "")
     MM_MOOV_API_KEY = os.getenv("MM_MOOV_API_KEY", "")
     MM_MTN_API_KEY = os.getenv("MM_MTN_API_KEY", "")
+    MM_ORANGE_API_URL = os.getenv("MM_ORANGE_API_URL", "")
+    MM_WAVE_API_URL = os.getenv("MM_WAVE_API_URL", "")
+    MM_MOOV_API_URL = os.getenv("MM_MOOV_API_URL", "")
+    MM_MTN_API_URL = os.getenv("MM_MTN_API_URL", "")
+    MM_API_BASE_URL = os.getenv("MM_API_BASE_URL", "")
+    MM_SANDBOX = os.getenv("MM_SANDBOX", "").strip().lower() in ("1", "true", "yes")
 
 
 class DevelopmentConfig(Config):

@@ -814,3 +814,497 @@ CREATE INDEX idx_absence_eleve_date ON absence(id_eleve, date_absence);
 CREATE INDEX idx_evaluation_classe_trimestre ON evaluation(id_classe, id_trimestre);
 CREATE INDEX idx_journal_audit_utilisateur ON journal_audit(id_utilisateur, created_at);
 CREATE INDEX idx_eleve_nom_prenom ON eleve(nom, prenom);
+
+-- ============================================================================
+-- 12. DEERFLOW FULL DELIVERY — modules A/B foundation
+-- ============================================================================
+
+ALTER TABLE etablissement
+    ADD COLUMN IF NOT EXISTS matricule_sequence INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE admission_dossier (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_annee             UUID,
+    nom                  VARCHAR(100) NOT NULL,
+    prenom               VARCHAR(100) NOT NULL,
+    sexe                 VARCHAR(1),
+    date_naissance       DATE,
+    lieu_naissance       VARCHAR(100),
+    telephone_parent     VARCHAR(30),
+    email_parent         VARCHAR(150),
+    niveau_demande       VARCHAR(50),
+    statut               VARCHAR(30) NOT NULL DEFAULT 'brouillon',
+    pieces               JSONB,
+    id_eleve             UUID,
+    notes                TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_admission_dossier_school_id ON admission_dossier (school_id);
+CREATE INDEX ix_admission_dossier_school_statut ON admission_dossier (school_id, statut);
+
+CREATE TABLE fratrie (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    libelle              VARCHAR(120),
+    id_parent_principal  UUID,
+    notes                TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_fratrie_school_id ON fratrie (school_id);
+
+CREATE TABLE eleve_fratrie (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    id_fratrie           UUID NOT NULL REFERENCES fratrie(id) ON DELETE CASCADE,
+    CONSTRAINT uq_eleve_fratrie_pair UNIQUE (id_eleve, id_fratrie)
+);
+CREATE INDEX ix_eleve_fratrie_school_id ON eleve_fratrie (school_id);
+CREATE INDEX ix_eleve_fratrie_id_eleve ON eleve_fratrie (id_eleve);
+CREATE INDEX ix_eleve_fratrie_id_fratrie ON eleve_fratrie (id_fratrie);
+
+CREATE TABLE remise_regle (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    code                 VARCHAR(40) NOT NULL,
+    libelle              VARCHAR(120) NOT NULL,
+    type_remise          VARCHAR(20) NOT NULL DEFAULT 'pourcent',
+    valeur               NUMERIC(12, 2) NOT NULL,
+    condition_type       VARCHAR(40),
+    condition_valeur     VARCHAR(80),
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    priorite             INTEGER NOT NULL DEFAULT 0,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_remise_regle_school_code UNIQUE (school_id, code)
+);
+CREATE INDEX ix_remise_regle_school_id ON remise_regle (school_id);
+
+CREATE TABLE conseil_classe_session (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_classe            UUID NOT NULL,
+    id_trimestre         UUID,
+    id_annee             UUID,
+    date_session         DATE NOT NULL,
+    statut               VARCHAR(30) NOT NULL DEFAULT 'planifie',
+    pv_url               TEXT,
+    notes                TEXT,
+    anime_par            UUID,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_conseil_classe_session_school_id ON conseil_classe_session (school_id);
+CREATE INDEX ix_conseil_classe_session_classe ON conseil_classe_session (school_id, id_classe);
+
+CREATE TABLE decision_passage (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    id_annee             UUID NOT NULL,
+    id_session           UUID REFERENCES conseil_classe_session(id) ON DELETE SET NULL,
+    decision             VARCHAR(30) NOT NULL,
+    mention              VARCHAR(40),
+    commentaire          TEXT,
+    valide_par           UUID,
+    valide_le            TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_decision_passage_eleve_annee UNIQUE (school_id, id_eleve, id_annee)
+);
+CREATE INDEX ix_decision_passage_school_id ON decision_passage (school_id);
+CREATE INDEX ix_decision_passage_id_eleve ON decision_passage (id_eleve);
+
+CREATE TABLE absence_justificatif (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_absence           UUID NOT NULL,
+    fichier_url          TEXT,
+    motif                TEXT,
+    valide               BOOLEAN NOT NULL DEFAULT false,
+    valide_par           UUID,
+    date_depot           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    valide_le            TIMESTAMPTZ
+);
+CREATE INDEX ix_absence_justificatif_school_id ON absence_justificatif (school_id);
+CREATE INDEX ix_absence_justificatif_id_absence ON absence_justificatif (id_absence);
+
+CREATE TABLE alerte_decrochage (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    type_alerte          VARCHAR(40) NOT NULL,
+    niveau               VARCHAR(20) NOT NULL DEFAULT 'moyen',
+    score                NUMERIC(8, 2),
+    statut               VARCHAR(30) NOT NULL DEFAULT 'ouverte',
+    details              JSONB,
+    traite_par           UUID,
+    traite_le            TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_alerte_decrochage_school_id ON alerte_decrochage (school_id);
+CREATE INDEX ix_alerte_decrochage_eleve_statut ON alerte_decrochage (school_id, id_eleve, statut);
+
+CREATE TABLE edt_publication (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_annee             UUID NOT NULL,
+    libelle              VARCHAR(80),
+    semaine              INTEGER,
+    date_debut           DATE,
+    date_fin             DATE,
+    version              INTEGER NOT NULL DEFAULT 1,
+    publie_le            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    publie_par           UUID,
+    actif                BOOLEAN NOT NULL DEFAULT true
+);
+CREATE INDEX ix_edt_publication_school_id ON edt_publication (school_id);
+CREATE INDEX ix_edt_publication_annee ON edt_publication (school_id, id_annee);
+
+CREATE TABLE remplacement_enseignant (
+    id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_enseignant_absent      UUID NOT NULL,
+    id_enseignant_remplacant  UUID,
+    id_creneau                UUID,
+    date_remplacement         DATE NOT NULL,
+    motif                     TEXT,
+    statut                    VARCHAR(30) NOT NULL DEFAULT 'planifie',
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_remplacement_enseignant_school_id ON remplacement_enseignant (school_id);
+CREATE INDEX ix_remplacement_enseignant_date ON remplacement_enseignant (school_id, date_remplacement);
+
+CREATE TABLE ecriture_comptable (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    date_ecriture        DATE NOT NULL,
+    libelle              VARCHAR(200) NOT NULL,
+    compte_debit         VARCHAR(16) NOT NULL,
+    compte_credit        VARCHAR(16) NOT NULL,
+    montant              NUMERIC(14, 2) NOT NULL,
+    reference            VARCHAR(60),
+    id_paiement          UUID,
+    journal              VARCHAR(20),
+    piece_url            TEXT,
+    saisi_par            UUID,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_ecriture_comptable_school_id ON ecriture_comptable (school_id);
+CREATE INDEX ix_ecriture_comptable_date ON ecriture_comptable (school_id, date_ecriture);
+
+CREATE TABLE paie_periode (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    libelle              VARCHAR(80) NOT NULL,
+    date_debut           DATE NOT NULL,
+    date_fin             DATE NOT NULL,
+    statut               VARCHAR(30) NOT NULL DEFAULT 'ouverte',
+    cloture_le           TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_paie_periode_school_id ON paie_periode (school_id);
+
+CREATE TABLE paie_ligne (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_periode           UUID NOT NULL REFERENCES paie_periode(id) ON DELETE CASCADE,
+    id_utilisateur       UUID,
+    id_enseignant        UUID,
+    matricule            VARCHAR(40),
+    brut                 NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    retenues             NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    net                  NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    details              JSONB,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_paie_ligne_school_id ON paie_ligne (school_id);
+CREATE INDEX ix_paie_ligne_id_periode ON paie_ligne (id_periode);
+
+CREATE TABLE cantine_abonnement (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    id_annee             UUID,
+    formule              VARCHAR(40) NOT NULL DEFAULT 'standard',
+    montant              NUMERIC(12, 2),
+    date_debut           DATE NOT NULL,
+    date_fin             DATE,
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_cantine_abonnement_school_id ON cantine_abonnement (school_id);
+CREATE INDEX ix_cantine_abonnement_id_eleve ON cantine_abonnement (id_eleve);
+
+CREATE TABLE cantine_presence (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    date_presence        DATE NOT NULL,
+    repas                VARCHAR(20) NOT NULL DEFAULT 'midi',
+    present              BOOLEAN NOT NULL DEFAULT true,
+    notes                TEXT,
+    CONSTRAINT uq_cantine_presence_eleve_date_repas UNIQUE (school_id, id_eleve, date_presence, repas)
+);
+CREATE INDEX ix_cantine_presence_school_id ON cantine_presence (school_id);
+CREATE INDEX ix_cantine_presence_date ON cantine_presence (school_id, date_presence);
+
+CREATE TABLE transport_itineraire (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    libelle              VARCHAR(120) NOT NULL,
+    description          TEXT,
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_transport_itineraire_school_id ON transport_itineraire (school_id);
+
+CREATE TABLE transport_arret (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_itineraire        UUID NOT NULL REFERENCES transport_itineraire(id) ON DELETE CASCADE,
+    libelle              VARCHAR(120) NOT NULL,
+    ordre                INTEGER NOT NULL DEFAULT 0,
+    heure_passage        VARCHAR(10),
+    latitude             NUMERIC(10, 7),
+    longitude            NUMERIC(10, 7)
+);
+CREATE INDEX ix_transport_arret_school_id ON transport_arret (school_id);
+CREATE INDEX ix_transport_arret_itineraire ON transport_arret (id_itineraire);
+
+CREATE TABLE transport_eleve (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    id_itineraire        UUID NOT NULL REFERENCES transport_itineraire(id) ON DELETE CASCADE,
+    id_arret             UUID REFERENCES transport_arret(id) ON DELETE SET NULL,
+    id_annee             UUID,
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_transport_eleve_school_id ON transport_eleve (school_id);
+CREATE INDEX ix_transport_eleve_id_eleve ON transport_eleve (id_eleve);
+
+CREATE TABLE internat_chambre (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    batiment             VARCHAR(60),
+    numero               VARCHAR(30) NOT NULL,
+    capacite             INTEGER NOT NULL DEFAULT 1,
+    genre                VARCHAR(10),
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT uq_internat_chambre_batiment_numero UNIQUE (school_id, batiment, numero)
+);
+CREATE INDEX ix_internat_chambre_school_id ON internat_chambre (school_id);
+
+CREATE TABLE internat_affectation (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_chambre           UUID NOT NULL REFERENCES internat_chambre(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    id_annee             UUID,
+    date_debut           DATE NOT NULL,
+    date_fin             DATE,
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_internat_affectation_school_id ON internat_affectation (school_id);
+CREATE INDEX ix_internat_affectation_id_eleve ON internat_affectation (id_eleve);
+
+CREATE TABLE infirmiere_soin (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    date_soin            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    motif                TEXT NOT NULL,
+    traitement           TEXT,
+    soigne_par           UUID,
+    notes                TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_infirmiere_soin_school_id ON infirmiere_soin (school_id);
+CREATE INDEX ix_infirmiere_soin_id_eleve ON infirmiere_soin (id_eleve);
+
+CREATE TABLE bibliotheque_livre (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    isbn                 VARCHAR(20),
+    titre                VARCHAR(200) NOT NULL,
+    auteur               VARCHAR(150),
+    categorie            VARCHAR(60),
+    exemplaires          INTEGER NOT NULL DEFAULT 1,
+    disponibles          INTEGER NOT NULL DEFAULT 1,
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_bibliotheque_livre_school_id ON bibliotheque_livre (school_id);
+CREATE INDEX ix_bibliotheque_livre_titre ON bibliotheque_livre (school_id, titre);
+
+CREATE TABLE bibliotheque_pret (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id               UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_livre                UUID NOT NULL REFERENCES bibliotheque_livre(id) ON DELETE CASCADE,
+    id_eleve                UUID NOT NULL,
+    date_pret               DATE NOT NULL,
+    date_retour_prevue      DATE,
+    date_retour_effective   DATE,
+    statut                  VARCHAR(20) NOT NULL DEFAULT 'en_cours',
+    notes                   TEXT,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_bibliotheque_pret_school_id ON bibliotheque_pret (school_id);
+CREATE INDEX ix_bibliotheque_pret_id_eleve ON bibliotheque_pret (id_eleve);
+CREATE INDEX ix_bibliotheque_pret_id_livre ON bibliotheque_pret (id_livre);
+
+CREATE TABLE rh_contrat (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_utilisateur       UUID,
+    id_enseignant        UUID,
+    type_contrat         VARCHAR(40) NOT NULL,
+    date_debut           DATE NOT NULL,
+    date_fin             DATE,
+    salaire_base         NUMERIC(14, 2),
+    statut               VARCHAR(30) NOT NULL DEFAULT 'actif',
+    poste                VARCHAR(80),
+    notes                TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_rh_contrat_school_id ON rh_contrat (school_id);
+CREATE INDEX ix_rh_contrat_id_utilisateur ON rh_contrat (id_utilisateur);
+
+CREATE TABLE rh_conge (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_utilisateur       UUID NOT NULL,
+    type_conge           VARCHAR(40) NOT NULL,
+    date_debut           DATE NOT NULL,
+    date_fin             DATE NOT NULL,
+    statut               VARCHAR(30) NOT NULL DEFAULT 'demande',
+    motif                TEXT,
+    valide_par           UUID,
+    valide_le            TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_rh_conge_school_id ON rh_conge (school_id);
+CREATE INDEX ix_rh_conge_id_utilisateur ON rh_conge (id_utilisateur);
+
+CREATE TABLE visiteur (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    nom                  VARCHAR(100) NOT NULL,
+    prenom               VARCHAR(100),
+    motif                TEXT,
+    piece_identite       VARCHAR(60),
+    telephone            VARCHAR(30),
+    heure_entree         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    heure_sortie         TIMESTAMPTZ,
+    accueilli_par        UUID,
+    id_eleve_visite      UUID
+);
+CREATE INDEX ix_visiteur_school_id ON visiteur (school_id);
+CREATE INDEX ix_visiteur_heure_entree ON visiteur (school_id, heure_entree);
+
+CREATE TABLE sortie_eleve (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    date_sortie          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    motif                TEXT,
+    autorise_par         UUID,
+    recupere_par         VARCHAR(150),
+    heure_retour         TIMESTAMPTZ,
+    statut               VARCHAR(20) NOT NULL DEFAULT 'sorti'
+);
+CREATE INDEX ix_sortie_eleve_school_id ON sortie_eleve (school_id);
+CREATE INDEX ix_sortie_eleve_id_eleve ON sortie_eleve (id_eleve);
+
+CREATE TABLE inventaire_article (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    code                 VARCHAR(40) NOT NULL,
+    libelle              VARCHAR(150) NOT NULL,
+    categorie            VARCHAR(60),
+    quantite             INTEGER NOT NULL DEFAULT 0,
+    seuil_alerte         INTEGER NOT NULL DEFAULT 0,
+    unite                VARCHAR(20),
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_inventaire_article_school_code UNIQUE (school_id, code)
+);
+CREATE INDEX ix_inventaire_article_school_id ON inventaire_article (school_id);
+
+CREATE TABLE inventaire_mouvement (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_article           UUID NOT NULL REFERENCES inventaire_article(id) ON DELETE CASCADE,
+    type_mouvement       VARCHAR(20) NOT NULL,
+    quantite             INTEGER NOT NULL,
+    motif                TEXT,
+    date_mouvement       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    effectue_par         UUID
+);
+CREATE INDEX ix_inventaire_mouvement_school_id ON inventaire_mouvement (school_id);
+CREATE INDEX ix_inventaire_mouvement_id_article ON inventaire_mouvement (id_article);
+
+CREATE TABLE elearning_devoir (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_classe            UUID,
+    id_matiere           UUID,
+    titre                VARCHAR(200) NOT NULL,
+    consignes            TEXT,
+    date_limite          TIMESTAMPTZ,
+    cree_par             UUID,
+    publie               BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_elearning_devoir_school_id ON elearning_devoir (school_id);
+CREATE INDEX ix_elearning_devoir_id_classe ON elearning_devoir (id_classe);
+
+CREATE TABLE elearning_remise (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_devoir            UUID NOT NULL REFERENCES elearning_devoir(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    fichier_url          TEXT,
+    contenu              TEXT,
+    date_remise          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    note                 NUMERIC(6, 2),
+    commentaire          TEXT,
+    CONSTRAINT uq_elearning_remise_devoir_eleve UNIQUE (id_devoir, id_eleve)
+);
+CREATE INDEX ix_elearning_remise_school_id ON elearning_remise (school_id);
+CREATE INDEX ix_elearning_remise_id_devoir ON elearning_remise (id_devoir);
+CREATE INDEX ix_elearning_remise_id_eleve ON elearning_remise (id_eleve);
+
+CREATE TABLE elearning_quiz (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_classe            UUID,
+    id_matiere           UUID,
+    titre                VARCHAR(200) NOT NULL,
+    questions            JSONB,
+    duree_minutes        INTEGER,
+    publie               BOOLEAN NOT NULL DEFAULT false,
+    cree_par             UUID,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_elearning_quiz_school_id ON elearning_quiz (school_id);
+
+CREATE TABLE otp_challenge (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    canal                VARCHAR(20) NOT NULL,
+    destinataire         VARCHAR(150) NOT NULL,
+    code_hash            VARCHAR(128) NOT NULL,
+    purpose              VARCHAR(40) NOT NULL DEFAULT 'login',
+    attempts             INTEGER NOT NULL DEFAULT 0,
+    max_attempts         INTEGER NOT NULL DEFAULT 5,
+    expires_at           TIMESTAMPTZ NOT NULL,
+    consumed_at          TIMESTAMPTZ,
+    id_utilisateur       UUID,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_otp_challenge_school_id ON otp_challenge (school_id);
+CREATE INDEX ix_otp_challenge_destinataire ON otp_challenge (school_id, destinataire, purpose);
+CREATE INDEX ix_otp_challenge_expires_at ON otp_challenge (expires_at);

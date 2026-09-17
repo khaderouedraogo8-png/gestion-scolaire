@@ -1,10 +1,15 @@
 """Module 5 — Routes absences et discipline (contrôle d'accès objet)."""
+import os
 import uuid
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
+from marshmallow import Schema, fields
+from werkzeug.utils import secure_filename
 
 from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import (
@@ -15,7 +20,16 @@ from app.auth.permissions import (
     teacher_has_eleve_access,
 )
 from app.extensions import get_db
-from app.models import Absence, AnneeScolaire, Classe, Eleve, IncidentDisciplinaire, Inscription
+from app.models import (
+    Absence,
+    AbsenceJustificatif,
+    AlerteDecrochage,
+    AnneeScolaire,
+    Classe,
+    Eleve,
+    IncidentDisciplinaire,
+    Inscription,
+)
 from app.schemas.absences import AbsenceSchema, IncidentDisciplinaireSchema
 from app.services.envoi_notification import creer_notification
 from app.services.tenant import (
@@ -271,3 +285,175 @@ class DisciplineResource(MethodView):
         db.add(incident)
         db.commit()
         return incident, 201
+
+
+class JustificatifSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    id_absence = fields.UUID(required=True)
+    fichier_url = fields.String(allow_none=True)
+    motif = fields.String(allow_none=True)
+    valide = fields.Boolean(dump_only=True)
+    valide_par = fields.UUID(dump_only=True, allow_none=True)
+    date_depot = fields.DateTime(dump_only=True)
+    valide_le = fields.DateTime(dump_only=True, allow_none=True)
+
+
+class AlerteSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    id_eleve = fields.UUID(required=True)
+    type_alerte = fields.String(required=True)
+    niveau = fields.String(load_default="moyen")
+    score = fields.Decimal(as_string=True, allow_none=True)
+    statut = fields.String(load_default="ouverte")
+    details = fields.Dict(allow_none=True)
+    traite_par = fields.UUID(dump_only=True, allow_none=True)
+    traite_le = fields.DateTime(dump_only=True, allow_none=True)
+    created_at = fields.DateTime(dump_only=True)
+
+
+@blp.route("/<uuid:id_absence>/justificatifs")
+class AbsenceJustificatifs(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant", "parent")
+    def get(self, id_absence):
+        get_or_404_tenant(Absence, id_absence)
+        rows = (
+            tenant_query(AbsenceJustificatif)
+            .filter(AbsenceJustificatif.id_absence == id_absence)
+            .order_by(AbsenceJustificatif.date_depot.desc())
+            .all()
+        )
+        return jsonify(JustificatifSchema(many=True).dump(rows))
+
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "parent")
+    def post(self, id_absence):
+        """Upload justificatif (multipart) ou JSON motif + fichier_url."""
+        db = get_db()
+        absence = get_or_404_tenant(Absence, id_absence)
+        user = get_current_user()
+        if user.role == "parent" and not parent_has_eleve_access(user, absence.id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
+
+        motif = None
+        fichier_url = None
+        if request.content_type and "multipart/form-data" in request.content_type:
+            motif = request.form.get("motif")
+            if "file" in request.files and request.files["file"].filename:
+                f = request.files["file"]
+                filename = secure_filename(f.filename)
+                ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
+                upload_dir = os.path.join(
+                    current_app.config["UPLOAD_FOLDER"], "justificatifs", str(id_absence)
+                )
+                os.makedirs(upload_dir, exist_ok=True)
+                safe = f"{uuid.uuid4().hex}.{ext}"
+                path = os.path.join(upload_dir, safe)
+                f.save(path)
+                fichier_url = path
+        else:
+            body = request.get_json(silent=True) or {}
+            motif = body.get("motif")
+            fichier_url = body.get("fichier_url")
+
+        row = AbsenceJustificatif(
+            id=uuid.uuid4(),
+            id_absence=id_absence,
+            fichier_url=fichier_url,
+            motif=motif,
+            valide=False,
+        )
+        apply_tenant_school(row)
+        db.add(row)
+        db.commit()
+        return jsonify(JustificatifSchema().dump(row)), 201
+
+
+@blp.route("/justificatifs/<uuid:id_justificatif>/valider")
+class JustificatifValider(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def post(self, id_justificatif):
+        db = get_db()
+        user = get_current_user()
+        row = get_or_404_tenant(AbsenceJustificatif, id_justificatif)
+        row.valide = True
+        row.valide_par = user.id
+        row.valide_le = datetime.now(UTC)
+        absence = get_or_404_tenant(Absence, row.id_absence)
+        absence.justifiee = True
+        if row.motif and not absence.motif:
+            absence.motif = row.motif
+        db.commit()
+        return jsonify(JustificatifSchema().dump(row))
+
+
+@blp.route("/alertes-decrochage")
+class AlertesDecrochageResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def get(self):
+        q = tenant_query(AlerteDecrochage)
+        statut = request.args.get("statut")
+        if statut:
+            q = q.filter(AlerteDecrochage.statut == statut)
+        rows = q.order_by(AlerteDecrochage.created_at.desc()).all()
+        return jsonify(AlerteSchema(many=True).dump(rows))
+
+
+@blp.route("/alertes-decrochage/scan")
+class AlertesDecrochageScan(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def post(self):
+        """Scan absences récentes → ouvre alertes décrochage si seuil dépassé."""
+        db = get_db()
+        body = request.get_json(silent=True) or {}
+        seuil = int(body.get("seuil_absences") or 5)
+        fenetre_jours = int(body.get("fenetre_jours") or 30)
+        since = datetime.now(UTC).date() - timedelta(days=fenetre_jours)
+
+        eleves = tenant_query(Eleve).all()
+        created = []
+        for eleve in eleves:
+            count = (
+                tenant_query(Absence)
+                .filter(
+                    Absence.id_eleve == eleve.id,
+                    Absence.date_absence >= since,
+                    Absence.justifiee.is_(False),
+                )
+                .count()
+            )
+            if count < seuil:
+                continue
+            existing = (
+                tenant_query(AlerteDecrochage)
+                .filter(
+                    AlerteDecrochage.id_eleve == eleve.id,
+                    AlerteDecrochage.statut == "ouverte",
+                    AlerteDecrochage.type_alerte == "absences_repetees",
+                )
+                .first()
+            )
+            if existing:
+                existing.score = Decimal(count)
+                existing.details = {"absences": count, "fenetre_jours": fenetre_jours}
+                continue
+            alerte = AlerteDecrochage(
+                id=uuid.uuid4(),
+                id_eleve=eleve.id,
+                type_alerte="absences_repetees",
+                niveau="eleve" if count >= seuil * 2 else "moyen",
+                score=Decimal(count),
+                statut="ouverte",
+                details={"absences": count, "fenetre_jours": fenetre_jours, "seuil": seuil},
+            )
+            apply_tenant_school(alerte)
+            db.add(alerte)
+            created.append(alerte)
+        db.commit()
+        return jsonify({
+            "created": len(created),
+            "alertes": AlerteSchema(many=True).dump(created),
+        }), 201

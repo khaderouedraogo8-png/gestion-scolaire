@@ -291,12 +291,216 @@ function TeacherDashboard({ idAnnee }) {
   );
 }
 
+function ComptableDashboard({ idAnnee }) {
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await dashboardApi.getComptable(idAnnee ? { id_annee: idAnnee } : {});
+        if (!cancelled) setData(res);
+      } catch {
+        if (!cancelled) toast.error('Impossible de charger la vue comptable.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [idAnnee, toast]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+      </div>
+    );
+  }
+
+  const rec = data?.recouvrement;
+
+  return (
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Espace comptable"
+        title="Tableau de bord finance"
+        subtitle="Encaissements récents et recouvrement"
+        actions={
+          <Link to="/finance/encaissement" className="btn-primary">
+            Encaissement
+          </Link>
+        }
+      />
+      <section>
+        <h2 className="dashboard-section-label">Indicateurs</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Taux de recouvrement"
+            value={rec ? `${rec.taux}%` : '—'}
+            icon={TrendingUp}
+            tone="positive"
+          />
+          <StatCard
+            title="Total dû"
+            value={rec ? `${Number(rec.total_du).toLocaleString('fr-FR')} FCFA` : '—'}
+            icon={Wallet}
+            tone="warning"
+          />
+          <StatCard
+            title="Total payé"
+            value={rec ? `${Number(rec.total_paye).toLocaleString('fr-FR')} FCFA` : '—'}
+            icon={Wallet}
+            tone="neutral"
+          />
+          <StatCard
+            title="Dossiers en retard"
+            value={rec?.nb_arrieres ?? 0}
+            icon={AlertCircle}
+            tone="negative"
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="dashboard-section-label">Paiements récents</h2>
+        <Card premium>
+          {!data?.paiements_recents?.length ? (
+            <EmptyState icon={Wallet} message="Aucun paiement récent." />
+          ) : (
+            <ul className="divide-y divide-bordure/50">
+              {data.paiements_recents.slice(0, 12).map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <div>
+                    <p className="font-medium text-encre">{p.motif || 'Paiement'}</p>
+                    <p className="text-xs text-texte-secondaire">
+                      {p.numero_recu || '—'} · {p.date ? new Date(p.date).toLocaleDateString('fr-FR') : '—'}
+                    </p>
+                  </div>
+                  <span className="tabular-nums font-semibold text-or-cachet">
+                    {Number(p.montant).toLocaleString('fr-FR')} FCFA
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </section>
+      <section>
+        <h2 className="dashboard-section-label">Accès rapides</h2>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/finance/recouvrement" className="btn-secondary">Recouvrement</Link>
+          <Link to="/finance/arrieres" className="btn-secondary">Arriérés</Link>
+          <Link to="/finance/mobile-money" className="btn-secondary">Mobile Money</Link>
+          <Link to="/finance/ecritures" className="btn-secondary">Écritures</Link>
+          <Link to="/finance/paie" className="btn-secondary">Paie</Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SurveillantDashboard({ idAnnee }) {
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await dashboardApi.getSurveillant(idAnnee ? { id_annee: idAnnee } : {});
+        if (!cancelled) setData(res);
+      } catch {
+        if (!cancelled) toast.error('Impossible de charger la vue surveillant.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [idAnnee, toast]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-32">
+        <div className="loading-ring" />
+      </div>
+    );
+  }
+
+  const absParClasse = data?.absences_par_classe || {};
+
+  return (
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Vie scolaire"
+        title="Tableau de bord surveillant"
+        subtitle="Absences du jour et sorties ouvertes"
+        actions={
+          <Link to="/front-office/sorties" className="btn-primary">
+            Sorties élèves
+          </Link>
+        }
+      />
+      <section>
+        <h2 className="dashboard-section-label">Indicateurs</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <StatCard
+            title="Absences aujourd’hui"
+            value={data?.absences_aujourd_hui ?? 0}
+            icon={CalendarCheck}
+            tone="negative"
+          />
+          <StatCard
+            title="Sorties ouvertes"
+            value={data?.sorties_ouvertes ?? 0}
+            icon={ClipboardList}
+            tone="warning"
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="dashboard-section-label">Absences par classe</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AbsencesParClasseBlock
+            title="Absences du jour"
+            cycles={absParClasse.absences_jour}
+            emptyMessage="Aucune absence aujourd'hui."
+            emptyIcon={CalendarCheck}
+          />
+          <AbsencesParClasseBlock
+            title="Non justifiées (7 jours)"
+            cycles={absParClasse.non_justifiees_en_attente}
+            emptyMessage="Aucune absence non justifiée."
+            emptyIcon={Clock}
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="dashboard-section-label">Accès rapides</h2>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/absences" className="btn-secondary">Absences</Link>
+          <Link to="/front-office/visiteurs" className="btn-secondary">Visiteurs</Link>
+          <Link to="/front-office/sorties" className="btn-secondary">Sorties</Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const toast = useToast();
   const { user } = useAuth();
   const role = user?.role;
   const isTeacher = role === 'enseignant';
   const isComptable = role === 'agent_comptable';
+  const isSurveillant = role === 'surveillant';
   const isDirection = role === 'administrateur' || role === 'directeur' || role === 'super_admin';
   const isSecretariat = role === 'secretariat';
 
@@ -329,7 +533,7 @@ export default function Dashboard() {
   }, [toast]);
 
   useEffect(() => {
-    if (isTeacher) return undefined;
+    if (isTeacher || isComptable || isSurveillant) return undefined;
     let cancelled = false;
     const load = async () => {
       if (!idAnnee) return;
@@ -337,9 +541,7 @@ export default function Dashboard() {
       try {
         const [data, absences] = await Promise.all([
           dashboardApi.getStats({ id_annee: idAnnee }),
-          isComptable
-            ? Promise.resolve({ absences_jour: [], non_justifiees_en_attente: [] })
-            : dashboardApi.getAbsencesParClasse({ id_annee: idAnnee }),
+          dashboardApi.getAbsencesParClasse({ id_annee: idAnnee }),
         ]);
         if (!cancelled) {
           setStats(data);
@@ -355,17 +557,25 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [idAnnee, toast, isTeacher, isComptable]);
+  }, [idAnnee, toast, isTeacher, isComptable, isSurveillant]);
 
   useEffect(() => {
-    if (!idAnnee && !isTeacher) {
+    if (!idAnnee && !isTeacher && !isComptable && !isSurveillant) {
       const t = setTimeout(() => setLoading(false), 0);
       return () => clearTimeout(t);
     }
-  }, [idAnnee, isTeacher]);
+  }, [idAnnee, isTeacher, isComptable, isSurveillant]);
 
   if (isTeacher) {
     return <TeacherDashboard idAnnee={idAnnee} />;
+  }
+
+  if (isComptable) {
+    return <ComptableDashboard idAnnee={idAnnee} />;
+  }
+
+  if (isSurveillant) {
+    return <SurveillantDashboard idAnnee={idAnnee} />;
   }
 
   if (loading) {
@@ -394,19 +604,14 @@ export default function Dashboard() {
     0
   );
 
-  const eyebrow = isComptable
-    ? 'Espace comptable'
-    : isSecretariat
-      ? 'Espace secrétariat'
-      : role === 'directeur'
-        ? 'Direction'
-        : 'Administration';
-
-  const title = isComptable
-    ? 'Tableau de bord finance'
+  const eyebrow = isSecretariat
+    ? 'Espace secrétariat'
     : role === 'directeur'
-      ? 'Tableau de bord direction'
-      : 'Tableau de bord';
+      ? 'Direction'
+      : 'Administration';
+
+  const title =
+    role === 'directeur' ? 'Tableau de bord direction' : 'Tableau de bord';
 
   return (
     <div className="space-y-10">
@@ -414,21 +619,15 @@ export default function Dashboard() {
         eyebrow={eyebrow}
         title={title}
         subtitle={
-          isComptable
-            ? 'Trésorerie, recouvrement et arriérés'
+          isSecretariat
+            ? 'Accueil, admissions et suivi des absences'
             : 'Vue d’ensemble de votre établissement scolaire'
         }
         actions={
-          !isComptable ? (
-            <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
-              <Plus className="h-4 w-4" strokeWidth={2} />
-              Signaler une absence
-            </button>
-          ) : (
-            <Link to="/finance/encaissement" className="btn-primary">
-              Encaissement
-            </Link>
-          )
+          <button type="button" className="btn-primary" onClick={() => setAbsenceModalOpen(true)}>
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Signaler une absence
+          </button>
         }
       />
 
@@ -445,7 +644,7 @@ export default function Dashboard() {
               delay={0}
             />
           )}
-          {(isDirection || isComptable) && (
+          {isDirection && (
             <>
               <StatCard
                 title="Taux de recouvrement"
@@ -481,26 +680,22 @@ export default function Dashboard() {
               />
             </>
           )}
-          {!isComptable && (
-            <>
-              <StatCard
-                title="Absences du jour"
-                value={absencesJour}
-                subtitle="Signalées aujourd'hui"
-                tone="negative"
-                icon={CalendarCheck}
-                delay={240}
-              />
-              <StatCard
-                title="Absences (mois)"
-                value={stats?.total_absences ?? 0}
-                subtitle="Total enregistrées"
-                tone="negative"
-                icon={ClipboardList}
-                delay={300}
-              />
-            </>
-          )}
+          <StatCard
+            title="Absences du jour"
+            value={absencesJour}
+            subtitle="Signalées aujourd'hui"
+            tone="negative"
+            icon={CalendarCheck}
+            delay={240}
+          />
+          <StatCard
+            title="Absences (mois)"
+            value={stats?.total_absences ?? 0}
+            subtitle="Total enregistrées"
+            tone="negative"
+            icon={ClipboardList}
+            delay={300}
+          />
           {isSecretariat && stats?.taux_recouvrement != null && (
             <StatCard
               title="Recouvrement"
@@ -530,25 +725,23 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {!isComptable && (
-        <section>
-          <h2 className="dashboard-section-label">Suivi des absences</h2>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <AbsencesParClasseBlock
-              title="Absences du jour"
-              cycles={absencesData?.absences_jour}
-              emptyMessage="Aucune absence signalée aujourd'hui."
-              emptyIcon={CalendarCheck}
-            />
-            <AbsencesParClasseBlock
-              title="Non justifiées en attente (7 jours)"
-              cycles={absencesData?.non_justifiees_en_attente}
-              emptyMessage="Aucune absence non justifiée en attente."
-              emptyIcon={Clock}
-            />
-          </div>
-        </section>
-      )}
+      <section>
+        <h2 className="dashboard-section-label">Suivi des absences</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AbsencesParClasseBlock
+            title="Absences du jour"
+            cycles={absencesData?.absences_jour}
+            emptyMessage="Aucune absence signalée aujourd'hui."
+            emptyIcon={CalendarCheck}
+          />
+          <AbsencesParClasseBlock
+            title="Non justifiées en attente (7 jours)"
+            cycles={absencesData?.non_justifiees_en_attente}
+            emptyMessage="Aucune absence non justifiée en attente."
+            emptyIcon={Clock}
+          />
+        </div>
+      </section>
 
       {(isDirection || isSecretariat) && (
         <section>
@@ -567,35 +760,42 @@ export default function Dashboard() {
         </section>
       )}
 
-      {isComptable && (
+      {isDirection && (
         <section>
-          <h2 className="dashboard-section-label">Accès rapides</h2>
+          <h2 className="dashboard-section-label">Modules Deerflow</h2>
           <div className="flex flex-wrap gap-3">
-            <Link to="/finance/frais" className="btn-secondary">
-              Frais scolaires
-            </Link>
-            <Link to="/finance/arrieres" className="btn-secondary">
-              Arriérés
-            </Link>
-            <Link to="/finance/recus" className="btn-secondary">
-              Reçus
-            </Link>
+            <Link to="/admission" className="btn-secondary">Admissions</Link>
+            <Link to="/notes/conseil-classe" className="btn-secondary">Conseil de classe</Link>
+            <Link to="/finance/recouvrement" className="btn-secondary">Recouvrement</Link>
+            <Link to="/vie-scolaire/cantine" className="btn-secondary">Vie scolaire</Link>
+            <Link to="/rh/contrats" className="btn-secondary">RH</Link>
+            <Link to="/inventaire" className="btn-secondary">Inventaire</Link>
           </div>
         </section>
       )}
 
-      {!isComptable && (
-        <AbsenceFormModal
-          isOpen={absenceModalOpen}
-          onClose={() => setAbsenceModalOpen(false)}
-          onCreated={async () => {
-            if (idAnnee) {
-              const absences = await dashboardApi.getAbsencesParClasse({ id_annee: idAnnee });
-              setAbsencesData(absences);
-            }
-          }}
-        />
+      {isSecretariat && (
+        <section>
+          <h2 className="dashboard-section-label">Accès rapides</h2>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/admission" className="btn-secondary">Admissions</Link>
+            <Link to="/front-office/visiteurs" className="btn-secondary">Visiteurs</Link>
+            <Link to="/front-office/sorties" className="btn-secondary">Sorties</Link>
+            <Link to="/eleves/fratries" className="btn-secondary">Fratries</Link>
+          </div>
+        </section>
       )}
+
+      <AbsenceFormModal
+        isOpen={absenceModalOpen}
+        onClose={() => setAbsenceModalOpen(false)}
+        onCreated={async () => {
+          if (idAnnee) {
+            const absences = await dashboardApi.getAbsencesParClasse({ id_annee: idAnnee });
+            setAbsencesData(absences);
+          }
+        }}
+      />
     </div>
   );
 }

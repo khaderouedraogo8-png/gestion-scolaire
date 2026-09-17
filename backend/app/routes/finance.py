@@ -29,6 +29,7 @@ from app.models import (
     NiveauEtude,
     Paiement,
     PlanComptableSyscohada,
+    RemiseRegle,
 )
 from app.schemas.finance import (
     AnnulationPaiementSchema,
@@ -39,8 +40,9 @@ from app.schemas.finance import (
     PaiementSchema,
     RelanceArrieresSchema,
 )
-from app.services.channels.mobile_money import mobile_money_status
+from app.services.channels.mobile_money import initier_paiement, mobile_money_status
 from app.services.channels.whatsapp import whatsapp_status
+from marshmallow import Schema, fields
 from app.services.envoi_notification import creer_notification
 from app.services.finance_arrieres import list_arrieres
 from app.services.generation_recu import generer_recu_pdf
@@ -665,3 +667,144 @@ class SyscohadaPlan(MethodView):
             }
             for r in rows
         ])
+
+
+class ApplyRemiseSchema(Schema):
+    id_eleve = fields.UUID(required=True)
+    id_frais = fields.UUID(required=True)
+    id_remise_regle = fields.UUID(required=True)
+
+
+class MobileMoneyInitiateSchema(Schema):
+    operateur = fields.String(required=True)
+    montant = fields.Float(required=True)
+    telephone = fields.String(required=True)
+    id_eleve = fields.UUID(allow_none=True)
+    reference = fields.String(allow_none=True)
+    motif = fields.String(allow_none=True)
+
+
+@blp.route("/remises/appliquer")
+class ApplyRemise(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable")
+    @blp.arguments(ApplyRemiseSchema)
+    def post(self, data):
+        """Applique une RemiseRegle sur les dues (taux_reduction inscription / note)."""
+        db = get_db()
+        eleve = get_or_404_tenant(Eleve, data["id_eleve"])
+        frais = get_or_404_tenant(FraisScolaire, data["id_frais"])
+        regle = get_or_404_tenant(RemiseRegle, data["id_remise_regle"])
+        if not regle.actif:
+            return jsonify({"message": "Règle inactive"}), 400
+
+        montant_base = Decimal(frais.montant_total)
+        if regle.type_remise == "pourcent":
+            montant_remise = (montant_base * Decimal(regle.valeur) / Decimal(100)).quantize(Decimal("0.01"))
+        else:
+            montant_remise = min(Decimal(regle.valeur), montant_base)
+        montant_net = montant_base - montant_remise
+
+        annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.id == frais.id_annee).first()
+        insc = (
+            tenant_query(Inscription)
+            .filter(
+                Inscription.id_eleve == eleve.id,
+                Inscription.id_annee == frais.id_annee,
+                Inscription.statut.in_(("inscrit", "reinscrit")),
+            )
+            .first()
+        )
+        if insc and regle.type_remise == "pourcent":
+            insc.taux_reduction = float(regle.valeur)
+            insc.est_boursier = True
+
+        db.commit()
+        return jsonify({
+            "id_eleve": str(eleve.id),
+            "id_frais": str(frais.id),
+            "regle": {
+                "id": str(regle.id),
+                "code": regle.code,
+                "type_remise": regle.type_remise,
+                "valeur": float(regle.valeur),
+            },
+            "montant_base": float(montant_base),
+            "montant_remise": float(montant_remise),
+            "montant_net": float(montant_net),
+            "id_annee": str(annee.id) if annee else None,
+            "inscription_taux_reduction": float(insc.taux_reduction) if insc else None,
+        })
+
+
+@blp.route("/mobile-money/initiate")
+class MobileMoneyInitiate(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable", "parent")
+    @blp.arguments(MobileMoneyInitiateSchema)
+    def post(self, data):
+        user = get_current_user()
+        if user.role == "parent" and data.get("id_eleve"):
+            if not parent_has_eleve_access(user, data["id_eleve"]):
+                return jsonify({"message": "Accès refusé"}), 403
+        ref = data.get("reference") or f"MM-{uuid.uuid4().hex[:12]}"
+        ok, code, payload = initier_paiement(
+            operateur=data["operateur"],
+            montant=float(data["montant"]),
+            telephone=data["telephone"],
+            reference=ref,
+        )
+        status = 200 if ok else 400
+        return jsonify({
+            "ok": ok,
+            "code": code,
+            "payload": payload,
+            "id_eleve": str(data["id_eleve"]) if data.get("id_eleve") else None,
+            "motif": data.get("motif"),
+        }), status
+
+
+@blp.route("/recouvrement/detail")
+class RecouvrementDetail(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable", "secretariat")
+    def get(self):
+        """Dashboard recouvrement : totaux + top arriérés + répartition."""
+        db = get_db()
+        id_annee = request.args.get("id_annee")
+        if id_annee:
+            get_or_404_tenant(AnneeScolaire, uuid.UUID(id_annee))
+            annee_id = uuid.UUID(id_annee)
+        else:
+            annee = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+            annee_id = annee.id if annee else None
+        if not annee_id:
+            return jsonify({"message": "Aucune année active"}), 400
+
+        rows = list_arrieres(db, annee_id, school_id=get_current_school_id(), as_of=date.today())
+        total_du = sum(r["total_du"] for r in rows)
+        total_paye = sum(r["total_paye"] for r in rows)
+        total_arriere = sum(r["arriere"] for r in rows)
+        taux = round(total_paye / total_du * 100, 1) if total_du > 0 else 0
+        top = sorted(rows, key=lambda r: r["arriere"], reverse=True)[:20]
+        return jsonify({
+            "id_annee": str(annee_id),
+            "total_du": total_du,
+            "total_paye": total_paye,
+            "total_arriere": total_arriere,
+            "taux_recouvrement": taux,
+            "nb_eleves_en_retard": sum(1 for r in rows if r["arriere"] > 0),
+            "top_arrieres": [
+                {
+                    "id_eleve": str(r["id_eleve"]),
+                    "matricule": r["matricule"],
+                    "nom": r["nom"],
+                    "prenom": r["prenom"],
+                    "arriere": r["arriere"],
+                    "total_du": r["total_du"],
+                    "total_paye": r["total_paye"],
+                }
+                for r in top
+                if r["arriere"] > 0
+            ],
+        })

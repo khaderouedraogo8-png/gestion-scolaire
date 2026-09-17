@@ -28,4 +28,14 @@ export const authApi = {
     const { data } = await apiClient.get('/me');
     return data;
   },
+
+  requestOtp: async (payload) => {
+    const { data } = await apiClient.post('/auth/otp/request', payload);
+    return data;
+  },
+
+  verifyOtp: async (payload) => {
+    const { data } = await apiClient.post('/auth/otp/verify', payload);
+    return data;
+  },
 };

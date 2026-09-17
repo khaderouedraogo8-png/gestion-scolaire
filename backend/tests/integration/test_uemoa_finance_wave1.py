@@ -41,7 +41,13 @@ def test_frais_with_echeances_three_tranches(client, auth_headers, db, annee_cla
     assert abs(total - 90000) < 0.1
 
 
-def test_integrations_non_configure(client, auth_headers):
+def test_integrations_non_configure(client, auth_headers, app, monkeypatch):
+    monkeypatch.setitem(app.config, "WHATSAPP_SANDBOX", False)
+    monkeypatch.setitem(app.config, "MM_SANDBOX", False)
+    monkeypatch.setitem(app.config, "WHATSAPP_API_TOKEN", "")
+    monkeypatch.setitem(app.config, "WHATSAPP_PHONE_NUMBER_ID", "")
+    for op in ("ORANGE", "WAVE", "MOOV", "MTN"):
+        monkeypatch.setitem(app.config, f"MM_{op}_API_KEY", "")
     r = client.get("/api/finance/integrations", headers=auth_headers)
     assert r.status_code == 200
     data = r.get_json()
