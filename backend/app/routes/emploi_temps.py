@@ -531,7 +531,8 @@ class EdtGenerer(MethodView):
     @blp.arguments(GenererEdtSchema)
     def post(self, data):
         """Génération assistée d'emploi du temps à partir des affectations (greedy + anti-conflits)."""
-        from datetime import datetime, timedelta
+        from datetime import time as time_cls
+        from datetime import timedelta
 
         db = get_db()
         id_annee = data["id_annee"]
@@ -547,7 +548,8 @@ class EdtGenerer(MethodView):
         salles = tenant_query(Salle).all()
         jours = data.get("jours") or [1, 2, 3, 4, 5]
         n_slots = int(data.get("creneaux_jours") or 4)
-        h0 = datetime.strptime(data.get("heure_debut") or "08:00", "%H:%M")
+        hh, mm = (data.get("heure_debut") or "08:00").split(":")[:2]
+        h0_minutes = int(hh) * 60 + int(mm)
         duree = int(data.get("duree_minutes") or 55)
 
         if data.get("replace_existing"):
