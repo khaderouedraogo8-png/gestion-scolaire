@@ -532,7 +532,6 @@ class EdtGenerer(MethodView):
     def post(self, data):
         """Génération assistée d'emploi du temps à partir des affectations (greedy + anti-conflits)."""
         from datetime import time as time_cls
-        from datetime import timedelta
 
         db = get_db()
         id_annee = data["id_annee"]
