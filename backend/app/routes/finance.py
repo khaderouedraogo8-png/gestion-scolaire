@@ -333,7 +333,7 @@ class EcheancesEleve(MethodView):
             return jsonify({"message": "id_eleve et id_annee requis"}), 400
         eid = uuid.UUID(id_eleve)
         aid = uuid.UUID(id_annee)
-        eleve = get_or_404_tenant(Eleve, eid)
+        get_or_404_tenant(Eleve, eid)
         get_or_404_tenant(AnneeScolaire, aid)
         if user.role == "parent" and not parent_has_eleve_access(user, eid):
             return jsonify({"message": "Accès refusé"}), 403
@@ -457,8 +457,10 @@ class PaiementsResource(MethodView):
         # Reçu PDF + notification parent (email par défaut)
         try:
             generer_recu_pdf(paiement.id)
-        except Exception:
-            pass
+        except Exception as exc:
+            from flask import current_app
+
+            current_app.logger.warning("Génération reçu PDF ignorée: %s", exc)
         _notify_parent_recu(paiement, canal="email")
         # Inbox interne parent
         _notify_parent_recu(paiement, canal="interne")
