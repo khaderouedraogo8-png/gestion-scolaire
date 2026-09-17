@@ -68,6 +68,8 @@ def envoyer_whatsapp(destinataire: str, contenu: str) -> tuple[bool, str]:
         "type": "text",
         "text": {"body": contenu[:4096]},
     }
+    if not url.startswith("https://"):
+        return False, "URL_INVALIDE"
     data = json.dumps(payload).encode("utf-8")
     req = request.Request(
         url,
@@ -79,7 +81,7 @@ def envoyer_whatsapp(destinataire: str, contenu: str) -> tuple[bool, str]:
         method="POST",
     )
     try:
-        with request.urlopen(req, timeout=15) as resp:
+        with request.urlopen(req, timeout=15) as resp:  # nosec B310 — https only
             body = resp.read().decode("utf-8", errors="replace")
             current_app.logger.info("WhatsApp OK status=%s body=%s", resp.status, body[:200])
             return True, "SENT"

@@ -109,6 +109,13 @@ def initier_paiement(
             "operateur": op,
         }
 
+    if not base_url.startswith("https://"):
+        return False, "URL_INVALIDE", {
+            "status": "URL_INVALIDE",
+            "message": "L'URL opérateur doit être en https://",
+            "operateur": op,
+        }
+
     payload = {
         "amount": montant,
         "currency": "XOF",
@@ -128,7 +135,7 @@ def initier_paiement(
         method="POST",
     )
     try:
-        with request.urlopen(req, timeout=20) as resp:
+        with request.urlopen(req, timeout=20) as resp:  # nosec B310 — https only
             body = resp.read().decode("utf-8", errors="replace")
             try:
                 parsed = json.loads(body)
