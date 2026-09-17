@@ -7,6 +7,8 @@ export default function Table({
   data = [],
   loading = false,
   emptyMessage = "Aucune donnée pour l'instant",
+  emptyTitle = null,
+  emptyAction = null,
   emptyIcon = Inbox,
   searchable = false,
   searchPlaceholder = 'Rechercher...',
@@ -78,7 +80,12 @@ export default function Table({
               ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="p-4">
-                    <EmptyState icon={emptyIcon} message={emptyMessage} />
+                    <EmptyState
+                      icon={emptyIcon}
+                      title={emptyTitle}
+                      message={emptyMessage}
+                      action={emptyAction}
+                    />
                   </td>
                 </tr>
               ) : (

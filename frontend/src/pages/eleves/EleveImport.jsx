@@ -50,6 +50,12 @@ export default function EleveImport() {
         id_classe: idClasse || undefined,
       });
       setPreview(data);
+      const doublons = data.doublons_suspects || [];
+      if (doublons.length > 0) {
+        toast.warning(
+          `${doublons.length} doublon(s) suspect(s) détecté(s) — vérifiez avant de confirmer`
+        );
+      }
       if (data.summary?.errors) {
         toast.warning(
           `${data.summary.ok} ligne(s) OK — ${data.summary.errors} erreur(s) à corriger`
@@ -78,6 +84,11 @@ export default function EleveImport() {
         rows: okRows,
       });
       toast.success(`${res.imported} élève(s) importé(s)`);
+      if (res.doublons_suspects?.length) {
+        toast.warning(
+          `${res.doublons_suspects.length} doublon(s) suspect(s) signalé(s) lors de l'import`
+        );
+      }
       setPreview(null);
       setFile(null);
     } catch (err) {
@@ -170,6 +181,38 @@ export default function EleveImport() {
           {loading ? 'Analyse…' : 'Analyser le fichier'}
         </button>
       </form>
+
+      {preview?.doublons_suspects?.length > 0 && (
+        <div className="rounded-lg border border-ambre/40 bg-ambre-clair/40 p-4 space-y-2">
+          <p className="text-sm font-medium text-encre">
+            Doublons suspects ({preview.doublons_suspects.length})
+          </p>
+          <p className="text-xs text-texte-secondaire">
+            Ces lignes ressemblent à des élèves déjà enregistrés (nom, prénom, date de naissance).
+            Vérifiez avant de confirmer l'import.
+          </p>
+          <ul className="space-y-2 text-sm">
+            {preview.doublons_suspects.map((d, i) => (
+              <li
+                key={i}
+                className="flex flex-wrap items-center justify-between gap-2 rounded border border-bordure/60 bg-blanc px-3 py-2"
+              >
+                <span>
+                  Ligne {d.line ?? d.ligne} — {d.prenom || d.data?.prenom} {d.nom || d.data?.nom}
+                </span>
+                {d.existant_matricule && (
+                  <span className="text-xs text-brique">
+                    Existant : {d.existant_matricule}
+                  </span>
+                )}
+                {d.raison && (
+                  <span className="text-xs text-texte-secondaire">{d.raison}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {preview && (
         <div className="space-y-4">

@@ -173,4 +173,9 @@ export const configApi = {
     const { data } = await apiClient.delete(`/etablissement/calendrier/${id}`);
     return data;
   },
+
+  getSetupProgress: async () => {
+    const { data } = await apiClient.get('/etablissement/setup-progress');
+    return data;
+  },
 };

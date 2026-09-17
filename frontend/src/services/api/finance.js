@@ -11,6 +11,26 @@ export const financeApi = {
     return data;
   },
 
+  createFraisWithEcheances: async (payload) => {
+    const { data } = await apiClient.post('/finance/frais/with-echeances', payload);
+    return data;
+  },
+
+  getIntegrations: async () => {
+    const { data } = await apiClient.get('/finance/integrations');
+    return data;
+  },
+
+  listEcheancesEleve: async (params = {}) => {
+    const { data } = await apiClient.get('/finance/echeances/eleve', { params });
+    return data;
+  },
+
+  getSyscohadaPlan: async () => {
+    const { data } = await apiClient.get('/finance/syscohada/plan');
+    return data;
+  },
+
   getEcheances: async (params = {}) => {
     const { data } = await apiClient.get('/finance/echeances', { params });
     return data;
@@ -61,6 +81,7 @@ export const financeApi = {
       id_annee: idAnnee,
       canal: options.canal || 'email',
       auto_envoyer: options.autoEnvoyer !== false,
+      mode: options.mode || 'calendaire',
     });
     return data;
   },

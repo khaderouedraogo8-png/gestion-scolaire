@@ -31,6 +31,8 @@ from app.models.finance import (
     EcheancePaiement,
     FraisScolaire,
     Paiement,
+    PlanComptableSyscohada,
+    SchoolSetupProgress,
     seq_numero_recu,
 )
 from app.models.grading import (
@@ -125,12 +127,14 @@ __all__ = [
     "Notification",
     "Paiement",
     "ParentTuteur",
+    "PlanComptableSyscohada",
     "Program",
     "ProgrammeDevoir",
     "RefreshToken",
     "ReinitialisationMdp",
     "Salle",
     "School",
+    "SchoolSetupProgress",
     "SeanceCours",
     "Trimestre",
     "Utilisateur",

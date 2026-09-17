@@ -28,6 +28,13 @@ seq_numero_recu = Sequence("seq_numero_recu")
 class FraisScolaire(Base):
     __tablename__ = "frais_scolaire"
     __table_args__ = (
+        UniqueConstraint(
+            "school_id",
+            "id_niveau",
+            "id_annee",
+            "motif",
+            name="uq_frais_school_niveau_annee_motif",
+        ),
         ForeignKeyConstraint(
             ["id_niveau", "school_id"],
             ["niveau_etude.id", "niveau_etude.school_id"],
@@ -56,7 +63,9 @@ class FraisScolaire(Base):
 
 
 class EcheancePaiement(Base):
-    """Parent-only : isolation via FraisScolaire.school_id."""
+    """Parent-only : isolation via FraisScolaire.school_id.
+    Unicité métier : index SQL uq_echeance_frais_libelle_date (COALESCE libelle).
+    """
 
     __tablename__ = "echeance_paiement"
 
@@ -103,3 +112,46 @@ class Paiement(Base):
     annule: Mapped[bool] = mapped_column(Boolean, default=False)
     motif_annulation: Mapped[str | None] = mapped_column(Text)
     date_paiement: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SchoolSetupProgress(Base):
+    """Checklist de démarrage année scolaire (onboarding non-technique)."""
+
+    __tablename__ = "school_setup_progress"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    niveaux_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    classes_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    frais_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    eleves_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    enseignants_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PlanComptableSyscohada(Base):
+    """Plan comptable SYSCOHADA pré-configuré (lecture / seed) — skeleton conformité."""
+
+    __tablename__ = "plan_comptable_syscohada"
+    __table_args__ = (
+        UniqueConstraint("school_id", "compte", name="uq_plan_comptable_school_compte"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("schools.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    compte: Mapped[str] = mapped_column(String(16), nullable=False)
+    libelle: Mapped[str] = mapped_column(String(120), nullable=False)
+    classe: Mapped[str] = mapped_column(String(8), nullable=False)
+    actif: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

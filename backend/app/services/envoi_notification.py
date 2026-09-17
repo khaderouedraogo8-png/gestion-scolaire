@@ -101,6 +101,10 @@ def _post_json(url: str, payload: bytes, headers: dict, timeout: int = 15) -> in
 def get_provider(canal: str) -> NotificationProvider:
     if canal == "email":
         return SMTPProvider()
+    if canal == "whatsapp":
+        from app.services.channels.whatsapp import WhatsAppNotificationAdapter
+
+        return WhatsAppNotificationAdapter()
     if current_app.config.get("SMS_API_URL"):
         return HTTPAPIProvider()
     return SMSProviderStub()

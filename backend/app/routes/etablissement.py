@@ -66,6 +66,80 @@ def _get_evenement_or_404(db, id_evenement):
 # ---------------------------------------------------------------------------
 
 
+@blp.route("/setup-progress")
+class SetupProgressResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        """Checklist démarrage — calcule l'état réel depuis les données tenant."""
+        from app.models import Enseignant, FraisScolaire, SchoolSetupProgress
+
+        db = get_db()
+        school_id = get_current_school_id()
+        niveaux_ok = tenant_query(NiveauEtude).count() > 0
+        classes_ok = tenant_query(Classe).count() > 0
+        frais_ok = tenant_query(FraisScolaire).count() > 0
+        from app.models import Eleve as EleveModel
+
+        eleves_ok = tenant_query(EleveModel).count() > 0
+        enseignants_ok = tenant_query(Enseignant).count() > 0
+
+        progress = (
+            db.query(SchoolSetupProgress)
+            .filter(SchoolSetupProgress.school_id == school_id)
+            .first()
+        )
+        if not progress:
+            progress = SchoolSetupProgress(id=uuid.uuid4(), school_id=school_id)
+            db.add(progress)
+        progress.niveaux_ok = niveaux_ok
+        progress.classes_ok = classes_ok
+        progress.frais_ok = frais_ok
+        progress.eleves_ok = eleves_ok
+        progress.enseignants_ok = enseignants_ok
+        db.commit()
+
+        steps = [
+            {
+                "id": "niveaux",
+                "label": "Créer les niveaux",
+                "done": niveaux_ok,
+                "path": "/etablissement/niveaux",
+            },
+            {
+                "id": "classes",
+                "label": "Créer les classes",
+                "done": classes_ok,
+                "path": "/etablissement/classes",
+            },
+            {
+                "id": "frais",
+                "label": "Configurer les frais & échéanciers",
+                "done": frais_ok,
+                "path": "/finance/frais",
+            },
+            {
+                "id": "eleves",
+                "label": "Importer / créer les élèves",
+                "done": eleves_ok,
+                "path": "/eleves/import",
+            },
+            {
+                "id": "enseignants",
+                "label": "Ajouter les enseignants",
+                "done": enseignants_ok,
+                "path": "/emploi/enseignants",
+            },
+        ]
+        done = sum(1 for s in steps if s["done"])
+        return jsonify({
+            "steps": steps,
+            "completed": done,
+            "total": len(steps),
+            "percent": int(100 * done / len(steps)),
+        })
+
+
 @blp.route("/")
 class EtablissementResource(MethodView):
     @jwt_required()

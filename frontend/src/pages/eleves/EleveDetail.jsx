@@ -1,6 +1,15 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { GraduationCap, Users, FolderOpen, HeartPulse } from 'lucide-react';
+import {
+  GraduationCap,
+  Users,
+  FolderOpen,
+  HeartPulse,
+  ClipboardList,
+  Wallet,
+  FileText,
+  Calendar,
+} from 'lucide-react';
 import { elevesApi } from '../../services/api/eleves';
 import SealMedallion from '../../components/SealMedallion';
 import DetailHeader from '../../components/DetailHeader';
@@ -36,6 +45,7 @@ export default function EleveDetail() {
   const [medicalNotes, setMedicalNotes] = useState('');
   const [savingMedical, setSavingMedical] = useState(false);
   const [tab, setTab] = useState('identite');
+  const [vue360, setVue360] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -58,6 +68,16 @@ export default function EleveDetail() {
         setInscriptions(inscrData.items || inscrData || []);
       } catch {
         setInscriptions([]);
+      }
+      try {
+        const v360 = await elevesApi.getVue360(id);
+        setVue360(v360);
+      } catch (err) {
+        if (err.response?.status !== 404) {
+          setVue360(null);
+        } else {
+          setVue360(null);
+        }
       }
     } catch {
       toast.error('Impossible de charger la fiche élève. Réessayez.');
@@ -207,6 +227,71 @@ export default function EleveDetail() {
           </>
         }
       />
+
+      {vue360 && (
+        <section className="card-premium space-y-4">
+          <h2 className="section-title !text-base">Vue 360°</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {vue360.solde != null && (
+              <div className="rounded-lg border border-bordure/60 bg-craie/40 p-3">
+                <div className="flex items-center gap-2 text-xs text-texte-secondaire">
+                  <Wallet className="h-4 w-4 text-or-cachet" strokeWidth={1.75} />
+                  Solde financier
+                </div>
+                <p className="mt-1 font-medium tabular-nums text-encre">
+                  {Number(vue360.solde).toLocaleString('fr-FR')} FCFA
+                </p>
+                {vue360.solde_label && (
+                  <p className="text-xs text-texte-secondaire">{vue360.solde_label}</p>
+                )}
+              </div>
+            )}
+            {vue360.absences_count != null && (
+              <div className="rounded-lg border border-bordure/60 bg-craie/40 p-3">
+                <div className="flex items-center gap-2 text-xs text-texte-secondaire">
+                  <ClipboardList className="h-4 w-4 text-brique" strokeWidth={1.75} />
+                  Absences
+                </div>
+                <p className="mt-1 font-medium text-encre">{vue360.absences_count}</p>
+              </div>
+            )}
+            {(vue360.echeances || []).length > 0 && (
+              <div className="rounded-lg border border-bordure/60 bg-craie/40 p-3 sm:col-span-2">
+                <div className="flex items-center gap-2 text-xs text-texte-secondaire">
+                  <Calendar className="h-4 w-4 text-or-cachet" strokeWidth={1.75} />
+                  Prochaines échéances
+                </div>
+                <ul className="mt-2 space-y-1">
+                  {vue360.echeances.slice(0, 3).map((ec) => (
+                    <li key={ec.id || ec.libelle} className="flex justify-between text-xs">
+                      <span>{ec.libelle || 'Tranche'}</span>
+                      <span className="tabular-nums">
+                        {Number(ec.montant_restant ?? ec.montant).toLocaleString()} F — {ec.date_echeance}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          {(vue360.notes_recentes || []).length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-xs text-texte-secondaire">
+                <FileText className="h-4 w-4" strokeWidth={1.75} />
+                Notes récentes
+              </div>
+              <ul className="space-y-1">
+                {vue360.notes_recentes.slice(0, 5).map((n, i) => (
+                  <li key={n.id || i} className="flex justify-between text-sm">
+                    <span>{n.matiere || n.libelle || '—'}</span>
+                    <span className="font-medium tabular-nums">{n.valeur ?? n.note ?? '—'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
 

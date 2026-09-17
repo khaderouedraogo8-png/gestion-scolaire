@@ -1,9 +1,35 @@
 # AUDIT — Gestion Scolaire SaaS
 
-**Date :** 2026-09-14  
-**Branche d’analyse :** `main` (+ contexte produit cible multi-tenant)  
+**Date :** 2026-09-17 (maj livraison UEMOA Vague A/B)  
+**Branche d’analyse :** `cursor/uemoa-livraison-complete-8bcc` → `main`  
 **Auteur :** Audit Lead (architecture / sécurité / produit)  
 **Périmètre :** repository complet (`backend/`, `frontend/`, `database/`, `deploy/`, CI)
+
+---
+
+## Livraison UEMOA — Vague A/B (2026-09-17)
+
+Croisement audit marché Deerflow × code réel. Livré sur une seule PR :
+
+| Item | Statut |
+|------|--------|
+| Intégrité finance (uq frais / échéances + soft-dedup) | ✅ |
+| Échéanciers fractionnés (wizard 1/3/4/6, Σ=total, arriérés par date) | ✅ |
+| Relances calendaires J-7 / J-1 / J+3 (+ mode global legacy) | ✅ |
+| Reçu PDF auto + notif parent (email + inbox) | ✅ |
+| Notif absence → tous tuteurs (email/SMS ; WhatsApp si configuré) | ✅ |
+| Dashboards densifiés (absences jour / recouvrement) | ✅ |
+| États vides + checklist démarrage `/setup` | ✅ |
+| Vue 360° élève | ✅ |
+| Import Excel anti-doublons identité (nom+prénom+DOB) | ✅ |
+| Bulletins export ZIP masse + `bulletin_template` BF | ✅ |
+| SYSCOHADA skeleton (plan comptable lecture + seed) | ✅ |
+| WhatsApp / Mobile Money | ✅ **NON_CONFIGURE** explicite (jamais de faux succès) |
+
+**Migration :** `uemoa_livraison_wave1`  
+**Tests :** `test_uemoa_finance_wave1.py` + `test_relances.py` (9 verts)
+
+**Hors scope (vision long terme) :** offline-first complet, bot WhatsApp parent, paie, vie scolaire, générateur EDT.
 
 ---
 
@@ -12,17 +38,15 @@
 ```
 ┌─────────────┐     ┌──────────────────────┐     ┌────────────┐
 │ React/Vite  │────▶│ Flask + flask-smorest│────▶│ PostgreSQL │
-│ Tailwind    │ /api│ JWT + Argon2id       │     │ (1 école)  │
-│ Zustand     │     │ WeasyPrint PDF       │     └────────────┘
-└─────────────┘     │ Redis (rate-limit)   │
+│ Tailwind    │ /api│ JWT + Argon2id       │     │ multi-tenant│
+│ Zustand     │     │ WeasyPrint PDF       │     │ (school_id) │
+└─────────────┘     │ Redis (rate-limit)   │     └────────────┘
                     └──────────────────────┘
                               │
-                    Nginx (prod Docker/VPS)
+                    Nginx (prod Docker / Railway)
 ```
 
-- **Modèle de déploiement documenté :** **mono-établissement** — une base PostgreSQL = une école (`database/schema_v2_mono_etablissement.sql`, trigger / contrainte « une seule ligne » sur `etablissement`).
-- **Pas de `school_id` / tenant** sur les entités métier. Isolation « SaaS » aujourd’hui = **redeploy / clone DB par client**, pas multi-tenant partagé.
-- **Pas de SUPER_ADMIN plateforme** ni console multi-écoles.
+- **Modèle actuel :** multi-tenant partagé (`school_id` + `tenant_query` / `get_or_404_tenant`) + `super_admin` plateforme.
 - API REST OpenAPI (Swagger hors production), blueprints sous `/api/*`.
 - Frontend SPA : routes protégées + RBAC UI (doit être miroir du backend).
 

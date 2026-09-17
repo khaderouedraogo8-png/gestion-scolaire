@@ -47,7 +47,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
         id=uuid.uuid4(),
         id_niveau=niveau.id,
         id_annee=annee.id,
-        motif="Scolarité",
+        motif=f"Scolarité-REL-{suffix}",
         montant_total=Decimal(100000),
         school_id=sid,
     )
@@ -67,7 +67,7 @@ def test_relancer_arrieres_creates_notifications(client, auth_headers, db, annee
 
     response = client.post(
         "/api/finance/arrieres/relancer",
-        json={"id_annee": str(annee.id), "auto_envoyer": False},
+        json={"id_annee": str(annee.id), "auto_envoyer": False, "mode": "global"},
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -114,7 +114,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe, 
         id=uuid.uuid4(),
         id_niveau=niveau.id,
         id_annee=annee.id,
-        motif="Scolarité",
+        motif=f"Scolarité-RL2-{suffix}",
         montant_total=Decimal(50000),
         school_id=sid,
     )
@@ -132,7 +132,7 @@ def test_relancer_arrieres_skips_recent(client, auth_headers, db, annee_classe, 
     )
     db.commit()
 
-    payload = {"id_annee": str(annee.id), "auto_envoyer": False}
+    payload = {"id_annee": str(annee.id), "auto_envoyer": False, "mode": "global"}
     r1 = client.post("/api/finance/arrieres/relancer", json=payload, headers=auth_headers)
     r2 = client.post("/api/finance/arrieres/relancer", json=payload, headers=auth_headers)
     assert r1.status_code == 200

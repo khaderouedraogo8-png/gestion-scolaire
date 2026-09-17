@@ -83,6 +83,14 @@ export const notesApi = {
     return response.data;
   },
 
+  exportBulletinsZip: async (params = {}) => {
+    const response = await apiClient.get('/notes/bulletins/export-zip', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
   listCoefficients: async (params = {}) => {
     const { data } = await apiClient.get('/notes/coefficients', { params });
     return data;

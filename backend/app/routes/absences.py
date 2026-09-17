@@ -155,12 +155,43 @@ class AbsencesResource(MethodView):
 
         eleve = tenant_query(Eleve).filter(Eleve.id == id_eleve).first()
         nom_eleve = f"{eleve.prenom} {eleve.nom}" if eleve else "Votre enfant"
-        creer_notification(
-            canal="email",
-            type_notification="absence",
-            contenu=f"{nom_eleve} : absence enregistrée le {data['date_absence']}.",
-            id_eleve=id_eleve,
-        )
+        contenu = f"{nom_eleve} : absence enregistrée le {data['date_absence']}."
+        # Notifier tous les tuteurs liés (email + inbox). SMS si demandé via ?canal=
+        canal = (request.args.get("canal") or "email").strip().lower()
+        if canal not in ("email", "sms", "whatsapp", "interne"):
+            canal = "email"
+        if canal == "whatsapp":
+            from app.services.channels.whatsapp import whatsapp_status
+
+            if not whatsapp_status().configured:
+                canal = "email"
+        from app.models import EleveParent
+
+        links = db.query(EleveParent).filter(EleveParent.id_eleve == id_eleve).all()
+        if links:
+            for link in links:
+                creer_notification(
+                    canal=canal,
+                    type_notification="absence",
+                    contenu=contenu,
+                    id_eleve=id_eleve,
+                    id_parent=link.id_parent,
+                )
+                if canal != "interne":
+                    creer_notification(
+                        canal="interne",
+                        type_notification="absence",
+                        contenu=contenu,
+                        id_eleve=id_eleve,
+                        id_parent=link.id_parent,
+                    )
+        else:
+            creer_notification(
+                canal=canal,
+                type_notification="absence",
+                contenu=contenu,
+                id_eleve=id_eleve,
+            )
         return absence, 201
 
 

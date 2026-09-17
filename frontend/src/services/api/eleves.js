@@ -11,6 +11,11 @@ export const elevesApi = {
     return data;
   },
 
+  getVue360: async (id) => {
+    const { data } = await apiClient.get(`/eleves/${id}/vue-360`);
+    return data;
+  },
+
   create: async (payload) => {
     const { data } = await apiClient.post('/eleves', payload);
     return data;

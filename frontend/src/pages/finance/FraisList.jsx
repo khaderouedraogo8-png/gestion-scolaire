@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { emptyIcons } from '../../utils/emptyIcons';
 import { financeApi } from '../../services/api/finance';
 import { configApi } from '../../services/api/config';
@@ -7,6 +7,35 @@ import Modal from '../../components/Modal';
 import FormField from '../../components/FormField';
 import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
+
+const TRANCHE_OPTIONS = [
+  { value: '1', label: '1 (paiement unique)' },
+  { value: '3', label: '3 tranches' },
+  { value: '4', label: '4 tranches' },
+  { value: '6', label: '6 tranches' },
+];
+
+function addMonths(date, months) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildEcheancesPreview(montantTotal, nombreTranches) {
+  const montant = parseFloat(montantTotal);
+  const n = parseInt(nombreTranches, 10);
+  if (!montant || n <= 1) return [];
+
+  const base = Math.floor(montant / n);
+  const remainder = Math.round((montant - base * n) * 100) / 100;
+  const today = new Date();
+
+  return Array.from({ length: n }, (_, i) => ({
+    libelle: `${i + 1}${i === 0 ? 'ère' : 'e'} tranche`,
+    montant: i === n - 1 ? base + remainder : base,
+    date_echeance: addMonths(today, i),
+  }));
+}
 
 export default function FraisList() {
   const toast = useToast();
@@ -21,12 +50,29 @@ export default function FraisList() {
     id_annee: '',
     motif: 'Scolarité',
     montant_total: '',
+    nombre_tranches: '1',
   });
   const [echeanceForm, setEcheanceForm] = useState({
     libelle: '',
     montant: '',
     date_echeance: '',
   });
+  const [submitting, setSubmitting] = useState(false);
+
+  const previewEcheances = useMemo(
+    () => buildEcheancesPreview(form.montant_total, form.nombre_tranches),
+    [form.montant_total, form.nombre_tranches]
+  );
+
+  const previewSum = useMemo(
+    () => previewEcheances.reduce((s, e) => s + Number(e.montant || 0), 0),
+    [previewEcheances]
+  );
+
+  const montantTotal = parseFloat(form.montant_total) || 0;
+  const echeancesBalanced =
+    previewEcheances.length === 0 ||
+    Math.abs(previewSum - montantTotal) < 0.02;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,17 +103,71 @@ export default function FraisList() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!echeancesBalanced) {
+      toast.error('La somme des échéances doit correspondre au montant total.');
+      return;
+    }
+    setSubmitting(true);
     try {
-      await financeApi.createFrais({
-        ...form,
+      const payload = {
+        id_niveau: form.id_niveau,
+        id_annee: form.id_annee,
+        motif: form.motif,
         montant_total: parseFloat(form.montant_total),
-      });
-      toast.success('Frais créé');
+      };
+
+      if (previewEcheances.length > 0) {
+        await financeApi.createFraisWithEcheances({
+          ...payload,
+          echeances: previewEcheances,
+        });
+        toast.success(`Frais créé avec ${previewEcheances.length} échéance(s)`);
+      } else {
+        await financeApi.createFrais(payload);
+        toast.success('Frais créé');
+      }
+
       setModalOpen(false);
-      setForm((f) => ({ ...f, motif: 'Scolarité', montant_total: '' }));
+      setForm((f) => ({
+        ...f,
+        motif: 'Scolarité',
+        montant_total: '',
+        nombre_tranches: '1',
+      }));
       load();
     } catch (err) {
+      if (previewEcheances.length > 0) {
+        try {
+          const created = await financeApi.createFrais({
+            id_niveau: form.id_niveau,
+            id_annee: form.id_annee,
+            motif: form.motif,
+            montant_total: parseFloat(form.montant_total),
+          });
+          const fraisId = created.id;
+          for (const ec of previewEcheances) {
+            await financeApi.createEcheance({
+              id_frais: fraisId,
+              ...ec,
+            });
+          }
+          toast.success(`Frais créé avec ${previewEcheances.length} échéance(s)`);
+          setModalOpen(false);
+          setForm((f) => ({
+            ...f,
+            motif: 'Scolarité',
+            montant_total: '',
+            nombre_tranches: '1',
+          }));
+          load();
+          return;
+        } catch {
+          // fall through to original error
+        }
+      }
       toast.error(err.response?.data?.message || 'Erreur création');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -89,6 +189,9 @@ export default function FraisList() {
     }
   };
 
+  const echeanceSumForFrais = (r) =>
+    (r.echeances || []).reduce((s, ec) => s + Number(ec.montant || 0), 0);
+
   const columns = [
     { key: 'motif', header: 'Motif' },
     { key: 'niveau', header: 'Niveau', render: (r) => r.niveau_libelle || '—' },
@@ -101,23 +204,32 @@ export default function FraisList() {
     {
       key: 'echeances',
       header: 'Échéances',
-      render: (r) => (
-        <div className="space-y-1">
-          {(r.echeances || []).map((ec) => (
-            <p key={ec.id} className="text-xs text-texte-secondaire">
-              {ec.libelle || 'Tranche'} — {Number(ec.montant).toLocaleString()} F (
-              {ec.date_echeance})
-            </p>
-          ))}
-          <button
-            type="button"
-            onClick={() => setEcheanceModal(r)}
-            className="text-xs text-or-cachet hover:underline"
-          >
-            + Ajouter échéance
-          </button>
-        </div>
-      ),
+      render: (r) => {
+        const sum = echeanceSumForFrais(r);
+        const balanced = Math.abs(sum - Number(r.montant_total)) < 0.02;
+        return (
+          <div className="space-y-1">
+            {(r.echeances || []).map((ec) => (
+              <p key={ec.id} className="text-xs text-texte-secondaire">
+                {ec.libelle || 'Tranche'} — {Number(ec.montant).toLocaleString()} F (
+                {ec.date_echeance})
+              </p>
+            ))}
+            {(r.echeances || []).length > 0 && !balanced && (
+              <p className="text-xs text-brique">
+                Somme échéances ({sum.toLocaleString()} F) ≠ montant total
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setEcheanceModal(r)}
+              className="text-xs text-or-cachet hover:underline"
+            >
+              + Ajouter échéance
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -133,7 +245,19 @@ export default function FraisList() {
           </button>
         }
       />
-      <Table columns={columns} data={frais} loading={loading} emptyIcon={emptyIcons.finance} emptyMessage="Aucun frais configuré pour l'instant" />
+      <Table
+        columns={columns}
+        data={frais}
+        loading={loading}
+        emptyIcon={emptyIcons.finance}
+        emptyTitle="Aucun frais configuré"
+        emptyMessage="Définissez les montants et échéanciers par niveau pour l'année en cours."
+        emptyAction={
+          <button type="button" className="btn-primary" onClick={() => setModalOpen(true)}>
+            Configurer les frais
+          </button>
+        }
+      />
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nouveau frais">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -150,6 +274,31 @@ export default function FraisList() {
             onChange={(e) => setForm({ ...form, montant_total: e.target.value })}
             required
           />
+          <FormField
+            label="Nombre de tranches"
+            name="nombre_tranches"
+            type="select"
+            value={form.nombre_tranches}
+            onChange={(e) => setForm({ ...form, nombre_tranches: e.target.value })}
+            options={TRANCHE_OPTIONS}
+          />
+          {previewEcheances.length > 0 && (
+            <div className="rounded-lg border border-bordure bg-craie/40 p-3 space-y-2">
+              <p className="text-xs font-medium text-encre">Échéancier prévisionnel</p>
+              {previewEcheances.map((ec, i) => (
+                <div key={i} className="flex justify-between text-xs text-texte-secondaire">
+                  <span>{ec.libelle} — {ec.date_echeance}</span>
+                  <span className="tabular-nums">{Number(ec.montant).toLocaleString()} FCFA</span>
+                </div>
+              ))}
+              <p
+                className={`text-xs ${echeancesBalanced ? 'text-feuille' : 'text-brique'}`}
+              >
+                Total échéances : {previewSum.toLocaleString()} FCFA
+                {echeancesBalanced ? ' ✓' : ` (attendu : ${montantTotal.toLocaleString()} FCFA)`}
+              </p>
+            </div>
+          )}
           <FormField
             label="Niveau"
             name="id_niveau"
@@ -168,8 +317,12 @@ export default function FraisList() {
             required
             options={annees.map((a) => ({ value: String(a.id), label: a.libelle }))}
           />
-          <button type="submit" className="btn-primary w-full">
-            Enregistrer
+          <button
+            type="submit"
+            className="btn-primary w-full"
+            disabled={submitting || !echeancesBalanced}
+          >
+            {submitting ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </form>
       </Modal>
@@ -179,6 +332,12 @@ export default function FraisList() {
         onClose={() => setEcheanceModal(null)}
         title={`Échéance — ${echeanceModal?.motif || ''}`}
       >
+        {echeanceModal && (
+          <p className="mb-3 text-xs text-texte-secondaire">
+            Montant total : {Number(echeanceModal.montant_total).toLocaleString()} FCFA — déjà
+            planifié : {echeanceSumForFrais(echeanceModal).toLocaleString()} FCFA
+          </p>
+        )}
         <form onSubmit={handleAddEcheance} className="space-y-4">
           <FormField
             label="Libellé"

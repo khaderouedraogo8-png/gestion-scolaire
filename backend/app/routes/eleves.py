@@ -290,6 +290,108 @@ class EleveDetail(MethodView):
         return eleve
 
 
+@blp.route("/<uuid:id_eleve>/vue-360")
+class EleveVue360(MethodView):
+    @jwt_required()
+    @require_role(
+        "administrateur", "directeur", "secretariat", "enseignant", "agent_comptable", "parent"
+    )
+    def get(self, id_eleve):
+        """Agrégat 360° : identité, absences, notes récentes, solde / échéances."""
+        from datetime import date as date_cls
+
+        from app.models import Absence, EcheancePaiement, FraisScolaire, Note, Paiement
+        from app.services.finance_arrieres import list_arrieres
+
+        db = get_db()
+        user = get_current_user()
+        if user.role == "parent" and not parent_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
+        if user.role == "enseignant" and not teacher_has_eleve_access(user, id_eleve):
+            return jsonify({"message": "Accès refusé"}), 403
+
+        eleve = get_or_404_tenant(Eleve, id_eleve)
+        active = tenant_query(AnneeScolaire).filter(AnneeScolaire.est_active.is_(True)).first()
+        absences_count = (
+            tenant_query(Absence).filter(Absence.id_eleve == id_eleve).count()
+        )
+        notes = (
+            tenant_query(Note)
+            .filter(Note.id_eleve == id_eleve)
+            .order_by(Note.saisi_le.desc())
+            .limit(8)
+            .all()
+        )
+        notes_recentes = []
+        for n in notes:
+            notes_recentes.append({
+                "id": str(n.id),
+                "valeur_note": float(n.valeur_note) if n.valeur_note is not None else None,
+                "absent": bool(getattr(n, "absent", False)),
+                "id_evaluation": str(n.id_evaluation),
+            })
+
+        solde = None
+        echeances = []
+        if active and user.role != "enseignant":
+            rows = list_arrieres(
+                db, active.id, school_id=get_current_school_id(), as_of=date_cls.today()
+            )
+            mine = next((r for r in rows if r["id_eleve"] == id_eleve), None)
+            if mine:
+                solde = {
+                    "total_du": mine["total_du"],
+                    "total_paye": mine["total_paye"],
+                    "arriere": mine["arriere"],
+                }
+            insc = (
+                tenant_query(Inscription)
+                .filter(
+                    Inscription.id_eleve == id_eleve,
+                    Inscription.id_annee == active.id,
+                    Inscription.statut.in_(("inscrit", "reinscrit")),
+                )
+                .first()
+            )
+            if insc:
+                classe = get_or_404_tenant(Classe, insc.id_classe)
+                frais_list = (
+                    tenant_query(FraisScolaire)
+                    .filter(
+                        FraisScolaire.id_niveau == classe.id_niveau,
+                        FraisScolaire.id_annee == active.id,
+                    )
+                    .all()
+                )
+                for frais in frais_list:
+                    for ec in (
+                        db.query(EcheancePaiement)
+                        .filter(EcheancePaiement.id_frais == frais.id)
+                        .order_by(EcheancePaiement.date_echeance)
+                        .all()
+                    ):
+                        echeances.append({
+                            "id": str(ec.id),
+                            "libelle": ec.libelle,
+                            "montant": float(ec.montant),
+                            "date_echeance": ec.date_echeance.isoformat(),
+                            "motif": frais.motif,
+                        })
+
+        return jsonify({
+            "eleve": {
+                "id": str(eleve.id),
+                "matricule": eleve.matricule,
+                "nom": eleve.nom,
+                "prenom": eleve.prenom,
+            },
+            "absences_count": absences_count,
+            "notes_recentes": notes_recentes,
+            "solde": solde,
+            "echeances": echeances,
+        })
+
+
 @blp.route("/<uuid:id_eleve>/inscriptions")
 class InscriptionsEleve(MethodView):
     @jwt_required()

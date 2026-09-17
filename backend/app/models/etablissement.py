@@ -49,6 +49,7 @@ class Etablissement(Base):
     ville: Mapped[str | None] = mapped_column(String(80))
     format_matricule: Mapped[str] = mapped_column(String(50), default="{ANNEE}M-{SEQ}")
     devise: Mapped[str] = mapped_column(String(10), default="XOF")
+    bulletin_template: Mapped[str] = mapped_column(String(20), default="BF")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
