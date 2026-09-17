@@ -578,8 +578,10 @@ class EdtGenerer(MethodView):
         slot_defs = []
         for j in jours:
             for i in range(n_slots):
-                debut = (h0 + timedelta(minutes=i * (duree + 5))).time()
-                fin = (h0 + timedelta(minutes=i * (duree + 5) + duree)).time()
+                start_m = h0_minutes + i * (duree + 5)
+                end_m = start_m + duree
+                debut = time_cls(start_m // 60, start_m % 60)
+                fin = time_cls(end_m // 60, end_m % 60)
                 slot_defs.append((j, debut, fin))
 
         salle_idx = 0
