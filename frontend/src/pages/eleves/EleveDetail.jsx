@@ -239,8 +239,23 @@ export default function EleveDetail() {
                   Solde financier
                 </div>
                 <p className="mt-1 font-medium tabular-nums text-encre">
-                  {Number(vue360.solde).toLocaleString('fr-FR')} FCFA
+                  {(() => {
+                    const s = vue360.solde;
+                    const amount =
+                      typeof s === 'object' && s !== null
+                        ? Number(s.arriere ?? s.reste ?? s.total_du ?? 0)
+                        : Number(s);
+                    return Number.isFinite(amount)
+                      ? `${amount.toLocaleString('fr-FR')} FCFA`
+                      : '—';
+                  })()}
                 </p>
+                {typeof vue360.solde === 'object' && vue360.solde !== null && (
+                  <p className="text-xs text-texte-secondaire">
+                    Payé {(Number(vue360.solde.total_paye) || 0).toLocaleString('fr-FR')} / dû{' '}
+                    {(Number(vue360.solde.total_du) || 0).toLocaleString('fr-FR')}
+                  </p>
+                )}
                 {vue360.solde_label && (
                   <p className="text-xs text-texte-secondaire">{vue360.solde_label}</p>
                 )}

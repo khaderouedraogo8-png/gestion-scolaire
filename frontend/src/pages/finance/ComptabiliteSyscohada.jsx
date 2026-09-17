@@ -30,7 +30,11 @@ export default function ComptabiliteSyscohada() {
   }, [load]);
 
   const columns = [
-    { key: 'numero', header: 'N° compte', render: (r) => r.numero || r.code || '—' },
+    {
+      key: 'numero',
+      header: 'N° compte',
+      render: (r) => r.compte || r.numero || r.code || '—',
+    },
     { key: 'libelle', header: 'Libellé', render: (r) => r.libelle || r.intitule || '—' },
     {
       key: 'classe',
@@ -40,7 +44,8 @@ export default function ComptabiliteSyscohada() {
     {
       key: 'type',
       header: 'Type',
-      render: (r) => r.type_compte || r.type || '—',
+      render: (r) =>
+        r.type_compte || r.type || (r.actif === false ? 'Inactif' : r.actif != null ? 'Actif' : '—'),
     },
   ];
 

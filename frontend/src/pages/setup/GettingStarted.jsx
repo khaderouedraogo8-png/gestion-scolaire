@@ -52,7 +52,11 @@ export default function GettingStarted() {
       .finally(() => setLoading(false));
   }, [toast]);
 
-  const completedCount = STEPS.filter((s) => progress?.[s.key]?.done).length;
+  const stepById = Object.fromEntries(
+    (progress?.steps || []).map((s) => [s.id, s]),
+  );
+  const completedCount =
+    progress?.completed ?? STEPS.filter((s) => stepById[s.key]?.done).length;
   const allDone = completedCount === STEPS.length;
 
   if (loading) {
@@ -111,7 +115,7 @@ export default function GettingStarted() {
         ) : (
           <ol className="space-y-3">
             {STEPS.map((step, index) => {
-              const stepData = progress?.[step.key] || {};
+              const stepData = stepById[step.key] || progress?.[step.key] || {};
               const done = Boolean(stepData.done);
               const count = stepData.count;
 
