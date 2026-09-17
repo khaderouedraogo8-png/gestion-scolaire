@@ -157,7 +157,7 @@ def _notify_parent_recu(paiement: Paiement, canal: str = "email") -> None:
         db = get_db()
         try:
             db.rollback()
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
 

@@ -300,7 +300,7 @@ class EleveVue360(MethodView):
         """Agrégat 360° : identité, absences, notes récentes, solde / échéances."""
         from datetime import date as date_cls
 
-        from app.models import Absence, EcheancePaiement, FraisScolaire, Note, Paiement
+        from app.models import Absence, EcheancePaiement, FraisScolaire, Note
         from app.services.finance_arrieres import list_arrieres
 
         db = get_db()

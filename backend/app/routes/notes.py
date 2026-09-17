@@ -895,7 +895,6 @@ class BulletinsExportZip(MethodView):
         """Export PDF en masse (ZIP) pour une classe + trimestre."""
         import io
         import zipfile
-        from pathlib import Path
 
         from app.services.generation_bulletin import generer_bulletin_pdf
 
