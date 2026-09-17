@@ -1,7 +1,7 @@
 # AUDIT — Gestion Scolaire SaaS
 
-**Date :** 2026-09-17 (maj livraison UEMOA Vague A/B)  
-**Branche d’analyse :** `cursor/uemoa-livraison-complete-8bcc` → `main`  
+**Date :** 2026-09-17 (maj livraison UEMOA Vague A/B — **prod Railway live**)  
+**Branche d’analyse :** `cursor/uemoa-livraison-complete-8bcc` → `main` (`ce7e913`)  
 **Auteur :** Audit Lead (architecture / sécurité / produit)  
 **Périmètre :** repository complet (`backend/`, `frontend/`, `database/`, `deploy/`, CI)
 
@@ -9,7 +9,7 @@
 
 ## Livraison UEMOA — Vague A/B (2026-09-17)
 
-Croisement audit marché Deerflow × code réel. Livré sur une seule PR :
+Croisement audit marché Deerflow × code réel. Livré sur PR #17 + hotfix `bulletin_template` API.
 
 | Item | Statut |
 |------|--------|
@@ -22,12 +22,13 @@ Croisement audit marché Deerflow × code réel. Livré sur une seule PR :
 | États vides + checklist démarrage `/setup` | ✅ |
 | Vue 360° élève | ✅ |
 | Import Excel anti-doublons identité (nom+prénom+DOB) | ✅ |
-| Bulletins export ZIP masse + `bulletin_template` BF | ✅ |
+| Bulletins export ZIP masse + `bulletin_template` BF | ✅ (exposé API) |
 | SYSCOHADA skeleton (plan comptable lecture + seed) | ✅ |
 | WhatsApp / Mobile Money | ✅ **NON_CONFIGURE** explicite (jamais de faux succès) |
 
-**Migration :** `uemoa_livraison_wave1`  
-**Tests :** `test_uemoa_finance_wave1.py` + `test_relances.py` (9 verts)
+**Migration :** `uemoa_livraison_wave1` (appliquée en prod 2026-09-17)  
+**Tests :** `test_uemoa_finance_wave1.py` + `test_relances.py` (9 verts)  
+**Prod :** https://web-production-54355.up.railway.app — health OK, login multi-rôles OK, CI `main` vert
 
 **Hors scope (vision long terme) :** offline-first complet, bot WhatsApp parent, paie, vie scolaire, générateur EDT.
 
