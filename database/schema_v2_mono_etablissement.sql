@@ -47,6 +47,7 @@ CREATE TABLE etablissement (
     ville                VARCHAR(80),
     format_matricule     VARCHAR(50) DEFAULT '{ANNEE}M-{SEQ}',
     devise               VARCHAR(10) DEFAULT 'XOF',
+    bulletin_template    VARCHAR(20) NOT NULL DEFAULT 'BF',
     created_at           TIMESTAMPTZ DEFAULT now(),
     updated_at           TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT uq_etablissement_school_id UNIQUE (school_id)
@@ -621,7 +622,8 @@ CREATE TABLE frais_scolaire (
     CONSTRAINT fk_frais_niveau_school FOREIGN KEY (id_niveau, school_id)
         REFERENCES niveau_etude(id, school_id) ON DELETE RESTRICT,
     CONSTRAINT fk_frais_annee_school FOREIGN KEY (id_annee, school_id)
-        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE
+        REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE,
+    CONSTRAINT uq_frais_school_niveau_annee_motif UNIQUE (school_id, id_niveau, id_annee, motif)
 );
 
 -- Parent-only : isolation via frais_scolaire.school_id
@@ -632,6 +634,8 @@ CREATE TABLE echeance_paiement (
     montant              NUMERIC(12,2) NOT NULL,
     date_echeance        DATE NOT NULL
 );
+CREATE UNIQUE INDEX uq_echeance_frais_libelle_date
+    ON echeance_paiement (id_frais, COALESCE(libelle, ''), date_echeance);
 
 CREATE SEQUENCE seq_numero_recu START 1;
 
@@ -654,6 +658,27 @@ CREATE TABLE paiement (
         REFERENCES eleve(id, school_id) ON DELETE CASCADE,
     CONSTRAINT fk_paiement_annee_school FOREIGN KEY (id_annee, school_id)
         REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE
+);
+
+CREATE TABLE school_setup_progress (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL UNIQUE REFERENCES schools(id) ON DELETE CASCADE,
+    niveaux_ok           BOOLEAN NOT NULL DEFAULT false,
+    classes_ok           BOOLEAN NOT NULL DEFAULT false,
+    frais_ok             BOOLEAN NOT NULL DEFAULT false,
+    eleves_ok            BOOLEAN NOT NULL DEFAULT false,
+    enseignants_ok       BOOLEAN NOT NULL DEFAULT false,
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE plan_comptable_syscohada (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    compte               VARCHAR(16) NOT NULL,
+    libelle              VARCHAR(120) NOT NULL,
+    classe               VARCHAR(8) NOT NULL,
+    actif                BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT uq_plan_comptable_school_compte UNIQUE (school_id, compte)
 );
 
 -- ============================================================================

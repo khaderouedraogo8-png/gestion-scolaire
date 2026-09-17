@@ -26,6 +26,9 @@ import FraisList from './pages/finance/FraisList';
 import Encaissement from './pages/finance/Encaissement';
 import Arrieres from './pages/finance/Arrieres';
 import Recus from './pages/finance/Recus';
+import ComptabiliteSyscohada from './pages/finance/ComptabiliteSyscohada';
+
+import GettingStarted from './pages/setup/GettingStarted';
 
 import Enseignants from './pages/emploi/Enseignants';
 import EnseignantDetail from './pages/emploi/EnseignantDetail';
@@ -89,6 +92,7 @@ const NOTIF = [...ADMIN, 'secretariat', ...SUPER_ADMIN];
 const CLASS_NAV = [...ADMIN, 'agent_comptable', 'secretariat', 'enseignant', ...SUPER_ADMIN];
 
 const CONFIG = [...ADMIN, ...SUPER_ADMIN];
+const SETUP = [...ADMIN, 'secretariat'];
 
 function HomeRedirect() {
   const role = useAuthStore((s) => s.user?.role);
@@ -182,6 +186,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={DASHBOARD}>
             <Dashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'setup',
+        element: (
+          <ProtectedRoute roles={SETUP}>
+            <GettingStarted />
           </ProtectedRoute>
         ),
       },
@@ -326,6 +338,14 @@ export const routes = [
         element: (
           <ProtectedRoute roles={FINANCE}>
             <Recus />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'finance/syscohada',
+        element: (
+          <ProtectedRoute roles={FINANCE}>
+            <ComptabiliteSyscohada />
           </ProtectedRoute>
         ),
       },

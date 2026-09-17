@@ -87,6 +87,16 @@ class Config:
     SMS_API_KEY = os.getenv("SMS_API_KEY", "")
     SMS_SENDER = os.getenv("SMS_SENDER", "ECOLE")
 
+    # WhatsApp Business (vide = NON_CONFIGURE — jamais de faux succès)
+    WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN", "")
+    WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+
+    # Mobile Money par opérateur (vide = NON_CONFIGURE)
+    MM_ORANGE_API_KEY = os.getenv("MM_ORANGE_API_KEY", "")
+    MM_WAVE_API_KEY = os.getenv("MM_WAVE_API_KEY", "")
+    MM_MOOV_API_KEY = os.getenv("MM_MOOV_API_KEY", "")
+    MM_MTN_API_KEY = os.getenv("MM_MTN_API_KEY", "")
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

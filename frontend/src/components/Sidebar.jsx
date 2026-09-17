@@ -14,6 +14,7 @@ import {
   BookOpen,
   X,
   TrendingUp,
+  Rocket,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import SealMedallion from './SealMedallion';
@@ -35,6 +36,7 @@ const ICONS = {
   config: Settings,
   pedagogie: BookOpen,
   evolution: TrendingUp,
+  demarrage: Rocket,
 };
 
 /**
@@ -91,6 +93,13 @@ const menuItems = [
     section: 'principal',
   },
   {
+    label: 'Démarrage',
+    path: '/setup',
+    icon: 'demarrage',
+    roles: [...ADMIN_ROLES, 'secretariat'],
+    section: 'principal',
+  },
+  {
     label: 'Élèves',
     path: '/classes',
     icon: 'eleves',
@@ -134,6 +143,7 @@ const menuItems = [
       { label: 'Encaissement', path: '/finance/encaissement', roles: [...ADMIN_ROLES, 'agent_comptable'] },
       { label: 'Arriérés', path: '/finance/arrieres', roles: [...ADMIN_ROLES, 'agent_comptable'] },
       { label: 'Reçus', path: '/finance/recus', roles: [...ADMIN_ROLES, 'agent_comptable'] },
+      { label: 'SYSCOHADA', path: '/finance/syscohada', roles: [...ADMIN_ROLES, 'agent_comptable'] },
     ],
   },
   {

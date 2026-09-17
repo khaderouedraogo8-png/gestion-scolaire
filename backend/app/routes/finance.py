@@ -1,11 +1,16 @@
-"""Module 3 — Routes finance : frais, échéances, paiements."""
+"""Module 3 — Routes finance : frais, échéances, paiements, SYSCOHADA, intégrations."""
+from __future__ import annotations
+
 import uuid
+from datetime import date, timedelta
+from decimal import Decimal
 
 from flask import abort, jsonify, request, send_file
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 from flask_smorest import Blueprint
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import (
@@ -20,17 +25,23 @@ from app.models import (
     EcheancePaiement,
     Eleve,
     FraisScolaire,
+    Inscription,
     NiveauEtude,
     Paiement,
+    PlanComptableSyscohada,
 )
 from app.schemas.finance import (
     AnnulationPaiementSchema,
     EcheancePaiementSchema,
     FraisScolaireSchema,
+    FraisWithEcheancesSchema,
     PaiementCreateSchema,
     PaiementSchema,
     RelanceArrieresSchema,
 )
+from app.services.channels.mobile_money import mobile_money_status
+from app.services.channels.whatsapp import whatsapp_status
+from app.services.envoi_notification import creer_notification
 from app.services.finance_arrieres import list_arrieres
 from app.services.generation_recu import generer_recu_pdf
 from app.services.relance_arrieres import relancer_arrieres
@@ -43,9 +54,19 @@ from app.services.tenant import (
     tenant_query,
 )
 from app.utils.audit_logger import log_audit
+from app.utils.errors import abort_api
 from app.utils.pagination import empty_pagination, paginate_query, pagination_payload, parse_pagination
 
 blp = Blueprint("finance", __name__, url_prefix="/finance", description="Finance et comptabilité")
+
+_SYSCOHADA_SEED = [
+    ("7011", "Frais de scolarité", "7"),
+    ("7012", "Frais d'inscription", "7"),
+    ("7013", "Frais d'examen", "7"),
+    ("521", "Banque", "5"),
+    ("571", "Caisse", "5"),
+    ("4111", "Élèves — clients", "4"),
+]
 
 
 def _tenant_echeance_query(db):
@@ -84,6 +105,84 @@ def _serialize_paiement(db, paiement):
     return data
 
 
+def _assert_no_duplicate_frais(db, id_niveau, id_annee, motif, school_id):
+    existing = (
+        tenant_query(FraisScolaire)
+        .filter(
+            FraisScolaire.id_niveau == id_niveau,
+            FraisScolaire.id_annee == id_annee,
+            FraisScolaire.motif == motif,
+        )
+        .first()
+    )
+    if existing:
+        abort_api(
+            409,
+            "FRAIS_DUPLICATE",
+            "Un frais avec le même motif existe déjà pour ce niveau et cette année.",
+        )
+
+
+def _build_tranches(montant_total: Decimal, nb: int, start: date | None = None) -> list[dict]:
+    start = start or date.today()
+    cents = int(Decimal(montant_total) * 100)
+    base, rem = divmod(cents, nb)
+    parts = []
+    for i in range(nb):
+        part_cents = base + (1 if i < rem else 0)
+        parts.append({
+            "libelle": f"Tranche {i + 1}/{nb}",
+            "montant": Decimal(part_cents) / 100,
+            "date_echeance": start + timedelta(days=30 * i),
+        })
+    return parts
+
+
+def _notify_parent_recu(paiement: Paiement, canal: str = "email") -> None:
+    contenu = (
+        f"Paiement enregistré — reçu {paiement.numero_recu} : "
+        f"{float(paiement.montant_verse):,.0f} FCFA ({paiement.motif})."
+    )
+    try:
+        creer_notification(
+            canal=canal,
+            type_notification="recu_paiement",
+            contenu=contenu,
+            id_eleve=paiement.id_eleve,
+            school_id=paiement.school_id,
+            idempotency_key=f"recu:{canal}:{paiement.id}",
+        )
+    except Exception:
+        # Ne bloque jamais l'encaissement si la notif échoue
+        db = get_db()
+        try:
+            db.rollback()
+        except Exception:  # noqa: S110
+            pass
+
+
+@blp.route("/integrations")
+class FinanceIntegrations(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable")
+    def get(self):
+        wa = whatsapp_status()
+        mm = mobile_money_status()
+        return jsonify({
+            "whatsapp": {
+                "configured": wa.configured,
+                "status": wa.status,
+                "message": wa.message,
+            },
+            "mobile_money": {
+                "configured": mm.configured,
+                "status": mm.status,
+                "message": mm.message,
+                "operators": mm.operators,
+            },
+        })
+
+
 @blp.route("/frais")
 class FraisResource(MethodView):
     @jwt_required()
@@ -108,11 +207,80 @@ class FraisResource(MethodView):
         niveau = get_or_404_tenant(NiveauEtude, data["id_niveau"])
         annee = get_or_404_tenant(AnneeScolaire, data["id_annee"])
         assert_same_school(niveau, annee)
+        _assert_no_duplicate_frais(
+            db, data["id_niveau"], data["id_annee"], data["motif"], get_current_school_id()
+        )
         frais = FraisScolaire(id=uuid.uuid4(), **data)
         apply_tenant_school(frais)
-        db.add(frais)
-        db.commit()
+        try:
+            db.add(frais)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            abort_api(409, "FRAIS_DUPLICATE", "Frais déjà existant (contrainte d'unicité).")
         return frais, 201
+
+
+@blp.route("/frais/with-echeances")
+class FraisWithEcheances(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable")
+    @blp.arguments(FraisWithEcheancesSchema)
+    def post(self, data):
+        """Crée un frais + échéances fractionnées (1/3/4/6 ou liste explicite)."""
+        reject_client_school_id(request.get_json(silent=True))
+        db = get_db()
+        niveau = get_or_404_tenant(NiveauEtude, data["id_niveau"])
+        annee = get_or_404_tenant(AnneeScolaire, data["id_annee"])
+        assert_same_school(niveau, annee)
+        _assert_no_duplicate_frais(
+            db, data["id_niveau"], data["id_annee"], data["motif"], get_current_school_id()
+        )
+
+        montant = Decimal(str(data["montant_total"]))
+        echeances_in = data.get("echeances")
+        nb = data.get("nb_tranches")
+        if echeances_in:
+            parts = echeances_in
+        elif nb:
+            parts = _build_tranches(montant, int(nb))
+        else:
+            parts = _build_tranches(montant, 3)
+
+        total_parts = sum(Decimal(str(p["montant"])) for p in parts)
+        if abs(total_parts - montant) > Decimal("0.05"):
+            abort_api(
+                400,
+                "ECHEANCES_SUM_MISMATCH",
+                f"La somme des échéances ({total_parts}) doit égaler le montant total ({montant}).",
+            )
+
+        frais = FraisScolaire(
+            id=uuid.uuid4(),
+            id_niveau=data["id_niveau"],
+            id_annee=data["id_annee"],
+            motif=data["motif"],
+            montant_total=montant,
+        )
+        apply_tenant_school(frais)
+        db.add(frais)
+        db.flush()
+        for p in parts:
+            db.add(
+                EcheancePaiement(
+                    id=uuid.uuid4(),
+                    id_frais=frais.id,
+                    libelle=p.get("libelle"),
+                    montant=Decimal(str(p["montant"])),
+                    date_echeance=p["date_echeance"],
+                )
+            )
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            abort_api(409, "FRAIS_DUPLICATE", "Frais ou échéance en doublon.")
+        return jsonify(_serialize_frais(db, frais)), 201
 
 
 @blp.route("/echeances")
@@ -127,7 +295,7 @@ class EcheancesResource(MethodView):
         if id_frais:
             get_or_404_tenant(FraisScolaire, id_frais)
             q = q.filter(EcheancePaiement.id_frais == uuid.UUID(id_frais))
-        return q.all()
+        return q.order_by(EcheancePaiement.date_echeance).all()
 
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
@@ -138,9 +306,72 @@ class EcheancesResource(MethodView):
         db = get_db()
         get_or_404_tenant(FraisScolaire, data["id_frais"])
         echeance = EcheancePaiement(id=uuid.uuid4(), **data)
-        db.add(echeance)
-        db.commit()
+        try:
+            db.add(echeance)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            abort_api(
+                409,
+                "ECHEANCE_DUPLICATE",
+                "Une échéance avec le même libellé et la même date existe déjà.",
+            )
         return echeance, 201
+
+
+@blp.route("/echeances/eleve")
+class EcheancesEleve(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable", "parent")
+    def get(self):
+        """Échéances applicables à un élève (via niveau de sa classe) pour une année."""
+        db = get_db()
+        user = get_current_user()
+        id_eleve = request.args.get("id_eleve")
+        id_annee = request.args.get("id_annee")
+        if not id_eleve or not id_annee:
+            return jsonify({"message": "id_eleve et id_annee requis"}), 400
+        eid = uuid.UUID(id_eleve)
+        aid = uuid.UUID(id_annee)
+        get_or_404_tenant(Eleve, eid)
+        get_or_404_tenant(AnneeScolaire, aid)
+        if user.role == "parent" and not parent_has_eleve_access(user, eid):
+            return jsonify({"message": "Accès refusé"}), 403
+
+        insc = (
+            tenant_query(Inscription)
+            .filter(
+                Inscription.id_eleve == eid,
+                Inscription.id_annee == aid,
+                Inscription.statut.in_(("inscrit", "reinscrit")),
+            )
+            .first()
+        )
+        if not insc:
+            return jsonify([])
+        classe = get_or_404_tenant(Classe, insc.id_classe)
+        frais_list = (
+            tenant_query(FraisScolaire)
+            .filter(
+                FraisScolaire.id_niveau == classe.id_niveau,
+                FraisScolaire.id_annee == aid,
+            )
+            .all()
+        )
+        out = []
+        for frais in frais_list:
+            for ec in (
+                _tenant_echeance_query(db)
+                .filter(EcheancePaiement.id_frais == frais.id)
+                .order_by(EcheancePaiement.date_echeance)
+                .all()
+            ):
+                out.append({
+                    **EcheancePaiementSchema().dump(ec),
+                    "motif_frais": frais.motif,
+                    "montant": float(ec.montant),
+                })
+        return jsonify(out)
 
 
 @blp.route("/paiements")
@@ -185,7 +416,6 @@ class PaiementsResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
     @blp.arguments(PaiementCreateSchema)
-    @blp.response(201, PaiementSchema)
     def post(self, data):
         reject_client_school_id(request.get_json(silent=True))
         db = get_db()
@@ -205,7 +435,6 @@ class PaiementsResource(MethodView):
             frais = get_or_404_tenant(FraisScolaire, echeance.id_frais)
             assert_same_school(eleve, annee, frais)
 
-        # Générer numéro de reçu via séquence PostgreSQL
         numero_recu = db.execute(text("SELECT 'REC-' || nextval('seq_numero_recu')")).scalar()
 
         paiement = Paiement(
@@ -217,8 +446,26 @@ class PaiementsResource(MethodView):
         apply_tenant_school(paiement)
         db.add(paiement)
         db.commit()
-        log_audit("PAIEMENT_ENCAISSE", user.id, "paiement", paiement.id, {"montant": str(data["montant_verse"])})
-        return paiement, 201
+        log_audit(
+            "PAIEMENT_ENCAISSE",
+            user.id,
+            "paiement",
+            paiement.id,
+            {"montant": str(data["montant_verse"])},
+        )
+
+        # Reçu PDF + notification parent (email par défaut)
+        try:
+            generer_recu_pdf(paiement.id)
+        except Exception as exc:
+            from flask import current_app
+
+            current_app.logger.warning("Génération reçu PDF ignorée: %s", exc)
+        _notify_parent_recu(paiement, canal="email")
+        # Inbox interne parent
+        _notify_parent_recu(paiement, canal="interne")
+
+        return jsonify(_serialize_paiement(db, paiement)), 201
 
 
 @blp.route("/paiements/<uuid:id_paiement>/annuler")
@@ -232,11 +479,16 @@ class AnnulerPaiement(MethodView):
         paiement = get_or_404_tenant(Paiement, id_paiement)
         if paiement.annule:
             return jsonify({"message": "Paiement déjà annulé"}), 400
-        # Jamais de DELETE — annulation traçable uniquement
         paiement.annule = True
         paiement.motif_annulation = data["motif_annulation"]
         db.commit()
-        log_audit("PAIEMENT_ANNULE", user.id, "paiement", paiement.id, {"motif": data["motif_annulation"]})
+        log_audit(
+            "PAIEMENT_ANNULE",
+            user.id,
+            "paiement",
+            paiement.id,
+            {"motif": data["motif_annulation"]},
+        )
         return PaiementSchema().dump(paiement)
 
 
@@ -266,7 +518,6 @@ class ArrieresResource(MethodView):
     @jwt_required()
     @require_role("administrateur", "directeur", "agent_comptable")
     def get(self):
-        """Calcule les arriérés par élève : Σ(échéances dues) − Σ(paiements non annulés)."""
         db = get_db()
         id_annee = request.args.get("id_annee")
         if not id_annee:
@@ -283,9 +534,7 @@ class ArrieresResource(MethodView):
             id_classe=classe_uuid,
             school_id=get_current_school_id(),
         )
-        return jsonify([
-            {**a, "id_eleve": str(a["id_eleve"])} for a in arrieres
-        ])
+        return jsonify([{**a, "id_eleve": str(a["id_eleve"])} for a in arrieres])
 
 
 @blp.route("/arrieres/relancer")
@@ -300,13 +549,21 @@ class ArrieresRelancer(MethodView):
         id_annee_uuid = id_annee if not isinstance(id_annee, str) else uuid.UUID(str(id_annee))
         get_or_404_tenant(AnneeScolaire, id_annee_uuid)
         canal = data.get("canal", "email")
+        if canal == "whatsapp" and not whatsapp_status().configured:
+            abort_api(
+                400,
+                "WHATSAPP_NON_CONFIGURE",
+                "WhatsApp non configuré — choisissez email ou sms, ou configurez WHATSAPP_*.",
+            )
         auto_envoyer = bool(data.get("auto_envoyer", True))
+        mode = data.get("mode", "calendaire")
         result = relancer_arrieres(
             db,
             id_annee_uuid,
             canal=canal,
             auto_envoyer=auto_envoyer,
             school_id=get_current_school_id(),
+            mode=mode,
         )
         log_audit(
             "RELANCE_ARRIERES",
@@ -363,3 +620,48 @@ class ArrieresExport(MethodView):
             as_attachment=True,
             download_name="arrieres.xlsx",
         )
+
+
+@blp.route("/syscohada/plan")
+class SyscohadaPlan(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "agent_comptable")
+    def get(self):
+        """Plan comptable SYSCOHADA (skeleton) — seed auto si vide."""
+        db = get_db()
+        school_id = get_current_school_id()
+        rows = (
+            db.query(PlanComptableSyscohada)
+            .filter(PlanComptableSyscohada.school_id == school_id)
+            .order_by(PlanComptableSyscohada.compte)
+            .all()
+        )
+        if not rows:
+            for compte, libelle, classe in _SYSCOHADA_SEED:
+                db.add(
+                    PlanComptableSyscohada(
+                        id=uuid.uuid4(),
+                        school_id=school_id,
+                        compte=compte,
+                        libelle=libelle,
+                        classe=classe,
+                        actif=True,
+                    )
+                )
+            db.commit()
+            rows = (
+                db.query(PlanComptableSyscohada)
+                .filter(PlanComptableSyscohada.school_id == school_id)
+                .order_by(PlanComptableSyscohada.compte)
+                .all()
+            )
+        return jsonify([
+            {
+                "id": str(r.id),
+                "compte": r.compte,
+                "libelle": r.libelle,
+                "classe": r.classe,
+                "actif": r.actif,
+            }
+            for r in rows
+        ])

@@ -389,6 +389,11 @@ export default function Dashboard() {
     taux: r.taux,
   }));
 
+  const absencesJour = (absencesData?.absences_jour || []).reduce(
+    (sum, block) => sum + (block.total || 0),
+    0
+  );
+
   const eyebrow = isComptable
     ? 'Espace comptable'
     : isSecretariat
@@ -477,13 +482,32 @@ export default function Dashboard() {
             </>
           )}
           {!isComptable && (
+            <>
+              <StatCard
+                title="Absences du jour"
+                value={absencesJour}
+                subtitle="Signalées aujourd'hui"
+                tone="negative"
+                icon={CalendarCheck}
+                delay={240}
+              />
+              <StatCard
+                title="Absences (mois)"
+                value={stats?.total_absences ?? 0}
+                subtitle="Total enregistrées"
+                tone="negative"
+                icon={ClipboardList}
+                delay={300}
+              />
+            </>
+          )}
+          {isSecretariat && stats?.taux_recouvrement != null && (
             <StatCard
-              title="Absences"
-              value={stats?.total_absences ?? 0}
-              subtitle="Total enregistrées"
-              tone="negative"
-              icon={ClipboardList}
-              delay={240}
+              title="Recouvrement"
+              value={`${stats.taux_recouvrement}%`}
+              subtitle="Paiements encaissés"
+              tone="positive"
+              icon={TrendingUp}
             />
           )}
           {isDirection && stats?.total_classes != null && (

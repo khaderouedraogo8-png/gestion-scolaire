@@ -267,7 +267,17 @@ def validate_import_rows(
         e.matricule.strip().lower()
         for e in tenant_query(Eleve).with_entities(Eleve.matricule).all()
     }
+    existing_identity = {
+        (
+            (e.nom or "").strip().lower(),
+            (e.prenom or "").strip().lower(),
+            e.date_naissance.isoformat() if e.date_naissance else "",
+        ): e.matricule
+        for e in tenant_query(Eleve).all()
+    }
     seen_in_file: set[str] = set()
+    seen_identity_file: set[tuple[str, str, str]] = set()
+    doublons_suspects: list[dict[str, Any]] = []
     base_count = tenant_query(Eleve).count()
     auto_seq = base_count
 
@@ -278,6 +288,7 @@ def validate_import_rows(
     for raw in raw_rows:
         line = raw.get("_line")
         errors: list[str] = []
+        warnings: list[str] = []
         data: dict[str, Any] = {}
 
         nom = _cell_str(raw.get("nom"))
@@ -304,6 +315,44 @@ def validate_import_rows(
         data["lieu_naissance"] = _cell_str(raw.get("lieu_naissance")) or None
         data["adresse"] = _cell_str(raw.get("adresse")) or None
 
+        identity_key = (
+            nom.strip().lower(),
+            prenom.strip().lower(),
+            data.get("date_naissance") or "",
+        )
+        if nom and prenom and identity_key[2]:
+            if identity_key in existing_identity:
+                msg = (
+                    f"doublon identité suspect (DB matricule "
+                    f"{existing_identity[identity_key]}) : {prenom} {nom} "
+                    f"né(e) {identity_key[2]}"
+                )
+                errors.append(msg)
+                doublons_suspects.append({
+                    "line": line,
+                    "source": "database",
+                    "nom": nom,
+                    "prenom": prenom,
+                    "date_naissance": identity_key[2],
+                    "matricule_existant": existing_identity[identity_key],
+                })
+            elif identity_key in seen_identity_file:
+                msg = f"doublon identité dans le fichier : {prenom} {nom} né(e) {identity_key[2]}"
+                errors.append(msg)
+                doublons_suspects.append({
+                    "line": line,
+                    "source": "file",
+                    "nom": nom,
+                    "prenom": prenom,
+                    "date_naissance": identity_key[2],
+                })
+            else:
+                seen_identity_file.add(identity_key)
+        elif nom and prenom and not identity_key[2]:
+            warnings.append(
+                "date_naissance absente — dédup identité (nom+prénom+DOB) non applicable"
+            )
+
         matricule = _cell_str(raw.get("matricule"))
         if matricule:
             key = matricule.lower()
@@ -319,7 +368,6 @@ def validate_import_rows(
             auto_seq += 1
             data["matricule"] = _generer_matricule(db, id_annee, auto_seq)
             data["matricule_auto"] = True
-            # éviter collision auto dans le même batch
             while data["matricule"].lower() in existing_matricules or data["matricule"].lower() in seen_in_file:
                 auto_seq += 1
                 data["matricule"] = _generer_matricule(db, id_annee, auto_seq)
@@ -344,7 +392,13 @@ def validate_import_rows(
             ok_count += 1
         else:
             err_count += 1
-        results.append({"line": line, "status": status, "errors": errors, "data": data})
+        results.append({
+            "line": line,
+            "status": status,
+            "errors": errors,
+            "warnings": warnings,
+            "data": data,
+        })
 
     return {
         "items": results,
@@ -352,7 +406,9 @@ def validate_import_rows(
             "total": len(results),
             "ok": ok_count,
             "errors": err_count,
+            "doublons_suspects": len(doublons_suspects),
         },
+        "doublons_suspects": doublons_suspects,
         "id_annee": str(id_annee),
     }
 

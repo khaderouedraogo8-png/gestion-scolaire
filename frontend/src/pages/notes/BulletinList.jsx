@@ -33,6 +33,7 @@ export default function BulletinList() {
   const [appModal, setAppModal] = useState(false);
   const [appForm, setAppForm] = useState({ id: '', appreciation_generale: '' });
   const [savingApp, setSavingApp] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,6 +125,31 @@ export default function BulletinList() {
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur');
+    }
+  };
+
+  const handleExportZip = async () => {
+    if (!classeFilter || !periodeFilter) {
+      toast.warning('Sélectionnez une classe et une période pour l\'export ZIP.');
+      return;
+    }
+    setExportingZip(true);
+    try {
+      const blob = await notesApi.exportBulletinsZip({
+        id_classe: classeFilter,
+        id_trimestre: periodeFilter,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bulletins_${classeFilter}_${periodeFilter}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Export ZIP téléchargé');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Export ZIP indisponible');
+    } finally {
+      setExportingZip(false);
     }
   };
 
@@ -263,9 +289,19 @@ export default function BulletinList() {
         subtitle="Workflow : brouillon → validé (directeur) → publié (parents)"
         actions={
           isAdmin && (
-            <button type="button" onClick={() => setGenModal(true)} className="btn-primary">
-              Générer les bulletins
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleExportZip}
+                disabled={exportingZip || !classeFilter || !periodeFilter}
+                className="btn-secondary"
+              >
+                {exportingZip ? 'Export…' : 'Exporter PDF en masse (ZIP)'}
+              </button>
+              <button type="button" onClick={() => setGenModal(true)} className="btn-primary">
+                Générer les bulletins
+              </button>
+            </>
           )
         }
       />

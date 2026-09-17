@@ -18,6 +18,21 @@ class EcheancePaiementSchema(Schema):
     date_echeance = fields.Date(required=True)
 
 
+class EcheanceInputSchema(Schema):
+    libelle = fields.String(allow_none=True)
+    montant = fields.Decimal(required=True, validate=validate.Range(min=0.01))
+    date_echeance = fields.Date(required=True)
+
+
+class FraisWithEcheancesSchema(Schema):
+    id_niveau = fields.UUID(required=True)
+    id_annee = fields.UUID(required=True)
+    motif = fields.String(required=True)
+    montant_total = fields.Decimal(required=True, validate=validate.Range(min=0.01))
+    nb_tranches = fields.Integer(load_default=None, validate=validate.OneOf([1, 3, 4, 6]))
+    echeances = fields.List(fields.Nested(EcheanceInputSchema), load_default=None)
+
+
 class PaiementSchema(Schema):
     id = fields.UUID(dump_only=True)
     id_eleve = fields.UUID(required=True)
@@ -47,5 +62,12 @@ class AnnulationPaiementSchema(Schema):
 
 class RelanceArrieresSchema(Schema):
     id_annee = fields.UUID(required=True)
-    canal = fields.String(load_default="email", validate=validate.OneOf(["email", "sms"]))
+    canal = fields.String(
+        load_default="email",
+        validate=validate.OneOf(["email", "sms", "whatsapp", "interne"]),
+    )
     auto_envoyer = fields.Boolean(load_default=True)
+    mode = fields.String(
+        load_default="calendaire",
+        validate=validate.OneOf(["calendaire", "global"]),
+    )

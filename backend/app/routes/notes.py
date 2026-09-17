@@ -887,6 +887,68 @@ class GenererBulletin(MethodView):
             return jsonify({"message": str(e)}), 400
 
 
+@blp.route("/bulletins/export-zip")
+class BulletinsExportZip(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat")
+    def get(self):
+        """Export PDF en masse (ZIP) pour une classe + trimestre."""
+        import io
+        import zipfile
+
+        from app.services.generation_bulletin import generer_bulletin_pdf
+
+        db = get_db()
+        id_classe = request.args.get("id_classe")
+        id_trimestre = request.args.get("id_trimestre")
+        if not id_classe or not id_trimestre:
+            return jsonify({"message": "id_classe et id_trimestre requis"}), 400
+        classe_uuid = uuid.UUID(id_classe)
+        trim_uuid = uuid.UUID(id_trimestre)
+        get_or_404_tenant(Classe, classe_uuid)
+        _get_trimestre_or_404(db, trim_uuid)
+
+        inscriptions = (
+            tenant_query(Inscription)
+            .filter(
+                Inscription.id_classe == classe_uuid,
+                Inscription.statut.in_(("inscrit", "reinscrit")),
+            )
+            .all()
+        )
+        eleve_ids = [i.id_eleve for i in inscriptions]
+        if not eleve_ids:
+            return jsonify({"message": "Aucun élève dans cette classe"}), 404
+        bulletins = (
+            tenant_query(Bulletin)
+            .filter(
+                Bulletin.id_eleve.in_(eleve_ids),
+                Bulletin.id_trimestre == trim_uuid,
+            )
+            .all()
+        )
+        if not bulletins:
+            return jsonify({"message": "Aucun bulletin à exporter"}), 404
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for bulletin in bulletins:
+                try:
+                    path = generer_bulletin_pdf(bulletin)
+                    eleve = tenant_query(Eleve).filter(Eleve.id == bulletin.id_eleve).first()
+                    name = f"bulletin_{eleve.matricule if eleve else bulletin.id}.pdf"
+                    zf.write(path, arcname=name)
+                except ValueError:
+                    continue
+        buf.seek(0)
+        return send_file(
+            buf,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="bulletins.zip",
+        )
+
+
 @blp.route("/bulletins/<uuid:id_bulletin>/valider")
 class ValiderBulletin(MethodView):
     @jwt_required()

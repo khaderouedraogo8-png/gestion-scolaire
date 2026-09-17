@@ -4,17 +4,18 @@ import uuid
 
 class TestFinance:
     def test_create_frais(self, client, auth_headers, annee_classe):
+        motif = f"Scolarité-{uuid.uuid4().hex[:8]}"
         response = client.post(
             "/api/finance/frais",
             headers=auth_headers,
             json={
                 "id_niveau": str(annee_classe["niveau"].id),
                 "id_annee": str(annee_classe["annee"].id),
-                "motif": "Scolarité",
+                "motif": motif,
                 "montant_total": 150000,
             },
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.get_json()
 
     def test_encaissement_et_annulation(self, client, auth_headers, db, annee_classe, default_school):
         from app.models import Eleve, Inscription
