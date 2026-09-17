@@ -63,7 +63,7 @@ Croisement audit marché Deerflow × code réel. Livré sur une seule PR :
 | PDF | Jinja2 templates + WeasyPrint |
 | Tests | pytest (backend), Vitest + Playwright (frontend) |
 | CI | GitHub Actions (ruff, bandit, pytest, lint, build, e2e, prod-build) |
-| Déploiement | Docker Compose + Nginx (VPS). Railway mentionné dans l’historique produit ; **pas de `Procfile` / `railway.toml` dans le repo actuel sur `main`**. |
+| Déploiement | Docker Compose + Nginx (VPS) **et** Railway PaaS (`railway.toml` + `deploy/Dockerfile.railway`) — prod live `web-production-54355.up.railway.app`. |
 
 ---
 

@@ -18,6 +18,10 @@ class EtablissementSchema(Schema):
     ville = fields.String(allow_none=True)
     format_matricule = fields.String(load_default="{ANNEE}M-{SEQ}")
     devise = fields.String(load_default="XOF")
+    bulletin_template = fields.String(
+        load_default="BF",
+        validate=validate.OneOf(["BF", "SN", "CI", "ML", "NE", "TG", "BJ", "GENERIC"]),
+    )
 
 
 class AnneeScolaireSchema(Schema):

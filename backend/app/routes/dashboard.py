@@ -32,7 +32,9 @@ class DashboardStats(MethodView):
     def get(self):
         db = get_db()
         user = get_current_user()
-        id_annee = request.args.get("id_annee")
+        id_annee = request.args.get("id_annee") or None
+        if id_annee == "":
+            id_annee = None
         school_id = get_current_school_id()
         role = user.role
 
