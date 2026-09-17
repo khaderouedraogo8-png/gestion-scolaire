@@ -131,7 +131,7 @@ class EtatBalance(MethodView):
     def get(self):
         """Balance simple débit/crédit par compte."""
         rows = tenant_query(EcritureComptable).all()
-        comptes: dict[str, dict] = defaultdict(lambda: {"debit": Decimal("0"), "credit": Decimal("0")})
+        comptes: dict[str, dict] = defaultdict(lambda: {"debit": Decimal(0), "credit": Decimal(0)})
         for e in rows:
             comptes[e.compte_debit]["debit"] += Decimal(e.montant)
             comptes[e.compte_credit]["credit"] += Decimal(e.montant)
@@ -154,10 +154,10 @@ class EtatBilan(MethodView):
     def get(self):
         """Bilan très simplifié : classes 1–5 actif/passif, 6–7 charges/produits."""
         rows = tenant_query(EcritureComptable).all()
-        actif = Decimal("0")
-        passif = Decimal("0")
-        charges = Decimal("0")
-        produits = Decimal("0")
+        actif = Decimal(0)
+        passif = Decimal(0)
+        charges = Decimal(0)
+        produits = Decimal(0)
         for e in rows:
             m = Decimal(e.montant)
             for compte, sens in ((e.compte_debit, "D"), (e.compte_credit, "C")):

@@ -12,7 +12,7 @@ from marshmallow import Schema, fields
 from app.auth.jwt_handler import get_current_user
 from app.auth.permissions import require_role
 from app.extensions import get_db
-from app.models import Eleve, ElearningDevoir, ElearningQuiz, ElearningRemise
+from app.models import ElearningDevoir, ElearningQuiz, ElearningRemise, Eleve
 from app.services.tenant import (
     apply_tenant_school,
     get_or_404_tenant,
