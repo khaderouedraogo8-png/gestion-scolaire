@@ -51,6 +51,7 @@ import Salles from './pages/emploi/Salles';
 
 import Absences from './pages/absences/Absences';
 import Discipline from './pages/absences/Discipline';
+import AppelMobile from './pages/absences/AppelMobile';
 
 import Documents from './pages/documents/Documents';
 import VerifierQR from './pages/documents/VerifierQR';
@@ -367,6 +368,10 @@ export const routes = [
       {
         path: 'absences',
         element: guard(ABSENCES, <Absences />),
+      },
+      {
+        path: 'absences/appel',
+        element: guard(ABSENCES, <AppelMobile />),
       },
       {
         path: 'absences/discipline',

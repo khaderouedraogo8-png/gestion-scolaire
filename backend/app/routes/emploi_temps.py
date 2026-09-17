@@ -513,3 +513,116 @@ class EdtPublications(MethodView):
             }
             for r in rows
         ])
+
+
+class GenererEdtSchema(Schema):
+    id_annee = fields.UUID(required=True)
+    jours = fields.List(fields.Integer(), load_default=[1, 2, 3, 4, 5])
+    creneaux_jours = fields.Integer(load_default=4)
+    heure_debut = fields.String(load_default="08:00")
+    duree_minutes = fields.Integer(load_default=55)
+    replace_existing = fields.Boolean(load_default=False)
+
+
+@blp.route("/generer")
+class EdtGenerer(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur")
+    @blp.arguments(GenererEdtSchema)
+    def post(self, data):
+        """Génération assistée d'emploi du temps à partir des affectations (greedy + anti-conflits)."""
+        from datetime import datetime, timedelta
+
+        db = get_db()
+        id_annee = data["id_annee"]
+        get_or_404_tenant(AnneeScolaire, id_annee)
+        affectations = (
+            tenant_query(AffectationEnseignant)
+            .filter(AffectationEnseignant.id_annee == id_annee)
+            .all()
+        )
+        if not affectations:
+            return jsonify({"message": "Aucune affectation pour cette année", "crees": 0}), 400
+
+        salles = tenant_query(Salle).all()
+        jours = data.get("jours") or [1, 2, 3, 4, 5]
+        n_slots = int(data.get("creneaux_jours") or 4)
+        h0 = datetime.strptime(data.get("heure_debut") or "08:00", "%H:%M")
+        duree = int(data.get("duree_minutes") or 55)
+
+        if data.get("replace_existing"):
+            aff_ids = [a.id for a in affectations]
+            if aff_ids:
+                db.query(CreneauEmploiTemps).filter(
+                    CreneauEmploiTemps.id_affectation.in_(aff_ids)
+                ).delete(synchronize_session=False)
+                db.commit()
+
+        # occupancy: (jour, debut, fin) -> sets of enseignant/classe/salle
+        occ_ens: dict[tuple, set] = {}
+        occ_classe: dict[tuple, set] = {}
+        occ_salle: dict[tuple, set] = {}
+        created = 0
+        skips = 0
+
+        # Expand each affectation into weekly slots based on volume
+        jobs = []
+        for aff in affectations:
+            vol = float(aff.volume_horaire_hebdo or 2)
+            slots_needed = max(1, int(round(vol)))
+            for _ in range(slots_needed):
+                jobs.append(aff)
+
+        slot_defs = []
+        for j in jours:
+            for i in range(n_slots):
+                debut = (h0 + timedelta(minutes=i * (duree + 5))).time()
+                fin = (h0 + timedelta(minutes=i * (duree + 5) + duree)).time()
+                slot_defs.append((j, debut, fin))
+
+        salle_idx = 0
+        for aff in jobs:
+            placed = False
+            for jour, debut, fin in slot_defs:
+                key = (jour, debut, fin)
+                ens_set = occ_ens.setdefault(key, set())
+                cl_set = occ_classe.setdefault(key, set())
+                sa_set = occ_salle.setdefault(key, set())
+                if aff.id_enseignant in ens_set or aff.id_classe in cl_set:
+                    continue
+                salle_id = None
+                if salles:
+                    # pick first free salle
+                    for offset in range(len(salles)):
+                        s = salles[(salle_idx + offset) % len(salles)]
+                        if s.id not in sa_set:
+                            salle_id = s.id
+                            salle_idx = (salle_idx + offset + 1) % len(salles)
+                            break
+                    if salle_id is None:
+                        continue
+                ens_set.add(aff.id_enseignant)
+                cl_set.add(aff.id_classe)
+                if salle_id:
+                    sa_set.add(salle_id)
+                cr = CreneauEmploiTemps(
+                    id=uuid.uuid4(),
+                    id_affectation=aff.id,
+                    id_salle=salle_id,
+                    jour_semaine=jour,
+                    heure_debut=debut,
+                    heure_fin=fin,
+                )
+                db.add(cr)
+                created += 1
+                placed = True
+                break
+            if not placed:
+                skips += 1
+        db.commit()
+        return jsonify({
+            "message": f"{created} créneau(x) généré(s)",
+            "crees": created,
+            "non_places": skips,
+            "affectations": len(affectations),
+        })

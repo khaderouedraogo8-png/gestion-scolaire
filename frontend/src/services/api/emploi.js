@@ -78,4 +78,19 @@ export const emploiApi = {
     });
     return response.data;
   },
+
+  genererEdt: async (payload) => {
+    const { data } = await apiClient.post('/emploi-temps/generer', payload);
+    return data;
+  },
+
+  detectConflits: async (params = {}) => {
+    const { data } = await apiClient.get('/emploi-temps/conflits', { params });
+    return data;
+  },
+
+  publierEdt: async (payload) => {
+    const { data } = await apiClient.post('/emploi-temps/publier', payload);
+    return data;
+  },
 };

@@ -208,6 +208,7 @@ const menuItems = [
     section: 'administration',
     children: [
       { label: 'Absences', path: '/absences', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat', 'surveillant'] },
+      { label: 'Appel mobile', path: '/absences/appel', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat', 'surveillant'] },
       { label: 'Discipline', path: '/absences/discipline', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat', 'surveillant'] },
     ],
   },

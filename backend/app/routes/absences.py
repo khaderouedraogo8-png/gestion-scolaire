@@ -457,3 +457,70 @@ class AlertesDecrochageScan(MethodView):
             "created": len(created),
             "alertes": AlerteSchema(many=True).dump(created),
         }), 201
+
+
+@blp.route("/appel")
+class AppelMobileResource(MethodView):
+    @jwt_required()
+    @require_role("administrateur", "directeur", "secretariat", "enseignant")
+    def post(self):
+        """Appel de présence rapide par classe (mobile-friendly).
+
+        Body: { id_classe, date_absence?, presents: [id_eleve], absents: [{id_eleve, type_absence?}] }
+        """
+        db = get_db()
+        user = get_current_user()
+        body = request.get_json(silent=True) or {}
+        id_classe = body.get("id_classe")
+        if not id_classe:
+            return jsonify({"message": "id_classe requis"}), 400
+        classe = get_or_404_tenant(Classe, uuid.UUID(id_classe))
+        if user.role == "enseignant":
+            allowed = get_teacher_class_ids(user)
+            if classe.id not in allowed:
+                return jsonify({"message": "Classe hors périmètre"}), 403
+        jour = body.get("date_absence")
+        if jour:
+            from datetime import date as date_cls
+            jour = date_cls.fromisoformat(jour)
+        else:
+            jour = datetime.now(UTC).date()
+
+        presents = {uuid.UUID(x) for x in (body.get("presents") or [])}
+        absents_raw = body.get("absents") or []
+        created = []
+        for item in absents_raw:
+            if isinstance(item, str):
+                eid = uuid.UUID(item)
+                typ = "absence"
+            else:
+                eid = uuid.UUID(item["id_eleve"])
+                typ = item.get("type_absence") or "absence"
+            if eid in presents:
+                continue
+            existing = (
+                tenant_query(Absence)
+                .filter(Absence.id_eleve == eid, Absence.date_absence == jour)
+                .first()
+            )
+            if existing:
+                continue
+            row = Absence(
+                id=uuid.uuid4(),
+                id_eleve=eid,
+                date_absence=jour,
+                type_absence=typ,
+                justifiee=False,
+                saisi_par=user.id,
+            )
+            apply_tenant_school(row)
+            db.add(row)
+            created.append(str(row.id))
+        db.commit()
+        return jsonify({
+            "message": f"Appel enregistré — {len(created)} absence(s)",
+            "date": jour.isoformat(),
+            "id_classe": str(classe.id),
+            "absences_crees": created,
+            "presents": len(presents),
+        }), 201

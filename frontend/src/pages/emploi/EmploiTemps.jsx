@@ -152,6 +152,33 @@ export default function EmploiTemps() {
                 + Créneau
               </button>
             )}
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={async () => {
+                  try {
+                    const annees = await configApi.getAnnees();
+                    const list = Array.isArray(annees) ? annees : annees.items || [];
+                    const active = list.find((a) => a.est_active) || list[0];
+                    if (!active) {
+                      toast.error('Aucune année scolaire');
+                      return;
+                    }
+                    const res = await emploiApi.genererEdt({
+                      id_annee: active.id,
+                      replace_existing: false,
+                    });
+                    toast.success(res.message || 'Emploi du temps généré');
+                    load();
+                  } catch {
+                    toast.error('Génération impossible');
+                  }
+                }}
+              >
+                Générer auto
+              </button>
+            )}
           </>
         }
       />

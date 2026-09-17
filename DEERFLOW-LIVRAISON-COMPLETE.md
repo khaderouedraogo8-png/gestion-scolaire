@@ -26,8 +26,8 @@ Légende : ✅ livré utilisable · 🔶 livré MVP (API+UI, profondeur métier 
 | A.2 Fratries / remises / dossier PDF | 🔶 |
 | A.3 Finance MM + recouvrement détail | ✅ |
 | A.4 Conseil de classe / décisions passage | ✅ |
-| A.5 Justificatifs + décrochage | 🔶 |
-| A.6 EDT conflits / remplacements / publication | 🔶 |
+| A.5 Justificatifs + décrochage + **appel mobile** | ✅ |
+| A.6 EDT conflits / remplacements / publication / **génération auto** | ✅ |
 | A.7 Comptabilité / paie | 🔶 |
 | A.8 Vie scolaire (cantine, transport, internat, infirmière, biblio) | 🔶 |
 | A.9 RH contrats / congés | 🔶 |
