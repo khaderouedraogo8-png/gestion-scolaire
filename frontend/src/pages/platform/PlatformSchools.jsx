@@ -123,6 +123,9 @@ export default function PlatformSchools() {
             <Link to="/platform/onboarding" className="btn-primary">
               Nouvelle école
             </Link>
+            <Link to="/platform/billing" className="btn-secondary">
+              Facturation
+            </Link>
           </div>
         }
       />
