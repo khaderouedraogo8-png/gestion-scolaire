@@ -17,13 +17,22 @@ export async function expectPageTitle(page, title, timeout = 15000) {
   });
 }
 
-/** Connexion via la page /login */
+/** Connexion via la page /login — attend la réponse API avant navigation SPA. */
 export async function loginWithCredentials(page, email, password) {
   await page.goto('/login');
   const emailField = page.locator('#field-email');
   const passwordField = page.locator('#field-password');
-  await expect(emailField).toBeVisible({ timeout: 15000 });
+  await expect(emailField).toBeVisible({ timeout: 20000 });
   await emailField.fill(email);
   await passwordField.fill(password);
+  const loginResponse = page.waitForResponse(
+    (r) => r.url().includes('/api/login') && r.request().method() === 'POST',
+    { timeout: 20000 },
+  );
   await page.getByRole('button', { name: 'Se connecter' }).click();
+  const res = await loginResponse;
+  if (!res.ok()) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Login API ${res.status()}: ${body.slice(0, 200)}`);
+  }
 }

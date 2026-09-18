@@ -125,6 +125,22 @@ jobs:
           docker compose logs frontend
           exit 1
 
+      - name: Warm Vite + login API
+        run: |
+          # Premier compile des modules critiques (évite timeout auth SPA à froid)
+          curl -sf http://localhost:5173/src/main.jsx >/dev/null || true
+          curl -sf http://localhost:5173/src/routes.jsx >/dev/null || true
+          for i in $(seq 1 20); do
+            if curl -sf -X POST http://localhost:5000/api/login \
+              -H 'Content-Type: application/json' \
+              -d '{"email":"admin@ecole.local","password":"Admin123!"}' | grep -q access_token; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs backend | tail -80
+          exit 1
+
       - name: Reset demo accounts for E2E
         run: |
           docker exec gestion-scolaire-backend-1 python -c "
