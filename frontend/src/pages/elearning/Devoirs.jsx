@@ -17,6 +17,7 @@ export default function Devoirs() {
     consignes: '',
     id_classe: '',
     date_limite: '',
+    note_max: '20',
     publie: true,
   });
 
@@ -44,10 +45,11 @@ export default function Devoirs() {
         consignes: form.consignes || null,
         id_classe: form.id_classe || null,
         date_limite: form.date_limite || null,
+        note_max: form.note_max || '20',
         publie: form.publie,
       });
       toast.success('Devoir créé');
-      setForm({ titre: '', consignes: '', id_classe: '', date_limite: '', publie: true });
+      setForm({ titre: '', consignes: '', id_classe: '', date_limite: '', note_max: '20', publie: true });
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erreur');
@@ -63,6 +65,7 @@ export default function Devoirs() {
           <FormField label="Titre" name="titre" value={form.titre} onChange={(e) => setForm((f) => ({ ...f, titre: e.target.value }))} required />
           <FormField label="ID classe" name="id_classe" value={form.id_classe} onChange={(e) => setForm((f) => ({ ...f, id_classe: e.target.value }))} />
           <FormField label="Date limite" name="date_limite" type="datetime-local" value={form.date_limite} onChange={(e) => setForm((f) => ({ ...f, date_limite: e.target.value }))} />
+          <FormField label="Note max" name="note_max" value={form.note_max} onChange={(e) => setForm((f) => ({ ...f, note_max: e.target.value }))} />
           <FormField label="Consignes" name="consignes" type="textarea" value={form.consignes} onChange={(e) => setForm((f) => ({ ...f, consignes: e.target.value }))} />
           <button type="submit" className="btn-primary w-fit">Publier</button>
         </form>

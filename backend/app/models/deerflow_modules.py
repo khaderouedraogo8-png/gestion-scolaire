@@ -641,6 +641,8 @@ class ElearningDevoir(Base):
     titre: Mapped[str] = mapped_column(String(200), nullable=False)
     consignes: Mapped[str | None] = mapped_column(Text)
     date_limite: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note_max: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal(20), nullable=False)
+    pieces_jointes: Mapped[list | dict | None] = mapped_column(JSONB)
     cree_par: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     publie: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -668,6 +670,9 @@ class ElearningRemise(Base):
     )
     note: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     commentaire: Mapped[str | None] = mapped_column(Text)
+    statut: Mapped[str] = mapped_column(String(20), default="remise", nullable=False)
+    notee_par: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    notee_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ElearningQuiz(Base):
@@ -680,7 +685,49 @@ class ElearningQuiz(Base):
     titre: Mapped[str] = mapped_column(String(200), nullable=False)
     questions: Mapped[dict | list | None] = mapped_column(JSONB)
     duree_minutes: Mapped[int | None] = mapped_column(Integer)
+    note_max: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal(20), nullable=False)
+    tentatives_max: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    afficher_correction: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     publie: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cree_par: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ElearningQuizTentative(Base):
+    __tablename__ = "elearning_quiz_tentative"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = _school_id_cascade()
+    id_quiz: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("elearning_quiz.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    id_eleve: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    reponses: Mapped[dict | list | None] = mapped_column(JSONB)
+    score_brut: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+    score_max: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+    note: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    detail_correction: Mapped[dict | list | None] = mapped_column(JSONB)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ElearningRessource(Base):
+    __tablename__ = "elearning_ressource"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    school_id: Mapped[uuid.UUID] = _school_id_cascade()
+    id_classe: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    id_matiere: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    titre: Mapped[str] = mapped_column(String(200), nullable=False)
+    type_ressource: Mapped[str] = mapped_column(String(30), default="lien", nullable=False)
+    url: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    publie: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     cree_par: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

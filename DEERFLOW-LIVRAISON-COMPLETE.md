@@ -1,6 +1,6 @@
 # Livraison complète — Audit Deerflow UEMOA/CEMAC
 
-**Branche :** `cursor/deerflow-depth-8bcc` → profondeur métier  
+**Branche :** `cursor/elearning-lms-depth-8bcc` → LMS e-learning profondeur  
 **Objectif :** tout item du document audit — Quick wins + Vision LT + Volets A/B **en profondeur**.
 
 Légende : ✅ profondeur métier livrée · 🔶 partiel / évolutif
@@ -32,7 +32,7 @@ Légende : ✅ profondeur métier livrée · 🔶 partiel / évolutif
 | A.8 Vie scolaire | ✅ | Cantine facturation, pointage transport, retards biblio |
 | A.9 RH | ✅ | Contrats/congés + alertes expiration 30j |
 | A.10 Portails | ✅ | Bot WA + OTP SMS + portail élève `/me/portal` |
-| A.11 E-learning | 🔶 | Devoirs/quiz CRUD (LMS complet hors scope immédiat) |
+| A.11 E-learning | ✅ | Devoirs + remises notées + stats · Quiz QCM auto-score + tentatives · Ressources · Progression classe · UI élève |
 | A.12 Front office | ✅ | Sortie QR HMAC + validation parent |
 | A.13 Inventaire | ✅ | Alertes seuil + écarts inventaire annuel |
 | B Landing / PWA | ✅ | Landing + offline queue conflictuelle |

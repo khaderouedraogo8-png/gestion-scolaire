@@ -100,6 +100,8 @@ import Inventaire from './pages/inventaire/Inventaire';
 
 import Devoirs from './pages/elearning/Devoirs';
 import Quiz from './pages/elearning/Quiz';
+import Remises from './pages/elearning/Remises';
+import Ressources from './pages/elearning/Ressources';
 
 import EleveHome from './pages/eleve-portal/EleveHome';
 
@@ -141,7 +143,6 @@ const RH = [...ADMIN, ...SUPER_ADMIN];
 const FRONT = [...ADMIN, 'secretariat', 'surveillant', ...SUPER_ADMIN];
 const INVENTAIRE = [...ADMIN, 'secretariat', ...SUPER_ADMIN];
 const ELEARNING = [...ADMIN, 'enseignant', 'secretariat', 'parent', 'eleve', ...SUPER_ADMIN];
-const ELEARNING_WRITE = [...ADMIN, 'enseignant', ...SUPER_ADMIN];
 const MOBILE_MONEY = [...ADMIN, 'agent_comptable', 'parent', ...SUPER_ADMIN];
 
 const CONFIG = [...ADMIN, ...SUPER_ADMIN];
@@ -427,8 +428,16 @@ export const routes = [
         element: guard(ELEARNING, <Devoirs />),
       },
       {
+        path: 'elearning/remises',
+        element: guard(ELEARNING, <Remises />),
+      },
+      {
         path: 'elearning/quiz',
-        element: guard(ELEARNING_WRITE, <Quiz />),
+        element: guard(ELEARNING, <Quiz />),
+      },
+      {
+        path: 'elearning/ressources',
+        element: guard(ELEARNING, <Ressources />),
       },
       {
         path: 'documents',

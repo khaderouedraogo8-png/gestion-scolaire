@@ -117,6 +117,9 @@ const menuItems = [
   },
   { label: 'Mon espace', path: '/eleve', icon: 'home', roles: ['eleve'], section: 'eleve' },
   { label: 'Devoirs', path: '/elearning/devoirs', icon: 'elearning', roles: ['eleve'], section: 'eleve' },
+  { label: 'Remises', path: '/elearning/remises', icon: 'elearning', roles: ['eleve'], section: 'eleve' },
+  { label: 'Quiz', path: '/elearning/quiz', icon: 'elearning', roles: ['eleve'], section: 'eleve' },
+  { label: 'Ressources', path: '/elearning/ressources', icon: 'elearning', roles: ['eleve'], section: 'eleve' },
   {
     label: 'Tableau de bord',
     path: '/dashboard',
@@ -166,7 +169,9 @@ const menuItems = [
     section: 'academique',
     children: [
       { label: 'Devoirs', path: '/elearning/devoirs', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
+      { label: 'Remises', path: '/elearning/remises', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
       { label: 'Quiz', path: '/elearning/quiz', roles: [...ADMIN_ROLES, 'enseignant'] },
+      { label: 'Ressources', path: '/elearning/ressources', roles: [...ADMIN_ROLES, 'enseignant', 'secretariat'] },
     ],
   },
   {

@@ -1276,6 +1276,8 @@ CREATE TABLE elearning_devoir (
     titre                VARCHAR(200) NOT NULL,
     consignes            TEXT,
     date_limite          TIMESTAMPTZ,
+    note_max             NUMERIC(6, 2) NOT NULL DEFAULT 20,
+    pieces_jointes       JSONB,
     cree_par             UUID,
     publie               BOOLEAN NOT NULL DEFAULT true,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1293,6 +1295,9 @@ CREATE TABLE elearning_remise (
     date_remise          TIMESTAMPTZ NOT NULL DEFAULT now(),
     note                 NUMERIC(6, 2),
     commentaire          TEXT,
+    statut               VARCHAR(20) NOT NULL DEFAULT 'remise',
+    notee_par            UUID,
+    notee_le             TIMESTAMPTZ,
     CONSTRAINT uq_elearning_remise_devoir_eleve UNIQUE (id_devoir, id_eleve)
 );
 CREATE INDEX ix_elearning_remise_school_id ON elearning_remise (school_id);
@@ -1307,11 +1312,47 @@ CREATE TABLE elearning_quiz (
     titre                VARCHAR(200) NOT NULL,
     questions            JSONB,
     duree_minutes        INTEGER,
+    note_max             NUMERIC(6, 2) NOT NULL DEFAULT 20,
+    tentatives_max       INTEGER NOT NULL DEFAULT 3,
+    afficher_correction  BOOLEAN NOT NULL DEFAULT true,
     publie               BOOLEAN NOT NULL DEFAULT false,
     cree_par             UUID,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_elearning_quiz_school_id ON elearning_quiz (school_id);
+
+CREATE TABLE elearning_quiz_tentative (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_quiz              UUID NOT NULL REFERENCES elearning_quiz(id) ON DELETE CASCADE,
+    id_eleve             UUID NOT NULL,
+    reponses             JSONB,
+    score_brut           NUMERIC(8, 2),
+    score_max            NUMERIC(8, 2),
+    note                 NUMERIC(6, 2),
+    detail_correction    JSONB,
+    started_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at          TIMESTAMPTZ
+);
+CREATE INDEX ix_elearning_quiz_tentative_school_id ON elearning_quiz_tentative (school_id);
+CREATE INDEX ix_elearning_quiz_tentative_id_quiz ON elearning_quiz_tentative (id_quiz);
+CREATE INDEX ix_elearning_quiz_tentative_id_eleve ON elearning_quiz_tentative (id_eleve);
+
+CREATE TABLE elearning_ressource (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    id_classe            UUID,
+    id_matiere           UUID,
+    titre                VARCHAR(200) NOT NULL,
+    type_ressource       VARCHAR(30) NOT NULL DEFAULT 'lien',
+    url                  TEXT,
+    description          TEXT,
+    publie               BOOLEAN NOT NULL DEFAULT true,
+    cree_par             UUID,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_elearning_ressource_school_id ON elearning_ressource (school_id);
+CREATE INDEX ix_elearning_ressource_id_classe ON elearning_ressource (id_classe);
 
 CREATE TABLE otp_challenge (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
