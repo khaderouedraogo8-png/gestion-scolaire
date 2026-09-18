@@ -84,11 +84,9 @@ def test_onboard_creates_trial_subscription(client, super_headers, db):
     assert sub is not None
     assert sub.status == "trial"
 
-    listed = client.get("/api/platform/schools", headers=super_headers)
-    assert listed.status_code == 200
-    body = listed.get_json()
-    rows = body if isinstance(body, list) else body.get("items", [])
-    row = next(s for s in rows if s["id"] == school_id)
+    detail = client.get(f"/api/platform/schools/{school_id}", headers=super_headers)
+    assert detail.status_code == 200, detail.get_json()
+    row = detail.get_json()
     assert row.get("subscription_status") == "trial"
     assert row.get("plan_code") == "starter"
 
