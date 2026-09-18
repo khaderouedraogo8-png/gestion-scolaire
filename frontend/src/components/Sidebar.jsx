@@ -81,6 +81,13 @@ const menuItems = [
     roles: PLATFORM_ROLES,
     section: 'plateforme',
   },
+  {
+    label: 'Facturation SaaS',
+    path: '/platform/billing',
+    icon: 'finance',
+    roles: PLATFORM_ROLES,
+    section: 'plateforme',
+  },
   { label: 'Accueil', path: '/parent', icon: 'home', roles: ['parent'], section: 'parent' },
   {
     label: 'Programme pédagogique',

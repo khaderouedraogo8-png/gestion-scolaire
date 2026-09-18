@@ -662,6 +662,61 @@ CREATE TABLE paiement (
         REFERENCES annee_scolaire(id, school_id) ON DELETE CASCADE
 );
 
+
+-- ============================================================================
+-- SAAS COMMERCIAL — plans, abonnements, factures plateforme
+-- ============================================================================
+
+CREATE TABLE saas_plan (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code                 VARCHAR(40) NOT NULL UNIQUE,
+    name                 VARCHAR(120) NOT NULL,
+    description          TEXT,
+    price_xof            NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    billing_interval     VARCHAR(20) NOT NULL DEFAULT 'mensuel',
+    max_eleves           INTEGER,
+    trial_days           INTEGER NOT NULL DEFAULT 14,
+    grace_days           INTEGER NOT NULL DEFAULT 7,
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    sort_order           INTEGER NOT NULL DEFAULT 0,
+    created_at           TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE school_subscription (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    plan_id              UUID NOT NULL REFERENCES saas_plan(id) ON DELETE RESTRICT,
+    status               VARCHAR(20) NOT NULL DEFAULT 'trial',
+    trial_ends_at        DATE,
+    current_period_start DATE,
+    current_period_end   DATE,
+    grace_days           INTEGER NOT NULL DEFAULT 7,
+    notes                TEXT,
+    created_at           TIMESTAMPTZ DEFAULT now(),
+    updated_at           TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_school_subscription_school UNIQUE (school_id)
+);
+CREATE INDEX ix_school_subscription_school_id ON school_subscription (school_id);
+CREATE INDEX ix_school_subscription_plan_id ON school_subscription (plan_id);
+
+CREATE TABLE saas_invoice (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    subscription_id      UUID NOT NULL REFERENCES school_subscription(id) ON DELETE CASCADE,
+    number               VARCHAR(40) NOT NULL UNIQUE,
+    amount_xof           NUMERIC(12, 2) NOT NULL,
+    status               VARCHAR(20) NOT NULL DEFAULT 'issued',
+    period_start         DATE,
+    period_end           DATE,
+    due_at               DATE,
+    paid_at              TIMESTAMPTZ,
+    external_ref         VARCHAR(120),
+    notes                TEXT,
+    created_at           TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX ix_saas_invoice_school_id ON saas_invoice (school_id);
+CREATE INDEX ix_saas_invoice_subscription_id ON saas_invoice (subscription_id);
+
 CREATE TABLE school_setup_progress (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id            UUID NOT NULL UNIQUE REFERENCES schools(id) ON DELETE CASCADE,

@@ -151,6 +151,14 @@ def onboard_school(
         from app.services.evaluation_types import ensure_system_evaluation_types
 
         ensure_system_evaluation_types(db, school.id)
+        from app.services.billing import start_subscription_for_school
+
+        start_subscription_for_school(
+            school,
+            plan_code="starter",
+            actor_id=actor.id if actor else None,
+            db=db,
+        )
         db.commit()
     except IntegrityError:
         db.rollback()

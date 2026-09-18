@@ -7,6 +7,7 @@ from app.models.academic_results import (
     AcademicSubjectResult,
 )
 from app.models.audit import JournalAudit
+from app.models.billing import SaaSInvoice, SaaSPlan, SchoolSubscription
 from app.models.deerflow_modules import (
     AbsenceJustificatif,
     AdmissionDossier,
@@ -201,8 +202,11 @@ __all__ = [
     "RhConge",
     "RhContrat",
     "Salle",
+    "SaaSInvoice",
+    "SaaSPlan",
     "School",
     "SchoolSetupProgress",
+    "SchoolSubscription",
     "SeanceCours",
     "SortieEleve",
     "TransportArret",

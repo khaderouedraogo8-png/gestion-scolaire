@@ -80,6 +80,16 @@ export default function PlatformSchools() {
       header: 'Statut',
       render: (s) => (s.is_active ? 'Active' : 'Inactive'),
     },
+    {
+      key: 'plan_code',
+      header: 'Plan',
+      render: (s) => s.plan_code || '—',
+    },
+    {
+      key: 'subscription_status',
+      header: 'Abo',
+      render: (s) => s.subscription_status || '—',
+    },
     { key: 'users_count', header: 'Users' },
     { key: 'eleves_count', header: 'Élèves' },
     {

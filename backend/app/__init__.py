@@ -61,6 +61,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.otp_auth import blp as otp_auth_blp
     from app.routes.pedagogie import blp as pedagogie_blp
     from app.routes.platform import blp as platform_blp
+    from app.routes.platform_billing import blp as platform_billing_blp
     from app.routes.rh import blp as rh_blp
     from app.routes.schools import blp as schools_blp
     from app.routes.users import blp as users_blp
@@ -73,6 +74,7 @@ def create_app(config_name: str | None = None) -> Flask:
     api.register_blueprint(users_blp, url_prefix="/api/users")
     api.register_blueprint(schools_blp, url_prefix="/api/schools")
     api.register_blueprint(platform_blp, url_prefix="/api/platform")
+    api.register_blueprint(platform_billing_blp, url_prefix="/api/platform/billing")
     # Modules : préfixe explicite pour éviter les collisions sur /api/
     api.register_blueprint(etablissement_blp, url_prefix="/api/etablissement")
     api.register_blueprint(eleves_blp, url_prefix="/api/eleves")
@@ -167,6 +169,14 @@ def create_app(config_name: str | None = None) -> Flask:
             allow_null_school=True,
         )
         click.echo(f"SUPER_ADMIN créé : {email}")
+
+    @application.cli.command("expire-subscriptions")
+    def expire_subscriptions_command():
+        """Expire les abonnements SaaS (past_due → suspended + désactive l'école)."""
+        from app.services.billing import process_expirations
+
+        stats = process_expirations()
+        print(stats)
 
     @application.cli.command("relancer-arrieres")
     def relancer_arrieres_command():

@@ -83,6 +83,7 @@ import WhatsAppBotHelp from './pages/parent/WhatsAppBotHelp';
 
 import PlatformSchools from './pages/platform/PlatformSchools';
 import PlatformOnboarding from './pages/platform/PlatformOnboarding';
+import PlatformBilling from './pages/platform/PlatformBilling';
 
 import Cantine from './pages/vie-scolaire/Cantine';
 import Transport from './pages/vie-scolaire/Transport';
@@ -198,6 +199,10 @@ export const routes = [
       {
         path: 'platform/onboarding',
         element: guard(SUPER_ADMIN, <PlatformOnboarding />),
+      },
+      {
+        path: 'platform/billing',
+        element: guard(SUPER_ADMIN, <PlatformBilling />),
       },
       {
         path: 'parent',

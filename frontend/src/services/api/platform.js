@@ -50,4 +50,37 @@ export const platformApi = {
     const { data } = await apiClient.delete('/platform/context/school');
     return data;
   },
+
+  listPlans: async () => {
+    const { data } = await apiClient.get('/platform/billing/plans');
+    return data;
+  },
+  billingOps: async () => {
+    const { data } = await apiClient.get('/platform/billing/ops');
+    return data;
+  },
+  listSubscriptions: async (params = {}) => {
+    const { data } = await apiClient.get('/platform/billing/subscriptions', { params });
+    return data;
+  },
+  assignPlan: async (schoolId, payload) => {
+    const { data } = await apiClient.put(`/platform/billing/schools/${schoolId}/subscription`, payload);
+    return data;
+  },
+  listInvoices: async (schoolId) => {
+    const { data } = await apiClient.get(`/platform/billing/schools/${schoolId}/invoices`);
+    return data;
+  },
+  issueInvoice: async (schoolId, payload = {}) => {
+    const { data } = await apiClient.post(`/platform/billing/schools/${schoolId}/invoices`, payload);
+    return data;
+  },
+  payInvoice: async (invoiceId, payload = {}) => {
+    const { data } = await apiClient.post(`/platform/billing/invoices/${invoiceId}/pay`, payload);
+    return data;
+  },
+  expireSubscriptions: async () => {
+    const { data } = await apiClient.post('/platform/billing/expire');
+    return data;
+  },
 };

@@ -14,7 +14,9 @@ from app.auth.jwt_handler import build_access_token_for_user, get_current_user
 from app.auth.permissions import require_super_admin
 from app.extensions import get_db
 from app.models import Eleve, School, Utilisateur
+from app.models.billing import SchoolSubscription
 from app.schemas.auth import UserSchema
+from app.services.billing import subscription_snapshot
 from app.services.platform_schools import create_school_admin, onboard_school
 from app.services.tenant import reject_client_school_id
 from app.utils.audit_logger import log_audit
@@ -93,6 +95,16 @@ def _school_counts(db, school_id: uuid.UUID) -> dict:
 def _dump_school(school: School, db) -> dict:
     data = PlatformSchoolSchema().dump(school)
     data.update(_school_counts(db, school.id))
+    sub = (
+        db.query(SchoolSubscription)
+        .filter(SchoolSubscription.school_id == school.id)
+        .first()
+    )
+    snap = subscription_snapshot(sub)
+    data["subscription_status"] = snap["status"] if snap else None
+    data["plan_code"] = snap["plan"]["code"] if snap and snap.get("plan") else None
+    data["current_period_end"] = snap["current_period_end"] if snap else None
+    data["subscription"] = snap
     return data
 
 
